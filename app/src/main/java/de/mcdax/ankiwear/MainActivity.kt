@@ -146,7 +146,9 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
     SwipeDismissableNavHost(
         navController = nav,
         startDestination = "decks",
-        userSwipeEnabled = !(settings.swipeToRate && route?.startsWith("review") == true),
+        // Auf neuen Wear-OS-Versionen kommt das Zurückwischen als System-Geste vom Rand;
+        // Wisch-Bewertung in der Kartenmitte stört das nicht, daher immer an.
+        userSwipeEnabled = true,
     ) {
         composable("decks") {
             // Verlassen erschweren: erst zweimal Zurück innerhalb von 2 s schließt die App.
@@ -158,7 +160,9 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
                     exitArmed = false
                 }
             }
-            androidx.activity.compose.BackHandler {
+            // Nur aktiv, solange die Deckliste wirklich vorne ist (sie bleibt beim Wischen als Hintergrund komponiert).
+            // Zurück-Taste und Zurückwischen landen beide hier.
+            androidx.activity.compose.BackHandler(enabled = route == "decks") {
                 if (exitArmed) activity?.finish() else exitArmed = true
             }
             Box(Modifier.fillMaxSize()) {
@@ -491,10 +495,8 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                         detectHorizontalDragGestures(
                             onDragStart = { dx = 0f; fromEdge = it.x < 40.dp.toPx() },
                             onDragEnd = {
-                                if (fromEdge) {
-                                    if (dx > 60.dp.toPx()) onBack()
-                                    return@detectHorizontalDragGestures
-                                }
+                                // Wischen vom Rand gehört der Zurück-Geste des Systems.
+                                if (fromEdge) return@detectHorizontalDragGestures
                                 if (!revealed) return@detectHorizontalDragGestures
                                 val action = when {
                                     dx < -80.dp.toPx() -> settings.swipeLeft

@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Kein Wischen-zum-Schließen auf der Startseite: die App soll nicht versehentlich zugehen.
-         Zurück aus Unterseiten wischt weiterhin über den SwipeDismissableNavHost. -->
+    <!-- Zurückwischen bleibt System-Geste; auf der Deckliste fängt ein BackHandler sie ab
+         („nochmal zurück zum Beenden“). -->
     <style name="AppTheme" parent="@android:style/Theme.DeviceDefault">
-        <item name="android:windowSwipeToDismiss">false</item>
     </style>
 </resources>
