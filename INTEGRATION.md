@@ -41,9 +41,7 @@ store.current                           // außerhalb von Compose (Snapshot)
 
 ## Offene Punkte
 
-- **Medien „Nur gewählte Decks“** (`mediaMode = SELECTED`, `mediaDecks`): der Kern synchronisiert Medien nur komplett.
-  Derzeit lädt SELECTED deshalb wie ALL. Umsetzung braucht eigenen Abruf einzelner Dateien (Media.kt) für Notizen
-  der gewählten Decks. Auswahl der Decks gibt es schon (Einstellungen → Media decks).
+- Medien „Nur gewählte Decks“: auf Wunsch entfernt (Kern synchronisiert Medien nur komplett).
 - **Kontowechsel**: Meldet man sich bei einem anderen Konto/Server an, verlangt der nächste Sync meist einen
   Vollabgleich; der Download überschreibt dann die Sammlung auf der Uhr (nicht hochgeladene Bewertungen gehen verloren).
 - **Endpoint-Weiterleitung**: Liefert der Server bei `syncCollection` einen neuen Endpoint (`new_endpoint`), wird er
