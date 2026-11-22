@@ -125,10 +125,13 @@ class CardAudio(context: Context) {
     private val audioManager = context.getSystemService(AudioManager::class.java)
     private var player: MediaPlayer? = null
     private var queue = ArrayDeque<File>()
-    private var output = AudioOutput.BLUETOOTH
+    private var output = AudioOutput.BLUETOOTH_ONLY
 
     fun play(files: List<File>, output: AudioOutput) {
         stop()
+        // Nie, oder „nur Bluetooth“ ohne verbundene Kopfhörer: stumm bleiben statt über den Uhr-Lautsprecher.
+        if (output == AudioOutput.NEVER) return
+        if (output == AudioOutput.BLUETOOTH_ONLY && bluetoothDevice() == null) return
         this.output = output
         queue = ArrayDeque(files)
         next()
@@ -136,13 +139,15 @@ class CardAudio(context: Context) {
 
     /** Kopfhörer bevorzugen, wenn gewünscht und verbunden; sonst Uhr-Lautsprecher. */
     private fun preferredDevice(): AudioDeviceInfo? {
-        val devices = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty()
-        val bt = devices.firstOrNull {
+        val speaker = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty()
+            .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+        return bluetoothDevice() ?: if (output == AudioOutput.ALWAYS) speaker else null
+    }
+
+    fun bluetoothDevice(): AudioDeviceInfo? =
+        audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty().firstOrNull {
             it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
         }
-        val speaker = devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-        return if (output == AudioOutput.BLUETOOTH) bt ?: speaker else speaker
-    }
 
     private fun next() {
         val f = queue.removeFirstOrNull() ?: return

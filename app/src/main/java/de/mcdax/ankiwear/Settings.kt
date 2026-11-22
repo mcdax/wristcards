@@ -13,10 +13,10 @@ enum class FontSize { SMALL, NORMAL, LARGE }
 /** Erklärung/Extra-Feld auf der Rückseite. */
 enum class ExtraMode { SHOW, COLLAPSED, HIDE }
 
-enum class AudioMode { AUTO, ON_TAP, OFF }
+enum class AudioMode { AUTO, ON_TAP }
 
 /** BLUETOOTH heißt: Kopfhörer bevorzugen, ohne verbundene Kopfhörer den Uhr-Lautsprecher nehmen. */
-enum class AudioOutput { SPEAKER, BLUETOOTH }
+enum class AudioOutput { NEVER, BLUETOOTH_ONLY, ALWAYS }
 
 enum class MediaMode { ALL, NONE }
 
@@ -25,7 +25,7 @@ data class AppSettings(
     val fontSize: FontSize = FontSize.NORMAL,
     val extraMode: ExtraMode = ExtraMode.SHOW,
     val audioMode: AudioMode = AudioMode.AUTO,
-    val audioOutput: AudioOutput = AudioOutput.BLUETOOTH,
+    val audioOutput: AudioOutput = AudioOutput.BLUETOOTH_ONLY,
     val vibrateOnRate: Boolean = true,
     val vibrateOnDeckDone: Boolean = true,
     // Wischen links = Nochmal, rechts = Gut
@@ -118,7 +118,15 @@ private fun read(p: SharedPreferences): AppSettings {
         fontSize = enum("fontSize", d.fontSize, FontSize.entries.toTypedArray()),
         extraMode = enum("extraMode", d.extraMode, ExtraMode.entries.toTypedArray()),
         audioMode = enum("audioMode", d.audioMode, AudioMode.entries.toTypedArray()),
-        audioOutput = enum("audioOutput", d.audioOutput, AudioOutput.entries.toTypedArray()),
+        // Ältere Werte übernehmen: Audio "OFF" → Never, "BLUETOOTH" → nur Bluetooth, "SPEAKER" → immer.
+        audioOutput = when {
+            p.getString("audioMode", null) == "OFF" -> AudioOutput.NEVER
+            else -> when (p.getString("audioOutput", null)) {
+                "BLUETOOTH" -> AudioOutput.BLUETOOTH_ONLY
+                "SPEAKER" -> AudioOutput.ALWAYS
+                else -> enum("audioOutput", d.audioOutput, AudioOutput.entries.toTypedArray())
+            }
+        },
         vibrateOnRate = p.getBoolean("vibrateOnRate", d.vibrateOnRate),
         vibrateOnDeckDone = p.getBoolean("vibrateOnDeckDone", d.vibrateOnDeckDone),
         swipeToRate = p.getBoolean("swipeToRate", d.swipeToRate),

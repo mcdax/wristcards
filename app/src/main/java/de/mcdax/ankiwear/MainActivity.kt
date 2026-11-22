@@ -194,7 +194,7 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
                 // Bewertungen gleich hochladen, damit sie bei einem späteren Vollabgleich nicht verloren gehen.
                 onDispose { if (store.current.syncOnDeckExit) runSync() } // [settings] Auto-Sync nach dem Deck
             }
-            ReviewScreen(repo, deck)
+            ReviewScreen(repo, deck, onBack = { nav.popBackStack() })
         }
         composable("preview/{cardId}") { entry ->
             val cid = entry.arguments?.getString("cardId")?.toLongOrNull() ?: return@composable
@@ -394,7 +394,7 @@ private fun DeckRow(
 }
 
 @Composable
-private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard: Long? = null) {
+private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard: Long? = null, onBack: () -> Unit = {}) {
     val c = LocalAnkiColors.current
     val scope = rememberCoroutineScope()
     val ratingFailed = stringResource(R.string.rating_failed)
@@ -481,12 +481,19 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 .verticalScroll(scroll)
                 .clickable(enabled = current != null && !revealed) { revealed = true }
                 // Wisch-Abkürzung: links = Nochmal, rechts = Gut (nur aufgedeckt, nur wenn eingeschaltet).
+                // Wischen vom linken Rand bleibt „zurück zur Deckliste“, wie überall in Wear OS.
                 .then(
-                    if (settings.swipeToRate && revealed && current != null) Modifier.pointerInput(current) {
+                    if (settings.swipeToRate && current != null) Modifier.pointerInput(current, revealed) {
                         var dx = 0f
+                        var fromEdge = false
                         detectHorizontalDragGestures(
-                            onDragStart = { dx = 0f },
+                            onDragStart = { dx = 0f; fromEdge = it.x < 40.dp.toPx() },
                             onDragEnd = {
+                                if (fromEdge) {
+                                    if (dx > 60.dp.toPx()) onBack()
+                                    return@detectHorizontalDragGestures
+                                }
+                                if (!revealed) return@detectHorizontalDragGestures
                                 val rating = when {
                                     dx < -80.dp.toPx() -> CardAnswer.Rating.AGAIN
                                     dx > 80.dp.toPx() -> CardAnswer.Rating.GOOD
@@ -552,18 +559,19 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             visible = swipeNote != null,
             enter = androidx.compose.animation.fadeIn(),
             exit = androidx.compose.animation.fadeOut(),
-            modifier = Modifier.align(Alignment.Center),
+            // Unten, klein: über dem unteren Rand, wo nach dem Bewerten die Vorderseite noch Platz hat.
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
         ) {
             val (text, color) = swipeNote ?: ("" to c.text)
             Text(
                 text,
                 color = color,
-                fontSize = 16.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
                     .background(c.surface.copy(alpha = 0.95f))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
             )
         }
     }
@@ -588,7 +596,7 @@ private fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
     var i = 0
     while (i < blocks.size) {
         val b = blocks[i]
-        if (b is Block.Audio && LocalSettings.current.audioMode == AudioMode.OFF) {
+        if (b is Block.Audio && LocalSettings.current.audioOutput == AudioOutput.NEVER) {
             i++
             continue
         }

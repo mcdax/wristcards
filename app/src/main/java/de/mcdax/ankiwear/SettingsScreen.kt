@@ -89,12 +89,12 @@ private val extraChoice = Choice(
 )
 private val audioChoice = Choice(
     "audio", R.string.set_audio,
-    listOf(AudioMode.AUTO to R.string.opt_auto, AudioMode.ON_TAP to R.string.opt_on_tap, AudioMode.OFF to R.string.opt_off),
+    listOf(AudioMode.AUTO to R.string.opt_auto, AudioMode.ON_TAP to R.string.opt_on_tap),
     { it.audioMode }, { s, v -> s.copy(audioMode = v) },
 )
 private val audioOutputChoice = Choice(
     "audio_out", R.string.set_audio_output,
-    listOf(AudioOutput.BLUETOOTH to R.string.opt_bluetooth, AudioOutput.SPEAKER to R.string.opt_speaker),
+    listOf(AudioOutput.NEVER to R.string.opt_never, AudioOutput.BLUETOOTH_ONLY to R.string.opt_bt_only, AudioOutput.ALWAYS to R.string.opt_always),
     { it.audioOutput }, { s, v -> s.copy(audioOutput = v) },
 )
 private val buttonsChoice = Choice(
@@ -124,8 +124,8 @@ private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
         item { Group(R.string.group_study) }
         item { ChoiceRow(fontSizeChoice, s, onNavigate) }
         item { ChoiceRow(extraChoice, s, onNavigate) }
-        item { ChoiceRow(audioChoice, s, onNavigate) }
-        if (s.audioMode != AudioMode.OFF) item { ChoiceRow(audioOutputChoice, s, onNavigate) }
+        item { ChoiceRow(audioOutputChoice, s, onNavigate) }
+        if (s.audioOutput != AudioOutput.NEVER) item { ChoiceRow(audioChoice, s, onNavigate) }
         item { Toggle(R.string.set_vibrate_rate, s.vibrateOnRate) { v -> store.update { it.copy(vibrateOnRate = v) } } }
         item { Toggle(R.string.set_vibrate_done, s.vibrateOnDeckDone) { v -> store.update { it.copy(vibrateOnDeckDone = v) } } }
         item {

@@ -22,8 +22,8 @@
     <string name="group_decks">Deck list</string>
     <string name="set_font_size">Card text size</string>
     <string name="set_extra">Extra / explanation</string>
-    <string name="set_audio">Audio</string>
-    <string name="set_audio_output">Audio output</string>
+    <string name="set_audio">Audio start</string>
+    <string name="set_audio_output">Play audio</string>
     <string name="set_vibrate_rate">Vibrate on rating</string>
     <string name="set_vibrate_done">Vibrate when deck done</string>
     <string name="set_swipe">Swipe to rate</string>
@@ -58,6 +58,9 @@
     <string name="opt_auto">Play automatically</string>
     <string name="opt_on_tap">Only on tap</string>
     <string name="opt_off">Off</string>
+    <string name="opt_never">Never</string>
+    <string name="opt_bt_only">Bluetooth only</string>
+    <string name="opt_always">Always (speaker if no Bluetooth)</string>
     <string name="opt_bluetooth">Bluetooth headphones</string>
     <string name="opt_speaker">Watch speaker</string>
     <string name="opt_four_buttons">4 grades</string>
