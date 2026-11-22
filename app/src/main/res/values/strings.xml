@@ -26,13 +26,20 @@
     <string name="set_audio_output">Play audio</string>
     <string name="set_vibrate_rate">Vibrate on rating</string>
     <string name="set_vibrate_done">Vibrate when deck done</string>
-    <string name="set_swipe">Swipe to rate</string>
-    <string name="set_swipe_hint">Left = Again, right = Good</string>
+    <string name="set_swipe_left">Swipe left</string>
+    <string name="set_swipe_right">Swipe right</string>
+    <string name="set_swipe_hint">Swipes work on the answer side. Swipe from the left edge to go back.</string>
+    <string name="opt_again">Again</string>
+    <string name="opt_hard">Hard</string>
+    <string name="opt_good">Good</string>
+    <string name="opt_easy">Easy</string>
     <string name="set_swipe_feedback">Show swipe rating</string>
     <string name="set_swipe_feedback_hint">Brief note which rating was given</string>
     <string name="back_again_to_exit">Press back again to exit</string>
     <string name="rated_again">✕ Again</string>
+    <string name="rated_hard">– Hard</string>
     <string name="rated_good">✓ Good</string>
+    <string name="rated_easy">★ Easy</string>
     <string name="set_buttons">Answer buttons</string>
     <string name="set_intervals">Show intervals</string>
     <string name="set_keep_screen_on">Keep screen on</string>

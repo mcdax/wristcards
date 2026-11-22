@@ -18,6 +18,9 @@ enum class AudioMode { AUTO, ON_TAP }
 /** BLUETOOTH heißt: Kopfhörer bevorzugen, ohne verbundene Kopfhörer den Uhr-Lautsprecher nehmen. */
 enum class AudioOutput { NEVER, BLUETOOTH_ONLY, ALWAYS }
 
+/** Was ein Wisch über die aufgedeckte Karte bewirkt. */
+enum class SwipeAction { NONE, AGAIN, HARD, GOOD, EASY }
+
 enum class MediaMode { ALL, NONE }
 
 data class AppSettings(
@@ -29,7 +32,8 @@ data class AppSettings(
     val vibrateOnRate: Boolean = true,
     val vibrateOnDeckDone: Boolean = true,
     // Wischen links = Nochmal, rechts = Gut
-    val swipeToRate: Boolean = false,
+    val swipeLeft: SwipeAction = SwipeAction.NONE,
+    val swipeRight: SwipeAction = SwipeAction.NONE,
     // Kurze Einblendung, welche Bewertung per Wischen vergeben wurde
     val swipeFeedback: Boolean = true,
     val twoButtons: Boolean = false,
@@ -49,6 +53,8 @@ data class AppSettings(
     // Decks, deren Klappzustand vom Standard abweicht
     val toggledDecks: Set<Long> = emptySet(),
 ) {
+    val swipeToRate: Boolean get() = swipeLeft != SwipeAction.NONE || swipeRight != SwipeAction.NONE
+
     fun isCollapsed(deckId: Long) = collapseSubdecks != (deckId in toggledDecks)
 }
 
@@ -89,7 +95,8 @@ class SettingsStore private constructor(context: Context) {
             .putString("audioOutput", s.audioOutput.name)
             .putBoolean("vibrateOnRate", s.vibrateOnRate)
             .putBoolean("vibrateOnDeckDone", s.vibrateOnDeckDone)
-            .putBoolean("swipeToRate", s.swipeToRate)
+            .putString("swipeLeft", s.swipeLeft.name)
+            .putString("swipeRight", s.swipeRight.name)
             .putBoolean("swipeFeedback", s.swipeFeedback)
             .putBoolean("twoButtons", s.twoButtons)
             .putBoolean("showIntervals", s.showIntervals)
@@ -129,7 +136,11 @@ private fun read(p: SharedPreferences): AppSettings {
         },
         vibrateOnRate = p.getBoolean("vibrateOnRate", d.vibrateOnRate),
         vibrateOnDeckDone = p.getBoolean("vibrateOnDeckDone", d.vibrateOnDeckDone),
-        swipeToRate = p.getBoolean("swipeToRate", d.swipeToRate),
+        // Früherer Schalter "swipeToRate" entsprach links = Nochmal, rechts = Gut.
+        swipeLeft = if (p.getBoolean("swipeToRate", false) && !p.contains("swipeLeft")) SwipeAction.AGAIN
+            else enum("swipeLeft", d.swipeLeft, SwipeAction.entries.toTypedArray()),
+        swipeRight = if (p.getBoolean("swipeToRate", false) && !p.contains("swipeRight")) SwipeAction.GOOD
+            else enum("swipeRight", d.swipeRight, SwipeAction.entries.toTypedArray()),
         swipeFeedback = p.getBoolean("swipeFeedback", d.swipeFeedback),
         twoButtons = p.getBoolean("twoButtons", d.twoButtons),
         showIntervals = p.getBoolean("showIntervals", d.showIntervals),

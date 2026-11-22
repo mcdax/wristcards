@@ -97,6 +97,15 @@ private val audioOutputChoice = Choice(
     listOf(AudioOutput.NEVER to R.string.opt_never, AudioOutput.BLUETOOTH_ONLY to R.string.opt_bt_only, AudioOutput.ALWAYS to R.string.opt_always),
     { it.audioOutput }, { s, v -> s.copy(audioOutput = v) },
 )
+private val swipeOptions = listOf(
+    SwipeAction.NONE to R.string.opt_off,
+    SwipeAction.AGAIN to R.string.opt_again,
+    SwipeAction.HARD to R.string.opt_hard,
+    SwipeAction.GOOD to R.string.opt_good,
+    SwipeAction.EASY to R.string.opt_easy,
+)
+private val swipeLeftChoice = Choice("swipe_left", R.string.set_swipe_left, swipeOptions, { it.swipeLeft }, { s, v -> s.copy(swipeLeft = v) })
+private val swipeRightChoice = Choice("swipe_right", R.string.set_swipe_right, swipeOptions, { it.swipeRight }, { s, v -> s.copy(swipeRight = v) })
 private val buttonsChoice = Choice(
     "buttons", R.string.set_buttons,
     listOf(false to R.string.opt_four_buttons, true to R.string.opt_two_buttons),
@@ -108,7 +117,7 @@ private val mediaChoice = Choice(
     { it.mediaMode }, { s, v -> s.copy(mediaMode = v) },
 )
 private val choices: List<Choice<*>> =
-    listOf(fontSizeChoice, extraChoice, audioChoice, audioOutputChoice, buttonsChoice, mediaChoice)
+    listOf(fontSizeChoice, extraChoice, audioChoice, audioOutputChoice, swipeLeftChoice, swipeRightChoice, buttonsChoice, mediaChoice)
 
 @Composable
 private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
@@ -128,9 +137,9 @@ private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
         if (s.audioOutput != AudioOutput.NEVER) item { ChoiceRow(audioChoice, s, onNavigate) }
         item { Toggle(R.string.set_vibrate_rate, s.vibrateOnRate) { v -> store.update { it.copy(vibrateOnRate = v) } } }
         item { Toggle(R.string.set_vibrate_done, s.vibrateOnDeckDone) { v -> store.update { it.copy(vibrateOnDeckDone = v) } } }
-        item {
-            Toggle(R.string.set_swipe, s.swipeToRate, R.string.set_swipe_hint) { v -> store.update { it.copy(swipeToRate = v) } }
-        }
+        item { ChoiceRow(swipeLeftChoice, s, onNavigate) }
+        item { ChoiceRow(swipeRightChoice, s, onNavigate) }
+        if (s.swipeToRate) item { Note(R.string.set_swipe_hint) }
         if (s.swipeToRate) item {
             Toggle(R.string.set_swipe_feedback, s.swipeFeedback, R.string.set_swipe_feedback_hint) { v -> store.update { it.copy(swipeFeedback = v) } }
         }

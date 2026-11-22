@@ -412,8 +412,10 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     var extraOpen by remember { mutableStateOf(false) }
     // Einblendung nach Bewertung per Wischen: Text und Farbe
     var swipeNote by remember { mutableStateOf<Pair<String, Color>?>(null) }
-    val againLabel = stringResource(R.string.rated_again)
-    val goodLabel = stringResource(R.string.rated_good)
+    val ratedLabels = listOf(
+        stringResource(R.string.rated_again), stringResource(R.string.rated_hard),
+        stringResource(R.string.rated_good), stringResource(R.string.rated_easy),
+    )
     LaunchedEffect(swipeNote) {
         if (swipeNote != null) {
             kotlinx.coroutines.delay(800)
@@ -494,19 +496,25 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                                     return@detectHorizontalDragGestures
                                 }
                                 if (!revealed) return@detectHorizontalDragGestures
-                                val rating = when {
-                                    dx < -80.dp.toPx() -> CardAnswer.Rating.AGAIN
-                                    dx > 80.dp.toPx() -> CardAnswer.Rating.GOOD
-                                    else -> null
+                                val action = when {
+                                    dx < -80.dp.toPx() -> settings.swipeLeft
+                                    dx > 80.dp.toPx() -> settings.swipeRight
+                                    else -> SwipeAction.NONE
                                 }
-                                if (rating != null) {
-                                    if (settings.swipeFeedback) {
-                                        val again = rating == CardAnswer.Rating.AGAIN
-                                        val interval = current.intervals.getOrNull(if (again) 0 else 2).orEmpty()
-                                        swipeNote = "${if (again) againLabel else goodLabel}  $interval" to (if (again) c.again else c.good)
-                                    }
-                                    rate(current, rating)
+                                // Index wie bei den Knöpfen: Nochmal, Schwer, Gut, Leicht
+                                val idx = when (action) {
+                                    SwipeAction.AGAIN -> 0
+                                    SwipeAction.HARD -> 1
+                                    SwipeAction.GOOD -> 2
+                                    SwipeAction.EASY -> 3
+                                    SwipeAction.NONE -> return@detectHorizontalDragGestures
                                 }
+                                val rating = listOf(CardAnswer.Rating.AGAIN, CardAnswer.Rating.HARD, CardAnswer.Rating.GOOD, CardAnswer.Rating.EASY)[idx]
+                                if (settings.swipeFeedback) {
+                                    val color = listOf(c.again, c.hard, c.good, c.easy)[idx]
+                                    swipeNote = "${ratedLabels[idx]}  ${current.intervals.getOrNull(idx).orEmpty()}" to color
+                                }
+                                rate(current, rating)
                             },
                         ) { _, amount -> dx += amount }
                     } else Modifier,
