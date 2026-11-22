@@ -92,4 +92,7 @@
     <string name="deck_hide">Hide deck</string>
     <string name="deck_expand">Expand subdecks</string>
     <string name="deck_collapse">Collapse subdecks</string>
+    <string name="complication_name">Anki: cards due</string>
+    <string name="complication_desc">%1$d Anki cards due</string>
+    <string name="complication_long">%1$d new · %2$d learn · %3$d due</string>
 </resources>

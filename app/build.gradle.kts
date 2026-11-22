@@ -50,4 +50,5 @@ dependencies {
     implementation("androidx.wear.compose:compose-foundation:1.7.2")
     implementation("androidx.wear.compose:compose-navigation:1.7.2")
     implementation("com.caverock:androidsvg-aar:1.4")
+    implementation("androidx.wear.watchface:watchface-complications-data-source-ktx:1.3.0")
 }

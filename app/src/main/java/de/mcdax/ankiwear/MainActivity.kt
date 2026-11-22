@@ -117,6 +117,8 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
     // [settings] Uhr-Einstellungen
     val store = remember { SettingsStore.get(context) }
     val settings by store.flow.collectAsState()
+    // Ausgeblendete Decks zählen in der Zifferblatt-Komplikation nicht mit.
+    LaunchedEffect(settings.hiddenDecks) { refreshDueComplication(context) }
 
     fun runSync() {
         if (sync == SyncState.Running) return

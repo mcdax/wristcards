@@ -206,8 +206,8 @@ class AnkiRepository private constructor(private val context: Context) {
             else ->
                 return SyncResult.Failed(context.getString(R.string.unknown_sync, result.required.toString()))
         }
-        // [settings] Medien: „Nur gewählte Decks“ kann der Kern nicht, lädt vorerst wie „Alles“ (siehe INTEGRATION.md).
         if (settings.current.mediaMode != MediaMode.NONE) syncMedia(auth)
+        refreshDueComplication(context)
         return SyncResult.Ok
     }
 
@@ -281,5 +281,6 @@ class AnkiRepository private constructor(private val context: Context) {
                 .setMillisecondsTaken((now - card.shownAtMillis).coerceAtMost(60_000).toInt())
                 .build()
         )
+        refreshDueComplication(context)
     }
 }
