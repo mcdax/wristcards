@@ -18,7 +18,7 @@ enum class AudioMode { AUTO, ON_TAP, OFF }
 /** BLUETOOTH heißt: Kopfhörer bevorzugen, ohne verbundene Kopfhörer den Uhr-Lautsprecher nehmen. */
 enum class AudioOutput { SPEAKER, BLUETOOTH }
 
-enum class MediaMode { ALL, SELECTED, NONE }
+enum class MediaMode { ALL, NONE }
 
 data class AppSettings(
     // Lernen
@@ -39,7 +39,6 @@ data class AppSettings(
     // Aus: erst WLAN versuchen, sonst über Handy/LTE (bisheriges Verhalten)
     val wifiOnly: Boolean = false,
     val mediaMode: MediaMode = MediaMode.ALL,
-    val mediaDecks: Set<Long> = emptySet(),
     // Deckliste
     val hideEmptyDecks: Boolean = false,
     val pinnedDecks: Set<Long> = emptySet(),
@@ -96,7 +95,6 @@ class SettingsStore private constructor(context: Context) {
             .putBoolean("syncOnDeckExit", s.syncOnDeckExit)
             .putBoolean("wifiOnly", s.wifiOnly)
             .putString("mediaMode", s.mediaMode.name)
-            .putStringSet("mediaDecks", s.mediaDecks.str())
             .putBoolean("hideEmptyDecks", s.hideEmptyDecks)
             .putStringSet("pinnedDecks", s.pinnedDecks.str())
             .putStringSet("hiddenDecks", s.hiddenDecks.str())
@@ -128,7 +126,6 @@ private fun read(p: SharedPreferences): AppSettings {
         syncOnDeckExit = p.getBoolean("syncOnDeckExit", d.syncOnDeckExit),
         wifiOnly = p.getBoolean("wifiOnly", d.wifiOnly),
         mediaMode = enum("mediaMode", d.mediaMode, MediaMode.entries.toTypedArray()),
-        mediaDecks = ids("mediaDecks", d.mediaDecks),
         hideEmptyDecks = p.getBoolean("hideEmptyDecks", d.hideEmptyDecks),
         pinnedDecks = ids("pinnedDecks", d.pinnedDecks),
         hiddenDecks = ids("hiddenDecks", d.hiddenDecks),

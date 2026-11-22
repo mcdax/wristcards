@@ -37,7 +37,6 @@
     <string name="set_wifi_only">Wi-Fi only</string>
     <string name="set_wifi_only_hint">Off: fall back to phone / LTE</string>
     <string name="set_media">Download media</string>
-    <string name="set_media_decks">Media decks</string>
     <string name="set_account">Server &amp; account</string>
     <string name="set_hide_empty">Hide empty decks</string>
     <string name="set_collapse">Collapse subdecks</string>
@@ -59,7 +58,6 @@
     <string name="opt_four_buttons">4 grades</string>
     <string name="opt_two_buttons">Again / Good</string>
     <string name="opt_all">Everything</string>
-    <string name="opt_selected_decks">Selected decks</string>
     <string name="opt_none">None</string>
     <string name="field_server">Server URL (empty = AnkiWeb)</string>
     <string name="field_user">User</string>

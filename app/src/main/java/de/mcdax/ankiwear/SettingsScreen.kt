@@ -63,9 +63,7 @@ fun NavGraphBuilder.settingsGraph(nav: NavHostController, repo: AnkiRepository, 
         ChoiceScreen(choice, onDone = { nav.popBackStack() })
     }
     composable("settings/account") { AccountScreen(repo, onDone = { nav.popBackStack() }) }
-    composable("settings/decks/{which}") { entry ->
-        DeckPickScreen(hidden = entry.arguments?.getString("which") == "hidden", decks = decks())
-    }
+    composable("settings/decks/hidden") { DeckPickScreen(decks = decks()) }
 }
 
 /** Einstellung mit festen Auswahlwerten; der Wert steht als zweite Zeile unter dem Titel. */
@@ -106,7 +104,7 @@ private val buttonsChoice = Choice(
 )
 private val mediaChoice = Choice(
     "media", R.string.set_media,
-    listOf(MediaMode.ALL to R.string.opt_all, MediaMode.SELECTED to R.string.opt_selected_decks, MediaMode.NONE to R.string.opt_none),
+    listOf(MediaMode.ALL to R.string.opt_all, MediaMode.NONE to R.string.opt_none),
     { it.mediaMode }, { s, v -> s.copy(mediaMode = v) },
 )
 private val choices: List<Choice<*>> =
@@ -143,11 +141,6 @@ private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
         if (!s.syncOnOpen && !s.syncOnDeckExit) item { Note(R.string.set_sync_manual_hint) }
         item { Toggle(R.string.set_wifi_only, s.wifiOnly, R.string.set_wifi_only_hint) { v -> store.update { it.copy(wifiOnly = v) } } }
         item { ChoiceRow(mediaChoice, s, onNavigate) }
-        if (s.mediaMode == MediaMode.SELECTED) {
-            item {
-                NavRow(R.string.set_media_decks, stringResource(R.string.deck_count, s.mediaDecks.size)) { onNavigate("settings/decks/media") }
-            }
-        }
         item {
             val label = when (account) {
                 is Account.SignedIn -> account.user
@@ -196,24 +189,20 @@ private fun ChoiceScreen(choice: Choice<*>, onDone: () -> Unit) {
     }
 }
 
-/** Decks ein-/ausschalten: ausgeblendete Decks oder Decks, deren Medien geladen werden. */
+/** Ausgeblendete Decks ein-/ausschalten. */
 @Composable
-private fun DeckPickScreen(hidden: Boolean, decks: List<DeckTreeNode>) {
+private fun DeckPickScreen(decks: List<DeckTreeNode>) {
     val context = LocalContext.current
     val store = remember { SettingsStore.get(context) }
     val s by store.flow.collectAsState()
     SettingsList {
-        item { Header(if (hidden) R.string.set_hidden_decks else R.string.set_media_decks) }
-        if (hidden) item { Note(R.string.hidden_decks_hint) }
+        item { Header(R.string.set_hidden_decks) }
+        item { Note(R.string.hidden_decks_hint) }
         items(decks, key = { it.deckId }) { deck ->
-            val set = if (hidden) s.hiddenDecks else s.mediaDecks
             SwitchButton(
-                checked = deck.deckId in set,
+                checked = deck.deckId in s.hiddenDecks,
                 onCheckedChange = {
-                    store.update {
-                        if (hidden) it.copy(hiddenDecks = it.hiddenDecks.toggle(deck.deckId))
-                        else it.copy(mediaDecks = it.mediaDecks.toggle(deck.deckId))
-                    }
+                    store.update { it.copy(hiddenDecks = it.hiddenDecks.toggle(deck.deckId)) }
                 },
                 colors = switchColors(),
                 modifier = Modifier.fillMaxWidth().padding(start = 8.dp * (deck.level - 1)),
