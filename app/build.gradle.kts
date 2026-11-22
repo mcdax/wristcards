@@ -49,4 +49,5 @@ dependencies {
     implementation("androidx.wear.compose:compose-material3:1.7.2")
     implementation("androidx.wear.compose:compose-foundation:1.7.2")
     implementation("androidx.wear.compose:compose-navigation:1.7.2")
+    implementation("com.caverock:androidsvg-aar:1.4")
 }

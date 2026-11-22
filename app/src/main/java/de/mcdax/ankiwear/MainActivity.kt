@@ -1,6 +1,16 @@
 package de.mcdax.ankiwear
 
 import android.os.Bundle
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableFloatStateOf
@@ -76,7 +86,8 @@ class MainActivity : ComponentActivity() {
         val variant = intent.getIntExtra("theme", 0).coerceIn(themeVariants.indices)
         // Für Screenshots im Emulator: --es deck <Name> öffnet das Deck direkt.
         val openDeck = intent.getStringExtra("deck")
-        setContent { AnkiTheme(themeVariants[variant]) { App(openDeck) } }
+        val previewCard = intent.getLongExtra("card", 0L).takeIf { it != 0L }
+        setContent { AnkiTheme(themeVariants[variant]) { App(openDeck, previewCard) } }
     }
 }
 
@@ -88,7 +99,7 @@ private sealed interface SyncState {
 }
 
 @Composable
-private fun App(openDeck: String? = null) {
+private fun App(openDeck: String? = null, previewCard: Long? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repo = remember { AnkiRepository.get(context) }
@@ -112,7 +123,10 @@ private fun App(openDeck: String? = null) {
 
     LaunchedEffect(Unit) {
         decks = repo.decks()
-        decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") } ?: runSync()
+        when {
+            previewCard != null -> nav.navigate("preview/$previewCard")
+            else -> decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") } ?: runSync()
+        }
     }
 
     // Wischen nach rechts zeigt beim Zurückgehen die Deckliste darunter, statt eines schwarzen Bildschirms.
@@ -128,6 +142,10 @@ private fun App(openDeck: String? = null) {
                 onDispose { runSync() }
             }
             ReviewScreen(repo, deck)
+        }
+        composable("preview/{cardId}") { entry ->
+            val cid = entry.arguments?.getString("cardId")?.toLongOrNull() ?: return@composable
+            ReviewScreen(repo, deck = null, previewCard = cid)
         }
     }
 }
@@ -255,7 +273,7 @@ private fun DeckRow(deck: DeckTreeNode, onOpen: (DeckTreeNode) -> Unit) {
 }
 
 @Composable
-private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode) {
+private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard: Long? = null) {
     val c = LocalAnkiColors.current
     val scope = rememberCoroutineScope()
     val ratingFailed = stringResource(R.string.rating_failed)
@@ -266,16 +284,26 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode) {
     var error by remember { mutableStateOf<String?>(null) }
     val scroll = rememberScrollState()
     val focus = remember { FocusRequester() }
+    val audio = remember { CardAudio() }
+    var zoomed by remember { mutableStateOf<ImageBitmap?>(null) }
+    DisposableEffect(Unit) { onDispose { audio.stop() } }
 
-    LaunchedEffect(deck.deckId) {
-        repo.selectDeck(deck.deckId)
-        card = repo.nextCard()
+    LaunchedEffect(deck?.deckId, previewCard) {
+        card = if (previewCard != null) {
+            repo.cardById(previewCard)
+        } else {
+            deck?.let { repo.selectDeck(it.deckId) }
+            repo.nextCard()
+        }
         loaded = true
     }
     // Neue Karte oder aufgedeckt: oben anfangen, Krone wieder auf den Text lenken.
     LaunchedEffect(revealed, card?.queued?.card?.id) {
         scroll.scrollTo(0)
         focus.requestFocus()
+        // Wie Anki: beim Zeigen einer Seite deren Audio automatisch abspielen.
+        val side = card?.let { if (revealed) it.answer else it.question } ?: return@LaunchedEffect
+        audio.play(side.audioIndexes().mapNotNull { side.audio.getOrNull(it)?.let(repo::mediaFile) })
     }
 
     fun rate(current: ReviewCard, rating: CardAnswer.Rating) {
@@ -283,6 +311,8 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode) {
         busy = true
         scope.launch {
             try {
+                // Vorschau bewertet nichts.
+                if (previewCard != null) return@launch
                 repo.answer(current, rating)
                 card = repo.nextCard()
                 revealed = false
@@ -309,16 +339,16 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode) {
         ) {
             when {
                 !loaded -> CenterNote(stringResource(R.string.loading))
-                current == null -> CenterNote(stringResource(R.string.done, deck.name))
-                !revealed -> {
-                    CardBody(current.question.main.withClozeColors(c.hintBg, c.hintFg))
-                    current.question.hints.forEach { HintChip(it) }
-                }
+                current == null -> CenterNote(stringResource(R.string.done, deck?.name.orEmpty()))
                 else -> {
-                    CardBody(current.answer.main.withClozeColors(c.answerBg, c.answerFg))
-                    current.answer.extra?.let { extra ->
+                    val side = if (revealed) current.answer else current.question
+                    val cloze = if (revealed) c.answerBg to c.answerFg else c.hintBg to c.hintFg
+                    val ctx = BlockContext(repo, side, audio, cloze, onZoom = { zoomed = it })
+                    Blocks(side.main, ctx, dim = false)
+                    side.hints.forEach { HintChip(it) }
+                    if (side.extra.isNotEmpty()) {
                         Box(Modifier.fillMaxWidth().height(1.dp).background(c.surface))
-                        Text(extra, color = c.textDim, fontSize = 14.sp, lineHeight = 19.sp)
+                        Blocks(side.extra, ctx, dim = true)
                     }
                 }
             }
@@ -333,6 +363,135 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode) {
             )
             GradeBar(current.intervals, enabled = !busy) { rate(current, it) }
         }
+        zoomed?.let { ZoomOverlay(it) { zoomed = null } }
+    }
+}
+
+/** Was die Bausteine einer Seite zum Darstellen brauchen. */
+private class BlockContext(
+    val repo: AnkiRepository,
+    val side: CardSide,
+    val audio: CardAudio,
+    val cloze: Pair<Color, Color>,
+    val onZoom: (ImageBitmap) -> Unit,
+)
+
+private fun CardSide.audioIndexes(): List<Int> =
+    (main + extra).filterIsInstance<Block.Audio>().map { it.index }
+
+@Composable
+private fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
+    val c = LocalAnkiColors.current
+    // Mehrere Audio-Knöpfe hintereinander in einer Zeile sammeln.
+    var i = 0
+    while (i < blocks.size) {
+        val b = blocks[i]
+        if (b is Block.Audio) {
+            val run = blocks.drop(i).takeWhile { it is Block.Audio }.map { (it as Block.Audio).index }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                run.forEach { idx -> AudioButton(idx, ctx) }
+            }
+            i += run.size
+            continue
+        }
+        when (b) {
+            is Block.Text -> if (dim) {
+                Text(b.text.withClozeColors(ctx.cloze.first, ctx.cloze.second), color = c.textDim, fontSize = 14.sp, lineHeight = 19.sp)
+            } else {
+                CardBody(b.text.withClozeColors(ctx.cloze.first, ctx.cloze.second))
+            }
+            is Block.Image, is Block.MaskedImage, is Block.OccludedImage -> ImageBlock(b, ctx)
+            is Block.Audio -> Unit
+        }
+        i++
+    }
+}
+
+@Composable
+private fun AudioButton(index: Int, ctx: BlockContext) {
+    val c = LocalAnkiColors.current
+    val file = ctx.side.audio.getOrNull(index)?.let(ctx.repo::mediaFile)
+    Box(
+        Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(c.surface)
+            .clickable(enabled = file != null) { ctx.audio.play(listOfNotNull(file)) },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(if (file != null) "🔊" else "🔇", fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun ImageBlock(block: Block, ctx: BlockContext) {
+    val c = LocalAnkiColors.current
+    var bitmap by remember(block) { mutableStateOf<ImageBitmap?>(null) }
+    var missing by remember(block) { mutableStateOf(false) }
+    LaunchedEffect(block) {
+        val bmp = when (block) {
+            is Block.Image -> ctx.repo.mediaFile(block.file)?.let { CardImages.load(it) }
+            is Block.MaskedImage -> ctx.repo.mediaFile(block.image)?.let { CardImages.loadMasked(it, ctx.repo.mediaFile(block.mask)) }
+            is Block.OccludedImage -> ctx.repo.mediaFile(block.image)?.let { CardImages.loadOccluded(it, block) }
+            else -> null
+        }
+        bitmap = bmp?.asImageBitmap()
+        missing = bmp == null
+    }
+    val bmp = bitmap
+    when {
+        bmp != null -> androidx.compose.foundation.Image(
+            bitmap = bmp,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxWidth()
+                // Sehr hohe Bilder begrenzen; Antippen öffnet die Zoomansicht.
+                .heightIn(max = 220.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { ctx.onZoom(bmp) },
+        )
+        missing -> Text("🖼 (missing)", color = c.textDim, fontSize = 12.sp)
+        else -> Box(Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(8.dp)).background(c.surface))
+    }
+}
+
+/** Vollbild-Zoom: Finger zum Vergrößern/Verschieben, Krone zoomt, Antippen schließt. */
+@Composable
+private fun ZoomOverlay(bitmap: ImageBitmap, onClose: () -> Unit) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val focus = remember { FocusRequester() }
+    val state = rememberTransformableState { zoom, pan, _ ->
+        scale = (scale * zoom).coerceIn(1f, 6f)
+        offset += pan
+    }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .onRotaryScrollEvent {
+                scale = (scale * (1f + it.verticalScrollPixels / 400f)).coerceIn(1f, 6f)
+                true
+            }
+            .focusRequester(focus)
+            .focusable()
+            .transformable(state)
+            .clickable(onClick = onClose),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.foundation.Image(
+            bitmap = bitmap,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale; scaleY = scale
+                    translationX = offset.x; translationY = offset.y
+                },
+        )
     }
 }
 

@@ -63,6 +63,10 @@ class AnkiRepository private constructor(private val context: Context) {
     private val collectionFile = File(dir, "collection.anki2")
     private val mediaDir = File(dir, "collection.media").apply { mkdirs() }
     private val mediaDb = File(dir, "collection.media.db")
+
+    /** Datei aus dem Medienordner; null, wenn (noch) nicht synchronisiert. */
+    fun mediaFile(name: String): File? =
+        File(mediaDir, android.net.Uri.decode(name)).takeIf { it.isFile && it.canonicalPath.startsWith(mediaDir.canonicalPath) }
     private var auth: SyncAuth? = null
 
     // Der Kern verträgt keine gleichzeitigen Aufrufe; während des Vollabgleichs ist die Sammlung zu.
@@ -189,13 +193,31 @@ class AnkiRepository private constructor(private val context: Context) {
 
     suspend fun nextCard(): ReviewCard? = lock.withLock {
         val queued = backend.getQueuedCards(1, false).cardsList.firstOrNull() ?: return@withLock null
+        build(queued)
+    }
+
+    /** Nur für Tests im Emulator: eine bestimmte Karte anzeigen (adb ... --el card <id>). */
+    suspend fun cardById(cardId: Long): ReviewCard = lock.withLock {
+        build(
+            QueuedCards.QueuedCard.newBuilder()
+                .setCard(backend.getCard(cardId))
+                .setStates(backend.getSchedulingStates(cardId))
+                .build()
+        )
+    }
+
+    private fun build(queued: QueuedCards.QueuedCard): ReviewCard {
         val rendered = backend.renderExistingCard(queued.card.id, false, false)
         fun nodes(list: List<anki.card_rendering.RenderedTemplateNode>) =
             list.joinToString("") { if (it.hasText()) it.text else it.replacement.currentText }
-        ReviewCard(
+        // Wie Anki: [sound:…] wird zu [anki:play:q:N] bzw. [anki:play:a:N], die Dateien kommen als Liste.
+        val q = backend.extractAvTags(nodes(rendered.questionNodesList), true)
+        val a = backend.extractAvTags(nodes(rendered.answerNodesList), false)
+        fun files(tags: List<anki.card_rendering.AVTag>) = tags.map { if (it.hasSoundOrVideo()) it.soundOrVideo else null }
+        return ReviewCard(
             queued = queued,
-            question = parseSide(nodes(rendered.questionNodesList)),
-            answer = parseSide(answerPart(nodes(rendered.answerNodesList))),
+            question = parseSide(q.text, files(q.avTagsList), isAnswer = false),
+            answer = parseSide(answerPart(a.text), files(a.avTagsList), isAnswer = true),
             intervals = backend.describeNextStates(queued.states),
             shownAtMillis = System.currentTimeMillis(),
         )
