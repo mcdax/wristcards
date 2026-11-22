@@ -68,6 +68,9 @@ class AnkiRepository private constructor(private val context: Context) {
     fun mediaFile(name: String): File? =
         File(mediaDir, android.net.Uri.decode(name)).takeIf { it.isFile && it.canonicalPath.startsWith(mediaDir.canonicalPath) }
     private var auth: SyncAuth? = null
+    // [settings] Gespeicherter Host-Key und Uhr-Einstellungen (WLAN, Medien)
+    private val credentials = SyncCredentials(context)
+    private val settings = SettingsStore.get(context)
 
     // Der Kern verträgt keine gleichzeitigen Aufrufe; während des Vollabgleichs ist die Sammlung zu.
     private val lock = Mutex()
@@ -115,6 +118,8 @@ class AnkiRepository private constructor(private val context: Context) {
         }
         try {
             // Kein WLAN in 15 s (z. B. im Emulator ohne Uhr-WLAN): mit dem Standardnetz versuchen.
+            // [settings] Außer „Nur WLAN“ ist eingeschaltet.
+            if (network == null && settings.current.wifiOnly) error(context.getString(R.string.no_wifi))
             if (network != null) cm.bindProcessToNetwork(network)
             return block()
         } finally {
@@ -123,13 +128,46 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
-    private fun login(): SyncAuth = auth ?: backend.syncLogin(
-        SyncLoginRequest.newBuilder()
-            .setUsername(BuildConfig.SYNC_USER)
-            .setPassword(BuildConfig.SYNC_PASSWORD)
-            .setEndpoint(BuildConfig.SYNC_ENDPOINT)
-            .build()
-    ).also { auth = it }
+    // [settings] Reihenfolge: gespeicherter Host-Key, sonst (nie angemeldet) die BuildConfig-Werte.
+    private fun login(): SyncAuth = auth ?: credentials.load()?.also { auth = it } ?: run {
+        if (credentials.account == Account.SignedOut) error(context.getString(R.string.not_signed_in))
+        backend.syncLogin(
+            SyncLoginRequest.newBuilder()
+                .setUsername(BuildConfig.SYNC_USER)
+                .setPassword(BuildConfig.SYNC_PASSWORD)
+                .setEndpoint(BuildConfig.SYNC_ENDPOINT)
+                .build()
+        ).also { auth = it }
+    }
+
+    /** [settings] Anmeldung aus den Einstellungen; gespeichert wird nur der Host-Key. */
+    suspend fun signIn(endpoint: String, user: String, password: String): SyncResult = lock.withLock {
+        try {
+            val url = normalizeEndpoint(endpoint)
+            val result = onWifi {
+                backend.syncLogin(
+                    SyncLoginRequest.newBuilder()
+                        .setUsername(user)
+                        .setPassword(password)
+                        .apply { if (url.isNotEmpty()) setEndpoint(url) }
+                        .build()
+                )
+            }
+            credentials.save(result, user, url)
+            auth = credentials.load() ?: result
+            SyncResult.Ok
+        } catch (e: Exception) {
+            SyncResult.Failed(e.message ?: e.javaClass.simpleName)
+        }
+    }
+
+    /** [settings] Abmelden: Host-Key löschen, kein Rückfall auf BuildConfig mehr. */
+    suspend fun signOut() = lock.withLock {
+        credentials.clear()
+        auth = null
+    }
+
+    val account: Account get() = credentials.account
 
     /**
      * Normaler Sync; beim ersten Mal (leere Sammlung auf der Uhr) ein Vollabgleich als Download.
@@ -168,7 +206,8 @@ class AnkiRepository private constructor(private val context: Context) {
             else ->
                 return SyncResult.Failed(context.getString(R.string.unknown_sync, result.required.toString()))
         }
-        syncMedia(auth)
+        // [settings] Medien: „Nur gewählte Decks“ kann der Kern nicht, lädt vorerst wie „Alles“ (siehe INTEGRATION.md).
+        if (settings.current.mediaMode != MediaMode.NONE) syncMedia(auth)
         return SyncResult.Ok
     }
 

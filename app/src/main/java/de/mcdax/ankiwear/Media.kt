@@ -6,7 +6,10 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.util.LruCache
 import com.caverock.androidsvg.SVG
@@ -118,14 +121,27 @@ object CardImages {
 }
 
 /** Spielt Kartenaudio nacheinander ab; ein neuer Aufruf bricht das laufende ab. */
-class CardAudio {
+class CardAudio(context: Context) {
+    private val audioManager = context.getSystemService(AudioManager::class.java)
     private var player: MediaPlayer? = null
     private var queue = ArrayDeque<File>()
+    private var output = AudioOutput.BLUETOOTH
 
-    fun play(files: List<File>) {
+    fun play(files: List<File>, output: AudioOutput) {
         stop()
+        this.output = output
         queue = ArrayDeque(files)
         next()
+    }
+
+    /** Kopfhörer bevorzugen, wenn gewünscht und verbunden; sonst Uhr-Lautsprecher. */
+    private fun preferredDevice(): AudioDeviceInfo? {
+        val devices = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty()
+        val bt = devices.firstOrNull {
+            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+        }
+        val speaker = devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+        return if (output == AudioOutput.BLUETOOTH) bt ?: speaker else speaker
     }
 
     private fun next() {
@@ -139,6 +155,7 @@ class CardAudio {
             )
             runCatching {
                 setDataSource(f.path)
+                preferredDevice()?.let { setPreferredDevice(it) }
                 setOnCompletionListener { release(); player = null; next() }
                 setOnErrorListener { _, _, _ -> release(); player = null; next(); true }
                 prepare()

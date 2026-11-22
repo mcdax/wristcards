@@ -1,6 +1,11 @@
 package de.mcdax.ankiwear
 
 import android.os.Bundle
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.wear.compose.navigation.currentBackStackEntryAsState
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -30,6 +35,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,7 +88,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Beim Lernen nicht mitten in der Karte abdunkeln (Wear OS beendet sonst gern den Prozess).
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         // Farbvariante zum Ausprobieren: adb shell am start ... --ei theme 1
         val variant = intent.getIntExtra("theme", 0).coerceIn(themeVariants.indices)
         // Für Screenshots im Emulator: --es deck <Name> öffnet das Deck direkt.
@@ -108,6 +114,9 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
     val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)
     var sync by remember { mutableStateOf<SyncState>(SyncState.Idle) }
     var decks by remember { mutableStateOf<List<DeckTreeNode>>(emptyList()) }
+    // [settings] Uhr-Einstellungen
+    val store = remember { SettingsStore.get(context) }
+    val settings by store.flow.collectAsState()
 
     fun runSync() {
         if (sync == SyncState.Running) return
@@ -125,21 +134,35 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
         decks = repo.decks()
         when {
             previewCard != null -> nav.navigate("preview/$previewCard")
-            else -> decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") } ?: runSync()
+            else -> decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") }
+                ?: run { if (store.current.syncOnOpen) runSync() } // [settings] Auto-Sync beim Öffnen
         }
     }
 
     // Wischen nach rechts zeigt beim Zurückgehen die Deckliste darunter, statt eines schwarzen Bildschirms.
-    SwipeDismissableNavHost(navController = nav, startDestination = "decks") {
+    // Wisch-Abkürzungen brauchen das Rechtswischen; dann nur per Zurück-Taste aus dem Deck.
+    val route = nav.currentBackStackEntryAsState().value?.destination?.route
+    CompositionLocalProvider(LocalSettings provides settings) {
+    SwipeDismissableNavHost(
+        navController = nav,
+        startDestination = "decks",
+        userSwipeEnabled = !(settings.swipeToRate && route?.startsWith("review") == true),
+    ) {
         composable("decks") {
-            DeckList(listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") })
+            DeckList(
+                listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") },
+                // [settings] Filter/Anheften/Einklappen und Zugang zu den Einstellungen
+                settings = settings, onSettingsChange = store::update, onSettings = { nav.navigate("settings") },
+            )
         }
+        // [settings] Einstellungsseiten (SettingsScreen.kt)
+        settingsGraph(nav, repo) { decks }
         composable("review/{deckId}") { entry ->
             val deckId = entry.arguments?.getString("deckId")?.toLongOrNull()
             val deck = decks.firstOrNull { it.deckId == deckId } ?: return@composable
             DisposableEffect(deckId) {
                 // Bewertungen gleich hochladen, damit sie bei einem späteren Vollabgleich nicht verloren gehen.
-                onDispose { runSync() }
+                onDispose { if (store.current.syncOnDeckExit) runSync() } // [settings] Auto-Sync nach dem Deck
             }
             ReviewScreen(repo, deck)
         }
@@ -148,7 +171,18 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
             ReviewScreen(repo, deck = null, previewCard = cid)
         }
     }
+    }
 }
+
+/** Einstellungen für tief verschachtelte Teile der Lernansicht. */
+private val LocalSettings = staticCompositionLocalOf { AppSettings() }
+
+private val AppSettings.textScale: Float
+    get() = when (fontSize) {
+        FontSize.SMALL -> 0.87f
+        FontSize.NORMAL -> 1f
+        FontSize.LARGE -> 1.2f
+    }
 
 @Composable
 private fun DeckList(
@@ -157,9 +191,14 @@ private fun DeckList(
     decks: List<DeckTreeNode>,
     onSync: () -> Unit,
     onOpen: (DeckTreeNode) -> Unit,
+    settings: AppSettings,
+    onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
+    onSettings: () -> Unit,
 ) {
     val c = LocalAnkiColors.current
     val focus = remember { FocusRequester() }
+    // [settings] Deck, für das gerade das Langdruck-Menü offen ist
+    var menuFor by remember { mutableStateOf<DeckEntry?>(null) }
     LaunchedEffect(Unit) { focus.requestFocus() }
 
     // Ziehen nach unten am Listenanfang löst einen Sync aus.
@@ -182,6 +221,7 @@ private fun DeckList(
         }
     }
 
+    Box(Modifier.fillMaxSize()) {
     ScalingLazyColumn(
         state = listState,
         modifier = Modifier
@@ -220,23 +260,61 @@ private fun DeckList(
                 Text(sync.message, color = c.textDim, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 3)
             }
         }
-        items(decks, key = { it.deckId }) { deck -> DeckRow(deck, onOpen) }
+        // [settings] arrangeDecks (DeckListPrefs.kt) wendet Ausblenden/Anheften/Einklappen an.
+        items(arrangeDecks(decks, settings), key = { it.key }) { entry ->
+            DeckRow(
+                entry, onOpen,
+                onLongPress = { menuFor = entry },
+                onToggleCollapse = { onSettingsChange { it.copy(toggledDecks = it.toggledDecks.toggle(entry.deck.deckId)) } },
+            )
+        }
+        // [settings] Zugang zu den Einstellungen am Listenende
+        item {
+            Text(
+                stringResource(R.string.open_settings),
+                color = c.textDim,
+                fontSize = 13.sp,
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable(onClick = onSettings)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
+    }
+    // [settings] Langdruck-Menü: anheften/lösen, ausblenden
+    menuFor?.let { entry ->
+        val id = entry.deck.deckId
+        DeckMenu(
+            entry.deck,
+            pinned = id in settings.pinnedDecks,
+            onTogglePin = { onSettingsChange { it.copy(pinnedDecks = it.pinnedDecks.toggle(id)) }; menuFor = null },
+            onHide = { onSettingsChange { it.copy(hiddenDecks = it.hiddenDecks + id, pinnedDecks = it.pinnedDecks - id) }; menuFor = null },
+            onDismiss = { menuFor = null },
+        )
+    }
     }
 }
 
 @Composable
-private fun DeckRow(deck: DeckTreeNode, onOpen: (DeckTreeNode) -> Unit) {
+private fun DeckRow(
+    entry: DeckEntry,
+    onOpen: (DeckTreeNode) -> Unit,
+    onLongPress: () -> Unit,
+    onToggleCollapse: () -> Unit,
+) {
     val c = LocalAnkiColors.current
+    val deck = entry.deck
     val empty = deck.newCount + deck.learnCount + deck.reviewCount == 0
-    val sub = deck.level > 1
+    val sub = entry.level > 1
     Row(
         modifier = Modifier
             .fillMaxWidth()
             // Unterdecks: eingerückt, etwas dunkler und mit Akzentstrich links, damit die Zugehörigkeit klar ist.
-            .padding(start = 10.dp * (deck.level - 1))
+            .padding(start = 10.dp * (entry.level - 1))
             .clip(RoundedCornerShape(15.dp))
             .background(if (sub) c.subSurface else c.surface)
-            .clickable { onOpen(deck) },
+            .combinedClickable(onLongClick = onLongPress) { onOpen(deck) }, // [settings] Langdruck öffnet DeckMenu
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (sub) {
@@ -250,7 +328,7 @@ private fun DeckRow(deck: DeckTreeNode, onOpen: (DeckTreeNode) -> Unit) {
             )
         }
         Text(
-            deck.name,
+            (if (entry.pinned && entry.key.startsWith("pin-")) "★ " else "") + deck.name,
             color = if (empty) c.textDim else c.text,
             fontSize = if (sub) 14.sp else 15.sp,
             lineHeight = 18.sp,
@@ -267,8 +345,21 @@ private fun DeckRow(deck: DeckTreeNode, onOpen: (DeckTreeNode) -> Unit) {
                 count(deck.reviewCount, c.reviewCount)
             },
             fontSize = 13.sp,
-            modifier = Modifier.padding(start = 6.dp, end = 14.dp),
+            modifier = Modifier.padding(start = 6.dp, end = if (entry.hasChildren) 0.dp else 14.dp),
         )
+        // [settings] Pfeil zum Auf-/Zuklappen an Oberdecks; rechts, damit der Name die volle Breite hat
+        if (entry.hasChildren) {
+            Text(
+                if (entry.collapsed) "▸" else "▾",
+                color = c.accent,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .clip(CircleShape)
+                    .clickable(onClickLabel = stringResource(if (entry.collapsed) R.string.deck_expand else R.string.deck_collapse), onClick = onToggleCollapse)
+                    .padding(horizontal = 6.dp, vertical = 8.dp),
+            )
+        }
     }
 }
 
@@ -284,9 +375,18 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     var error by remember { mutableStateOf<String?>(null) }
     val scroll = rememberScrollState()
     val focus = remember { FocusRequester() }
-    val audio = remember { CardAudio() }
+    val context = LocalContext.current
+    val settings = LocalSettings.current
+    val audio = remember { CardAudio(context) }
     var zoomed by remember { mutableStateOf<ImageBitmap?>(null) }
+    var extraOpen by remember { mutableStateOf(false) }
     DisposableEffect(Unit) { onDispose { audio.stop() } }
+    // Bildschirm nur beim Lernen wach halten, nicht in der Deckliste.
+    DisposableEffect(settings.keepScreenOn) {
+        val window = (context as? android.app.Activity)?.window
+        if (settings.keepScreenOn) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+    }
 
     LaunchedEffect(deck?.deckId, previewCard) {
         card = if (previewCard != null) {
@@ -301,9 +401,14 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     LaunchedEffect(revealed, card?.queued?.card?.id) {
         scroll.scrollTo(0)
         focus.requestFocus()
+        extraOpen = false
         // Wie Anki: beim Zeigen einer Seite deren Audio automatisch abspielen.
         val side = card?.let { if (revealed) it.answer else it.question } ?: return@LaunchedEffect
-        audio.play(side.audioIndexes().mapNotNull { side.audio.getOrNull(it)?.let(repo::mediaFile) })
+        if (settings.audioMode == AudioMode.AUTO) {
+            audio.play(side.audioIndexes().mapNotNull { side.audio.getOrNull(it)?.let(repo::mediaFile) }, settings.audioOutput)
+        } else {
+            audio.stop()
+        }
     }
 
     fun rate(current: ReviewCard, rating: CardAnswer.Rating) {
@@ -314,7 +419,9 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 // Vorschau bewertet nichts.
                 if (previewCard != null) return@launch
                 repo.answer(current, rating)
+                if (settings.vibrateOnRate) vibrate(context, android.os.VibrationEffect.EFFECT_TICK)
                 card = repo.nextCard()
+                if (card == null && settings.vibrateOnDeckDone) vibrate(context, android.os.VibrationEffect.EFFECT_DOUBLE_CLICK)
                 revealed = false
                 error = null
             } catch (e: Exception) {
@@ -333,6 +440,21 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 .rotaryScrollable(RotaryScrollableDefaults.behavior(scrollableState = scroll), focus)
                 .verticalScroll(scroll)
                 .clickable(enabled = current != null && !revealed) { revealed = true }
+                // Wisch-Abkürzung: links = Nochmal, rechts = Gut (nur aufgedeckt, nur wenn eingeschaltet).
+                .then(
+                    if (settings.swipeToRate && revealed && current != null) Modifier.pointerInput(current) {
+                        var dx = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { dx = 0f },
+                            onDragEnd = {
+                                when {
+                                    dx < -80.dp.toPx() -> rate(current, CardAnswer.Rating.AGAIN)
+                                    dx > 80.dp.toPx() -> rate(current, CardAnswer.Rating.GOOD)
+                                }
+                            },
+                        ) { _, amount -> dx += amount }
+                    } else Modifier,
+                )
                 // Unten Platz für die festen Bewertungsknöpfe lassen.
                 .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) 100.dp else 48.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -346,9 +468,22 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                     val ctx = BlockContext(repo, side, audio, cloze, onZoom = { zoomed = it })
                     Blocks(side.main, ctx, dim = false)
                     side.hints.forEach { HintChip(it) }
-                    if (side.extra.isNotEmpty()) {
+                    if (side.extra.isNotEmpty() && settings.extraMode != ExtraMode.HIDE) {
                         Box(Modifier.fillMaxWidth().height(1.dp).background(c.surface))
-                        Blocks(side.extra, ctx, dim = true)
+                        if (settings.extraMode == ExtraMode.SHOW || extraOpen) {
+                            Blocks(side.extra, ctx, dim = true)
+                        } else {
+                            Text(
+                                stringResource(R.string.show_more),
+                                color = c.textDim,
+                                fontSize = 13.sp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(c.surface)
+                                    .clickable { extraOpen = true }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -361,7 +496,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(90.dp)
                     .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to c.background)),
             )
-            GradeBar(current.intervals, enabled = !busy) { rate(current, it) }
+            GradeBar(current.intervals, enabled = !busy, twoButtons = settings.twoButtons, showIntervals = settings.showIntervals) { rate(current, it) }
         }
         zoomed?.let { ZoomOverlay(it) { zoomed = null } }
     }
@@ -386,6 +521,10 @@ private fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
     var i = 0
     while (i < blocks.size) {
         val b = blocks[i]
+        if (b is Block.Audio && LocalSettings.current.audioMode == AudioMode.OFF) {
+            i++
+            continue
+        }
         if (b is Block.Audio) {
             val run = blocks.drop(i).takeWhile { it is Block.Audio }.map { (it as Block.Audio).index }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -396,7 +535,8 @@ private fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
         }
         when (b) {
             is Block.Text -> if (dim) {
-                Text(b.text.withClozeColors(ctx.cloze.first, ctx.cloze.second), color = c.textDim, fontSize = 14.sp, lineHeight = 19.sp)
+                val k = LocalSettings.current.textScale
+                Text(b.text.withClozeColors(ctx.cloze.first, ctx.cloze.second), color = c.textDim, fontSize = 14.sp * k, lineHeight = 19.sp * k)
             } else {
                 CardBody(b.text.withClozeColors(ctx.cloze.first, ctx.cloze.second))
             }
@@ -410,13 +550,14 @@ private fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
 @Composable
 private fun AudioButton(index: Int, ctx: BlockContext) {
     val c = LocalAnkiColors.current
+    val output = LocalSettings.current.audioOutput
     val file = ctx.side.audio.getOrNull(index)?.let(ctx.repo::mediaFile)
     Box(
         Modifier
             .size(34.dp)
             .clip(CircleShape)
             .background(c.surface)
-            .clickable(enabled = file != null) { ctx.audio.play(listOfNotNull(file)) },
+            .clickable(enabled = file != null) { ctx.audio.play(listOfNotNull(file), output) },
         contentAlignment = Alignment.Center,
     ) {
         Text(if (file != null) "🔊" else "🔇", fontSize = 15.sp)
@@ -506,11 +647,12 @@ private fun CardBody(text: AnnotatedString) {
     val c = LocalAnkiColors.current
     // Kurze Karten (Hauptstadt, Vokabel) mittig, längere Texte linksbündig lesen sich besser.
     val short = text.length < 60 && '\n' !in text
+    val k = LocalSettings.current.textScale
     Text(
         text,
         color = c.text,
-        fontSize = 16.sp,
-        lineHeight = 21.sp,
+        fontSize = 16.sp * k,
+        lineHeight = 21.sp * k,
         textAlign = if (short) TextAlign.Center else TextAlign.Start,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -523,7 +665,7 @@ private fun HintChip(hint: AnnotatedString) {
     Text(
         if (open) hint else AnnotatedString("💡 " + stringResource(R.string.show_hint)),
         color = c.hintFg,
-        fontSize = 14.sp,
+        fontSize = 14.sp * LocalSettings.current.textScale,
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
             .background(c.hintBg)
@@ -537,32 +679,49 @@ private fun HintChip(hint: AnnotatedString) {
 private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
     intervals: List<String>,
     enabled: Boolean,
+    twoButtons: Boolean,
+    showIntervals: Boolean,
     onRate: (CardAnswer.Rating) -> Unit,
 ) {
     val c = LocalAnkiColors.current
-    val buttons = listOf(
-        CardAnswer.Rating.AGAIN to c.again,
-        CardAnswer.Rating.HARD to c.hard,
-        CardAnswer.Rating.GOOD to c.good,
-        CardAnswer.Rating.EASY to c.easy,
+    // Index passt zu den Intervallen des Kerns (Nochmal, Schwer, Gut, Leicht).
+    val all = listOf(
+        Triple(0, CardAnswer.Rating.AGAIN, c.again),
+        Triple(1, CardAnswer.Rating.HARD, c.hard),
+        Triple(2, CardAnswer.Rating.GOOD, c.good),
+        Triple(3, CardAnswer.Rating.EASY, c.easy),
     )
+    val buttons = if (twoButtons) all.filter { it.first == 0 || it.first == 2 } else all
+    val symbols = listOf("✕", "–", "✓", "★")
     Row(
         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
-        buttons.forEachIndexed { i, (rating, color) ->
+        buttons.forEachIndexed { pos, (i, rating, color) ->
+            val outer = !twoButtons && (pos == 0 || pos == buttons.lastIndex)
             Box(
                 modifier = Modifier
-                    .padding(bottom = if (i == 0 || i == 3) 10.dp else 0.dp)
-                    .size(36.dp)
+                    .padding(bottom = if (outer) 10.dp else 0.dp, start = if (twoButtons && pos == 1) 18.dp else 0.dp)
+                    .size(if (twoButtons) 44.dp else 36.dp)
                     .clip(CircleShape)
                     .background(color.copy(alpha = if (enabled) 0.22f else 0.08f))
                     .clickable(enabled = enabled) { onRate(rating) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(intervals.getOrElse(i) { "" }, color = color, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                Text(
+                    if (showIntervals) intervals.getOrElse(i) { "" } else symbols[i],
+                    color = color,
+                    fontSize = if (showIntervals) 11.sp else 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
             }
         }
     }
+}
+
+private fun vibrate(context: android.content.Context, effect: Int) {
+    val vibrator = context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator ?: return
+    runCatching { vibrator.vibrate(android.os.VibrationEffect.createPredefined(effect)) }
 }
