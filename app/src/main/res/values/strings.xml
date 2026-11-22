@@ -35,7 +35,9 @@
     <string name="opt_easy">Easy</string>
     <string name="set_swipe_feedback">Show swipe rating</string>
     <string name="set_swipe_feedback_hint">Brief note which rating was given</string>
-    <string name="back_again_to_exit">Press back again to exit</string>
+    <string name="back_again_to_exit">Once more to exit</string>
+    <string name="set_confirm_exit">Confirm exit</string>
+    <string name="set_confirm_exit_hint">Back or swipe twice to leave the app</string>
     <string name="rated_again">✕ Again</string>
     <string name="rated_hard">– Hard</string>
     <string name="rated_good">✓ Good</string>

@@ -46,6 +46,8 @@ data class AppSettings(
     val wifiOnly: Boolean = false,
     val mediaMode: MediaMode = MediaMode.ALL,
     // Deckliste
+    // Verlassen der App nur mit zweitem Zurück (Taste oder Wischen)
+    val confirmExit: Boolean = true,
     val hideEmptyDecks: Boolean = false,
     val pinnedDecks: Set<Long> = emptySet(),
     val hiddenDecks: Set<Long> = emptySet(),
@@ -105,6 +107,7 @@ class SettingsStore private constructor(context: Context) {
             .putBoolean("syncOnDeckExit", s.syncOnDeckExit)
             .putBoolean("wifiOnly", s.wifiOnly)
             .putString("mediaMode", s.mediaMode.name)
+            .putBoolean("confirmExit", s.confirmExit)
             .putBoolean("hideEmptyDecks", s.hideEmptyDecks)
             .putStringSet("pinnedDecks", s.pinnedDecks.str())
             .putStringSet("hiddenDecks", s.hiddenDecks.str())
@@ -149,6 +152,7 @@ private fun read(p: SharedPreferences): AppSettings {
         syncOnDeckExit = p.getBoolean("syncOnDeckExit", d.syncOnDeckExit),
         wifiOnly = p.getBoolean("wifiOnly", d.wifiOnly),
         mediaMode = enum("mediaMode", d.mediaMode, MediaMode.entries.toTypedArray()),
+        confirmExit = p.getBoolean("confirmExit", d.confirmExit),
         hideEmptyDecks = p.getBoolean("hideEmptyDecks", d.hideEmptyDecks),
         pinnedDecks = ids("pinnedDecks", d.pinnedDecks),
         hiddenDecks = ids("hiddenDecks", d.hiddenDecks),

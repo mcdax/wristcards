@@ -162,7 +162,7 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
             }
             // Nur aktiv, solange die Deckliste wirklich vorne ist (sie bleibt beim Wischen als Hintergrund komponiert).
             // Zurück-Taste und Zurückwischen landen beide hier.
-            androidx.activity.compose.BackHandler(enabled = route == "decks") {
+            androidx.activity.compose.BackHandler(enabled = route == "decks" && settings.confirmExit) {
                 if (exitArmed) activity?.finish() else exitArmed = true
             }
             Box(Modifier.fillMaxSize()) {

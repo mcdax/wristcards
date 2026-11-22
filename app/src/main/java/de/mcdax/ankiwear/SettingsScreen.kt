@@ -163,6 +163,7 @@ private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
         }
 
         item { Group(R.string.group_decks) }
+        item { Toggle(R.string.set_confirm_exit, s.confirmExit, R.string.set_confirm_exit_hint) { v -> store.update { it.copy(confirmExit = v) } } }
         item { Toggle(R.string.set_hide_empty, s.hideEmptyDecks) { v -> store.update { it.copy(hideEmptyDecks = v) } } }
         item {
             // Neuer Standard: einzeln umgeklappte Decks folgen wieder dem Standard.
