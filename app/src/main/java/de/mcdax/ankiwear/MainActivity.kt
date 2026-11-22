@@ -20,6 +20,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -97,6 +99,9 @@ private fun App(openDeck: String? = null) {
     val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)
     var sync by remember { mutableStateOf<SyncState>(SyncState.Idle) }
     var decks by remember { mutableStateOf<List<DeckTreeNode>>(emptyList()) }
+    // [settings] Uhr-Einstellungen
+    val store = remember { SettingsStore.get(context) }
+    val settings by store.flow.collectAsState()
 
     fun runSync() {
         if (sync == SyncState.Running) return
@@ -112,20 +117,27 @@ private fun App(openDeck: String? = null) {
 
     LaunchedEffect(Unit) {
         decks = repo.decks()
-        decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") } ?: runSync()
+        decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") }
+            ?: run { if (store.current.syncOnOpen) runSync() } // [settings] Auto-Sync beim Öffnen
     }
 
     // Wischen nach rechts zeigt beim Zurückgehen die Deckliste darunter, statt eines schwarzen Bildschirms.
     SwipeDismissableNavHost(navController = nav, startDestination = "decks") {
         composable("decks") {
-            DeckList(listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") })
+            DeckList(
+                listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") },
+                // [settings] Filter/Anheften/Einklappen und Zugang zu den Einstellungen
+                settings = settings, onSettingsChange = store::update, onSettings = { nav.navigate("settings") },
+            )
         }
+        // [settings] Einstellungsseiten (SettingsScreen.kt)
+        settingsGraph(nav, repo) { decks }
         composable("review/{deckId}") { entry ->
             val deckId = entry.arguments?.getString("deckId")?.toLongOrNull()
             val deck = decks.firstOrNull { it.deckId == deckId } ?: return@composable
             DisposableEffect(deckId) {
                 // Bewertungen gleich hochladen, damit sie bei einem späteren Vollabgleich nicht verloren gehen.
-                onDispose { runSync() }
+                onDispose { if (store.current.syncOnDeckExit) runSync() } // [settings] Auto-Sync nach dem Deck
             }
             ReviewScreen(repo, deck)
         }
@@ -139,9 +151,14 @@ private fun DeckList(
     decks: List<DeckTreeNode>,
     onSync: () -> Unit,
     onOpen: (DeckTreeNode) -> Unit,
+    settings: AppSettings,
+    onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
+    onSettings: () -> Unit,
 ) {
     val c = LocalAnkiColors.current
     val focus = remember { FocusRequester() }
+    // [settings] Deck, für das gerade das Langdruck-Menü offen ist
+    var menuFor by remember { mutableStateOf<DeckEntry?>(null) }
     LaunchedEffect(Unit) { focus.requestFocus() }
 
     // Ziehen nach unten am Listenanfang löst einen Sync aus.
@@ -164,6 +181,7 @@ private fun DeckList(
         }
     }
 
+    Box(Modifier.fillMaxSize()) {
     ScalingLazyColumn(
         state = listState,
         modifier = Modifier
@@ -202,23 +220,61 @@ private fun DeckList(
                 Text(sync.message, color = c.textDim, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 3)
             }
         }
-        items(decks, key = { it.deckId }) { deck -> DeckRow(deck, onOpen) }
+        // [settings] arrangeDecks (DeckListPrefs.kt) wendet Ausblenden/Anheften/Einklappen an.
+        items(arrangeDecks(decks, settings), key = { it.key }) { entry ->
+            DeckRow(
+                entry, onOpen,
+                onLongPress = { menuFor = entry },
+                onToggleCollapse = { onSettingsChange { it.copy(toggledDecks = it.toggledDecks.toggle(entry.deck.deckId)) } },
+            )
+        }
+        // [settings] Zugang zu den Einstellungen am Listenende
+        item {
+            Text(
+                stringResource(R.string.open_settings),
+                color = c.textDim,
+                fontSize = 13.sp,
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable(onClick = onSettings)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
+    }
+    // [settings] Langdruck-Menü: anheften/lösen, ausblenden
+    menuFor?.let { entry ->
+        val id = entry.deck.deckId
+        DeckMenu(
+            entry.deck,
+            pinned = id in settings.pinnedDecks,
+            onTogglePin = { onSettingsChange { it.copy(pinnedDecks = it.pinnedDecks.toggle(id)) }; menuFor = null },
+            onHide = { onSettingsChange { it.copy(hiddenDecks = it.hiddenDecks + id, pinnedDecks = it.pinnedDecks - id) }; menuFor = null },
+            onDismiss = { menuFor = null },
+        )
+    }
     }
 }
 
 @Composable
-private fun DeckRow(deck: DeckTreeNode, onOpen: (DeckTreeNode) -> Unit) {
+private fun DeckRow(
+    entry: DeckEntry,
+    onOpen: (DeckTreeNode) -> Unit,
+    onLongPress: () -> Unit,
+    onToggleCollapse: () -> Unit,
+) {
     val c = LocalAnkiColors.current
+    val deck = entry.deck
     val empty = deck.newCount + deck.learnCount + deck.reviewCount == 0
-    val sub = deck.level > 1
+    val sub = entry.level > 1
     Row(
         modifier = Modifier
             .fillMaxWidth()
             // Unterdecks: eingerückt, etwas dunkler und mit Akzentstrich links, damit die Zugehörigkeit klar ist.
-            .padding(start = 10.dp * (deck.level - 1))
+            .padding(start = 10.dp * (entry.level - 1))
             .clip(RoundedCornerShape(15.dp))
             .background(if (sub) c.subSurface else c.surface)
-            .clickable { onOpen(deck) },
+            .combinedClickable(onLongClick = onLongPress) { onOpen(deck) }, // [settings] Langdruck öffnet DeckMenu
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (sub) {
@@ -231,15 +287,28 @@ private fun DeckRow(deck: DeckTreeNode, onOpen: (DeckTreeNode) -> Unit) {
                     .background(c.accent.copy(alpha = 0.55f)),
             )
         }
+        // [settings] Pfeil zum Auf-/Zuklappen an Oberdecks
+        if (entry.hasChildren) {
+            Text(
+                if (entry.collapsed) "▸" else "▾",
+                color = c.accent,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .padding(start = 6.dp)
+                    .clip(CircleShape)
+                    .clickable(onClickLabel = stringResource(if (entry.collapsed) R.string.deck_expand else R.string.deck_collapse), onClick = onToggleCollapse)
+                    .padding(horizontal = 6.dp, vertical = 8.dp),
+            )
+        }
         Text(
-            deck.name,
+            (if (entry.pinned && entry.key.startsWith("pin-")) "★ " else "") + deck.name,
             color = if (empty) c.textDim else c.text,
             fontSize = if (sub) 14.sp else 15.sp,
             lineHeight = 18.sp,
             fontWeight = FontWeight.Normal,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(start = if (sub) 8.dp else 14.dp, top = 10.dp, bottom = 10.dp),
+            modifier = Modifier.weight(1f).padding(start = if (sub) 8.dp else if (entry.hasChildren) 2.dp else 14.dp, top = 10.dp, bottom = 10.dp),
         )
         Text(
             buildAnnotatedString {
