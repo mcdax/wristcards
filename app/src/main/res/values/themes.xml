@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Zurückwischen bleibt System-Geste; auf der Deckliste fängt ein BackHandler sie ab
-         („nochmal zurück zum Beenden“). -->
+    <!-- Zurückwischen ist eine System-Geste. Ohne enableOnBackInvokedCallback (Manifest) beendet Wear OS
+         die Activity dabei direkt, statt ein Zurück zu schicken: dann greift weder „Confirm exit“ noch die
+         Navigation. Mit dem Flag kommt das Wischen als normales Zurück in der App an. -->
     <style name="AppTheme" parent="@android:style/Theme.DeviceDefault">
     </style>
 </resources>

@@ -11,6 +11,7 @@
     <application
         android:label="Anki Wear"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
         android:theme="@style/AppTheme">
 
         <meta-data
