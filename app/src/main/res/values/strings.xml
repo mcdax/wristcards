@@ -28,6 +28,11 @@
     <string name="set_vibrate_done">Vibrate when deck done</string>
     <string name="set_swipe">Swipe to rate</string>
     <string name="set_swipe_hint">Left = Again, right = Good</string>
+    <string name="set_swipe_feedback">Show swipe rating</string>
+    <string name="set_swipe_feedback_hint">Brief note which rating was given</string>
+    <string name="back_again_to_exit">Press back again to exit</string>
+    <string name="rated_again">✕ Again</string>
+    <string name="rated_good">✓ Good</string>
     <string name="set_buttons">Answer buttons</string>
     <string name="set_intervals">Show intervals</string>
     <string name="set_keep_screen_on">Keep screen on</string>

@@ -131,6 +131,9 @@ private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
         item {
             Toggle(R.string.set_swipe, s.swipeToRate, R.string.set_swipe_hint) { v -> store.update { it.copy(swipeToRate = v) } }
         }
+        if (s.swipeToRate) item {
+            Toggle(R.string.set_swipe_feedback, s.swipeFeedback, R.string.set_swipe_feedback_hint) { v -> store.update { it.copy(swipeFeedback = v) } }
+        }
         item { ChoiceRow(buttonsChoice, s, onNavigate) }
         item { Toggle(R.string.set_intervals, s.showIntervals) { v -> store.update { it.copy(showIntervals = v) } } }
         item { Toggle(R.string.set_keep_screen_on, s.keepScreenOn) { v -> store.update { it.copy(keepScreenOn = v) } } }

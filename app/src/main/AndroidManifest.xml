@@ -11,7 +11,7 @@
     <application
         android:label="Anki Wear"
         android:allowBackup="false"
-        android:theme="@android:style/Theme.DeviceDefault">
+        android:theme="@style/AppTheme">
 
         <meta-data
             android:name="com.google.android.wearable.standalone"

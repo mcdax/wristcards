@@ -30,6 +30,8 @@ data class AppSettings(
     val vibrateOnDeckDone: Boolean = true,
     // Wischen links = Nochmal, rechts = Gut
     val swipeToRate: Boolean = false,
+    // Kurze Einblendung, welche Bewertung per Wischen vergeben wurde
+    val swipeFeedback: Boolean = true,
     val twoButtons: Boolean = false,
     val showIntervals: Boolean = true,
     val keepScreenOn: Boolean = true,
@@ -88,6 +90,7 @@ class SettingsStore private constructor(context: Context) {
             .putBoolean("vibrateOnRate", s.vibrateOnRate)
             .putBoolean("vibrateOnDeckDone", s.vibrateOnDeckDone)
             .putBoolean("swipeToRate", s.swipeToRate)
+            .putBoolean("swipeFeedback", s.swipeFeedback)
             .putBoolean("twoButtons", s.twoButtons)
             .putBoolean("showIntervals", s.showIntervals)
             .putBoolean("keepScreenOn", s.keepScreenOn)
@@ -119,6 +122,7 @@ private fun read(p: SharedPreferences): AppSettings {
         vibrateOnRate = p.getBoolean("vibrateOnRate", d.vibrateOnRate),
         vibrateOnDeckDone = p.getBoolean("vibrateOnDeckDone", d.vibrateOnDeckDone),
         swipeToRate = p.getBoolean("swipeToRate", d.swipeToRate),
+        swipeFeedback = p.getBoolean("swipeFeedback", d.swipeFeedback),
         twoButtons = p.getBoolean("twoButtons", d.twoButtons),
         showIntervals = p.getBoolean("showIntervals", d.showIntervals),
         keepScreenOn = p.getBoolean("keepScreenOn", d.keepScreenOn),

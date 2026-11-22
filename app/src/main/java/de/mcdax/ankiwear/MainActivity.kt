@@ -149,11 +149,41 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
         userSwipeEnabled = !(settings.swipeToRate && route?.startsWith("review") == true),
     ) {
         composable("decks") {
+            // Verlassen erschweren: erst zweimal Zurück innerhalb von 2 s schließt die App.
+            var exitArmed by remember { mutableStateOf(false) }
+            val activity = context as? android.app.Activity
+            LaunchedEffect(exitArmed) {
+                if (exitArmed) {
+                    kotlinx.coroutines.delay(2000)
+                    exitArmed = false
+                }
+            }
+            androidx.activity.compose.BackHandler {
+                if (exitArmed) activity?.finish() else exitArmed = true
+            }
+            Box(Modifier.fillMaxSize()) {
             DeckList(
                 listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") },
                 // [settings] Filter/Anheften/Einklappen und Zugang zu den Einstellungen
                 settings = settings, onSettingsChange = store::update, onSettings = { nav.navigate("settings") },
             )
+
+            if (exitArmed) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                    Text(
+                        stringResource(R.string.back_again_to_exit),
+                        color = LocalAnkiColors.current.text,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .padding(bottom = 28.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(LocalAnkiColors.current.surface)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                    )
+                }
+            }
+            }
         }
         // [settings] Einstellungsseiten (SettingsScreen.kt)
         settingsGraph(nav, repo) { decks }
@@ -380,6 +410,16 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     val audio = remember { CardAudio(context) }
     var zoomed by remember { mutableStateOf<ImageBitmap?>(null) }
     var extraOpen by remember { mutableStateOf(false) }
+    // Einblendung nach Bewertung per Wischen: Text und Farbe
+    var swipeNote by remember { mutableStateOf<Pair<String, Color>?>(null) }
+    val againLabel = stringResource(R.string.rated_again)
+    val goodLabel = stringResource(R.string.rated_good)
+    LaunchedEffect(swipeNote) {
+        if (swipeNote != null) {
+            kotlinx.coroutines.delay(800)
+            swipeNote = null
+        }
+    }
     DisposableEffect(Unit) { onDispose { audio.stop() } }
     // Bildschirm nur beim Lernen wach halten, nicht in der Deckliste.
     DisposableEffect(settings.keepScreenOn) {
@@ -447,9 +487,18 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                         detectHorizontalDragGestures(
                             onDragStart = { dx = 0f },
                             onDragEnd = {
-                                when {
-                                    dx < -80.dp.toPx() -> rate(current, CardAnswer.Rating.AGAIN)
-                                    dx > 80.dp.toPx() -> rate(current, CardAnswer.Rating.GOOD)
+                                val rating = when {
+                                    dx < -80.dp.toPx() -> CardAnswer.Rating.AGAIN
+                                    dx > 80.dp.toPx() -> CardAnswer.Rating.GOOD
+                                    else -> null
+                                }
+                                if (rating != null) {
+                                    if (settings.swipeFeedback) {
+                                        val again = rating == CardAnswer.Rating.AGAIN
+                                        val interval = current.intervals.getOrNull(if (again) 0 else 2).orEmpty()
+                                        swipeNote = "${if (again) againLabel else goodLabel}  $interval" to (if (again) c.again else c.good)
+                                    }
+                                    rate(current, rating)
                                 }
                             },
                         ) { _, amount -> dx += amount }
@@ -499,6 +548,24 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             GradeBar(current.intervals, enabled = !busy, twoButtons = settings.twoButtons, showIntervals = settings.showIntervals) { rate(current, it) }
         }
         zoomed?.let { ZoomOverlay(it) { zoomed = null } }
+        androidx.compose.animation.AnimatedVisibility(
+            visible = swipeNote != null,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.Center),
+        ) {
+            val (text, color) = swipeNote ?: ("" to c.text)
+            Text(
+                text,
+                color = color,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(c.surface.copy(alpha = 0.95f))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
     }
 }
 
