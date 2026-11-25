@@ -55,6 +55,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -87,7 +89,24 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     // Wear OS nimmt Rechtswischen von überall als Zurück; der Startpunkt entscheidet, ob es Bewerten ist.
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
-        if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) lastTouchDownX = ev.x
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+            lastTouchDownX = ev.x
+            lastTouchDownY = ev.y
+            lastTouchDownTime = ev.downTime
+        }
+        // Hier statt in der Karte: Sehr schnelles Wischen kommt ohne Zwischenpunkte an und sähe dort wie Tippen aus.
+        // Fängt das System die Geste ab, kommt kein ACTION_UP, dann meldet sie der PredictiveBackHandler.
+        val handler = onRightSwipe
+        val dx = ev.x - lastTouchDownX
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_UP && ev.downTime == lastTouchDownTime && handler != null &&
+            dx > 50 * resources.displayMetrics.density && kotlin.math.abs(ev.y - lastTouchDownY) < dx / 2
+        ) {
+            val cancel = android.view.MotionEvent.obtain(ev).apply { action = android.view.MotionEvent.ACTION_CANCEL }
+            super.dispatchTouchEvent(cancel)
+            cancel.recycle()
+            handler()
+            return true
+        }
         return super.dispatchTouchEvent(ev)
     }
 
@@ -105,9 +124,16 @@ class MainActivity : ComponentActivity() {
 
 /** Startpunkt der letzten Berührung in Pixeln. */
 private var lastTouchDownX = 0f
+private var lastTouchDownY = 0f
+private var lastTouchDownTime = 0L
 
-/** Wischen, das näher am linken Rand beginnt, ist immer Zurück. */
-private val backEdge = 40.dp
+/** Von der Lernansicht gesetzt: Rechtswischen, das die App selbst zu sehen bekommt. */
+private var onRightSwipe: (() -> Unit)? = null
+
+/** Anteil der Breite, ab dem Rechtswischen nicht mehr Zurück ist, sondern bewertet. */
+private const val BACK_ZONE = 0.20f
+
+private const val TAG = "AnkiBack"
 
 private sealed interface SyncState {
     data object Idle : SyncState
@@ -510,16 +536,50 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     }
 
     val current = card
-    // Das System fängt Rechtswischen ab, bevor die Karte es sieht: vom linken Rand = zurück, sonst = bewerten.
-    // Die Zurück-Taste liefert keinen Wischfortschritt und führt immer zurück.
-    val backEdgePx = with(LocalDensity.current) { backEdge.toPx() }
-    androidx.activity.compose.PredictiveBackHandler(
-        enabled = settings.swipeRight != SwipeAction.NONE && current != null && zoomed == null,
-    ) { progress ->
+    // Das System fängt Rechtswischen ab, bevor die Karte es sieht. Verdeckt oder vom linken Rand (BACK_ZONE) = zurück,
+    // sonst = bewerten. Die Zurück-Taste liefert keinen Wischfortschritt und führt immer zurück.
+    val screenWidth = context.resources.displayMetrics.widthPixels
+    val swipeMin = with(LocalDensity.current) { 50.dp.toPx() }
+    // Karte und System können dieselbe Geste melden; zweimal zurück würde die Deckliste schließen.
+    var left by remember { mutableStateOf(false) }
+    fun leave() {
+        if (left) return
+        left = true
+        onBack()
+    }
+    var handledGesture by remember { mutableLongStateOf(0L) }
+    fun swipedRight() {
+        // Je Berührung nur einmal: Nach dem Bewerten wäre die nächste Karte verdeckt und derselbe Wisch ein Zurück.
+        if (handledGesture == lastTouchDownTime) return
+        handledGesture = lastTouchDownTime
+        val back = !revealed || current == null || settings.swipeRight == SwipeAction.NONE || lastTouchDownX < screenWidth * BACK_ZONE
+        android.util.Log.d(TAG, "right down=$lastTouchDownX revealed=$revealed back=$back")
+        if (back) leave() else rateBySwipe(current, settings.swipeRight)
+    }
+    val latestSwipe by rememberUpdatedState(::swipedRight)
+    DisposableEffect(zoomed == null) {
+        val handler = { latestSwipe() }
+        if (zoomed == null) onRightSwipe = handler
+        onDispose { if (onRightSwipe === handler) onRightSwipe = null }
+    }
+    androidx.activity.compose.PredictiveBackHandler(enabled = zoomed == null) { progress ->
         var swiped = false
-        progress.collect { swiped = true }
-        if (!swiped || lastTouchDownX < backEdgePx) onBack()
-        else if (revealed && current != null) rateBySwipe(current, settings.swipeRight)
+        var lastX = 0f
+        var maxX = 0f
+        try {
+            progress.collect {
+                swiped = true
+                lastX = it.touchX
+                maxX = maxOf(maxX, lastX)
+            }
+            android.util.Log.d(TAG, "invoked swiped=$swiped down=$lastTouchDownX last=$lastX")
+            if (swiped) swipedRight() else leave()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            android.util.Log.d(TAG, "cancelled down=$lastTouchDownX last=$lastX max=$maxX")
+            // Schnelles Wischen bricht das System manchmal ab. Zurückgezogene Finger bleiben ein Abbruch.
+            if (swiped && lastX - lastTouchDownX > swipeMin && maxX - lastX < swipeMin / 4) swipedRight()
+            throw e
+        }
     }
     Box(Modifier.fillMaxSize().background(c.background)) {
         Column(
@@ -528,24 +588,16 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 .rotaryScrollable(RotaryScrollableDefaults.behavior(scrollableState = scroll), focus)
                 .verticalScroll(scroll)
                 .clickable(enabled = current != null && !revealed) { revealed = true }
-                // Wisch-Abkürzung: links = Nochmal, rechts = Gut (nur aufgedeckt, nur wenn eingeschaltet).
-                // Wischen vom linken Rand bleibt „zurück zur Deckliste“, wie überall in Wear OS.
+                // Wisch-Abkürzung (nur aufgedeckt); Rechtswischen kann auch Zurück sein, siehe swipedRight.
                 .then(
-                    if (settings.swipeToRate && current != null) Modifier.pointerInput(current, revealed) {
+                    if (current != null) Modifier.pointerInput(current, revealed, settings) {
                         var dx = 0f
-                        var fromEdge = false
                         detectHorizontalDragGestures(
-                            onDragStart = { dx = 0f; fromEdge = lastTouchDownX < backEdge.toPx() },
+                            onDragStart = { dx = 0f },
                             onDragEnd = {
-                                // Wischen vom Rand gehört der Zurück-Geste des Systems.
-                                if (fromEdge) return@detectHorizontalDragGestures
-                                if (!revealed) return@detectHorizontalDragGestures
-                                val action = when {
-                                    dx < -80.dp.toPx() -> settings.swipeLeft
-                                    dx > 80.dp.toPx() -> settings.swipeRight
-                                    else -> SwipeAction.NONE
+                                when {
+                                    dx < -80.dp.toPx() && revealed -> rateBySwipe(current, settings.swipeLeft)
                                 }
-                                rateBySwipe(current, action)
                             },
                         ) { _, amount -> dx += amount }
                     } else Modifier,
