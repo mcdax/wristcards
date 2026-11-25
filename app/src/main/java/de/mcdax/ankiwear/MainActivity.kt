@@ -85,6 +85,12 @@ import anki.scheduler.CardAnswer
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    // Wear OS nimmt Rechtswischen von überall als Zurück; der Startpunkt entscheidet, ob es Bewerten ist.
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) lastTouchDownX = ev.x
+        return super.dispatchTouchEvent(ev)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Beim Lernen nicht mitten in der Karte abdunkeln (Wear OS beendet sonst gern den Prozess).
@@ -96,6 +102,12 @@ class MainActivity : ComponentActivity() {
         setContent { AnkiTheme(themeVariants[variant]) { App(openDeck, previewCard) } }
     }
 }
+
+/** Startpunkt der letzten Berührung in Pixeln. */
+private var lastTouchDownX = 0f
+
+/** Wischen, das näher am linken Rand beginnt, ist immer Zurück. */
+private val backEdge = 40.dp
 
 private sealed interface SyncState {
     data object Idle : SyncState
@@ -144,6 +156,14 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
     // Wischen nach rechts zeigt beim Zurückgehen die Deckliste darunter, statt eines schwarzen Bildschirms.
     // Wisch-Abkürzungen brauchen das Rechtswischen; dann nur per Zurück-Taste aus dem Deck.
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
+    // Verlassen erschweren: erst zweimal Zurück innerhalb von 2 s schließt die App.
+    var exitArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(exitArmed) {
+        if (exitArmed) {
+            kotlinx.coroutines.delay(2000)
+            exitArmed = false
+        }
+    }
     CompositionLocalProvider(LocalSettings provides settings) {
     SwipeDismissableNavHost(
         navController = nav,
@@ -153,20 +173,6 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
         userSwipeEnabled = true,
     ) {
         composable("decks") {
-            // Verlassen erschweren: erst zweimal Zurück innerhalb von 2 s schließt die App.
-            var exitArmed by remember { mutableStateOf(false) }
-            val activity = context as? android.app.Activity
-            LaunchedEffect(exitArmed) {
-                if (exitArmed) {
-                    kotlinx.coroutines.delay(2000)
-                    exitArmed = false
-                }
-            }
-            // Nur aktiv, solange die Deckliste wirklich vorne ist (sie bleibt beim Wischen als Hintergrund komponiert).
-            // Zurück-Taste und Zurückwischen landen beide hier.
-            androidx.activity.compose.BackHandler(enabled = route == "decks" && settings.confirmExit) {
-                if (exitArmed) activity?.finish() else exitArmed = true
-            }
             Box(Modifier.fillMaxSize()) {
             DeckList(
                 listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") },
@@ -204,8 +210,14 @@ private fun App(openDeck: String? = null, previewCard: Long? = null) {
         }
         composable("preview/{cardId}") { entry ->
             val cid = entry.arguments?.getString("cardId")?.toLongOrNull() ?: return@composable
-            ReviewScreen(repo, deck = null, previewCard = cid)
+            ReviewScreen(repo, deck = null, previewCard = cid, onBack = { nav.popBackStack() })
         }
+    }
+    // Außerhalb des NavHost: in dessen Startziel kommt Zurück auf der Uhr nicht an.
+    // Zurück-Taste und Zurückwischen landen beide hier.
+    val activity = context as? android.app.Activity
+    androidx.activity.compose.BackHandler(enabled = route == "decks" && settings.confirmExit) {
+        if (exitArmed) activity?.finish() else exitArmed = true
     }
     }
 }
@@ -480,7 +492,35 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         }
     }
 
+    fun rateBySwipe(current: ReviewCard, action: SwipeAction) {
+        // Index wie bei den Knöpfen: Nochmal, Schwer, Gut, Leicht
+        val idx = when (action) {
+            SwipeAction.AGAIN -> 0
+            SwipeAction.HARD -> 1
+            SwipeAction.GOOD -> 2
+            SwipeAction.EASY -> 3
+            SwipeAction.NONE -> return
+        }
+        val rating = listOf(CardAnswer.Rating.AGAIN, CardAnswer.Rating.HARD, CardAnswer.Rating.GOOD, CardAnswer.Rating.EASY)[idx]
+        if (settings.swipeFeedback && !busy) {
+            val color = listOf(c.again, c.hard, c.good, c.easy)[idx]
+            swipeNote = "${ratedLabels[idx]}  ${current.intervals.getOrNull(idx).orEmpty()}" to color
+        }
+        rate(current, rating)
+    }
+
     val current = card
+    // Das System fängt Rechtswischen ab, bevor die Karte es sieht: vom linken Rand = zurück, sonst = bewerten.
+    // Die Zurück-Taste liefert keinen Wischfortschritt und führt immer zurück.
+    val backEdgePx = with(LocalDensity.current) { backEdge.toPx() }
+    androidx.activity.compose.PredictiveBackHandler(
+        enabled = settings.swipeRight != SwipeAction.NONE && current != null && zoomed == null,
+    ) { progress ->
+        var swiped = false
+        progress.collect { swiped = true }
+        if (!swiped || lastTouchDownX < backEdgePx) onBack()
+        else if (revealed && current != null) rateBySwipe(current, settings.swipeRight)
+    }
     Box(Modifier.fillMaxSize().background(c.background)) {
         Column(
             modifier = Modifier
@@ -495,7 +535,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                         var dx = 0f
                         var fromEdge = false
                         detectHorizontalDragGestures(
-                            onDragStart = { dx = 0f; fromEdge = it.x < 40.dp.toPx() },
+                            onDragStart = { dx = 0f; fromEdge = lastTouchDownX < backEdge.toPx() },
                             onDragEnd = {
                                 // Wischen vom Rand gehört der Zurück-Geste des Systems.
                                 if (fromEdge) return@detectHorizontalDragGestures
@@ -505,20 +545,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                                     dx > 80.dp.toPx() -> settings.swipeRight
                                     else -> SwipeAction.NONE
                                 }
-                                // Index wie bei den Knöpfen: Nochmal, Schwer, Gut, Leicht
-                                val idx = when (action) {
-                                    SwipeAction.AGAIN -> 0
-                                    SwipeAction.HARD -> 1
-                                    SwipeAction.GOOD -> 2
-                                    SwipeAction.EASY -> 3
-                                    SwipeAction.NONE -> return@detectHorizontalDragGestures
-                                }
-                                val rating = listOf(CardAnswer.Rating.AGAIN, CardAnswer.Rating.HARD, CardAnswer.Rating.GOOD, CardAnswer.Rating.EASY)[idx]
-                                if (settings.swipeFeedback) {
-                                    val color = listOf(c.again, c.hard, c.good, c.easy)[idx]
-                                    swipeNote = "${ratedLabels[idx]}  ${current.intervals.getOrNull(idx).orEmpty()}" to color
-                                }
-                                rate(current, rating)
+                                rateBySwipe(current, action)
                             },
                         ) { _, amount -> dx += amount }
                     } else Modifier,
