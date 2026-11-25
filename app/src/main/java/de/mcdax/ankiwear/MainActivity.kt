@@ -532,6 +532,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             val color = listOf(c.again, c.hard, c.good, c.easy)[idx]
             swipeNote = "${ratedLabels[idx]}  ${current.intervals.getOrNull(idx).orEmpty()}" to color
         }
+        android.util.Log.d(TAG, "result rate $action")
         rate(current, rating)
     }
 
@@ -545,6 +546,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     fun leave() {
         if (left) return
         left = true
+        android.util.Log.d(TAG, "result back")
         onBack()
     }
     var handledGesture by remember { mutableLongStateOf(0L) }
