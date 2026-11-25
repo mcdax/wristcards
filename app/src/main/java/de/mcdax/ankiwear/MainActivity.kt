@@ -552,11 +552,13 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         // Je Berührung nur einmal: Nach dem Bewerten wäre die nächste Karte verdeckt und derselbe Wisch ein Zurück.
         if (handledGesture == lastTouchDownTime) return
         handledGesture = lastTouchDownTime
-        val back = !revealed || current == null || settings.swipeRight == SwipeAction.NONE || lastTouchDownX < screenWidth * BACK_ZONE
-        android.util.Log.d(TAG, "right down=$lastTouchDownX revealed=$revealed back=$back")
-        if (back) leave() else rateBySwipe(current, settings.swipeRight)
+        val shown = card
+        val back = !revealed || shown == null || settings.swipeRight == SwipeAction.NONE || lastTouchDownX < screenWidth * BACK_ZONE
+        android.util.Log.d(TAG, "right down=$lastTouchDownX revealed=$revealed card=${shown != null} back=$back")
+        if (back) leave() else rateBySwipe(shown, settings.swipeRight)
     }
-    val latestSwipe by rememberUpdatedState(::swipedRight)
+    // Lambda statt ::swipedRight: Funktionsreferenzen gelten als gleich, der Stand würde nie aktualisiert.
+    val latestSwipe by rememberUpdatedState({ swipedRight() })
     DisposableEffect(zoomed == null) {
         val handler = { latestSwipe() }
         if (zoomed == null) onRightSwipe = handler
