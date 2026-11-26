@@ -59,6 +59,11 @@ class SyncCredentials(context: Context) {
             .apply()
     }
 
+    /** AnkiWeb weist beim Sync einen festen Sync-Host zu (z. B. sync21); der gilt ab dann für dieses Konto. */
+    fun updateEndpoint(endpoint: String) {
+        if (prefs.contains("hkey")) prefs.edit().putString("endpoint", endpoint).apply()
+    }
+
     /** Abmelden: ab jetzt auch nicht mehr auf die eingebauten Zugangsdaten zurückfallen. */
     fun clear() {
         prefs.edit().clear().putBoolean("signedOut", true).apply()

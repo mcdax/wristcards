@@ -223,8 +223,15 @@ class AnkiRepository private constructor(private val context: Context) {
     }
 
     private fun syncLocked(): SyncResult {
-        val auth = login()
+        var auth = login()
         val result = backend.syncCollection(auth, false)
+        // AnkiWeb nennt im ersten Abgleich den zuständigen Sync-Host. Vollabgleich und Medien müssen dorthin,
+        // sonst antwortet der Standard-Host mit 400 „missing original size“ (so macht es auch Anki am Desktop).
+        if (result.hasNewEndpoint() && result.newEndpoint.isNotEmpty() && result.newEndpoint != auth.endpoint) {
+            auth = auth.toBuilder().setEndpoint(result.newEndpoint).build()
+            this.auth = auth
+            credentials.updateEndpoint(result.newEndpoint)
+        }
         when (result.required) {
             ChangesRequired.NO_CHANGES, ChangesRequired.NORMAL_SYNC -> Unit
             ChangesRequired.FULL_DOWNLOAD, ChangesRequired.FULL_SYNC -> {
