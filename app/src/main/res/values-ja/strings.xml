@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ 離して同期</string>
     <string name="sync_failed">⚠ 同期に失敗</string>
     <string name="loading">読み込み中…</string>
-    <string name="done">%1$s は完了</string>
     <string name="show_hint">ヒントを表示</string>
     <string name="show_more">追加情報を表示</string>
     <string name="rating_failed">評価に失敗</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">設定</string>
     <string name="open_settings">⚙ 設定</string>
-    <string name="group_study">学習</string>
     <string name="group_sync">同期</string>
     <string name="group_decks">デッキ一覧</string>
     <string name="set_font_size">カードの文字サイズ</string>
@@ -98,4 +96,29 @@
         <item quantity="other">Anki の復習カード %1$d 枚</item>
     </plurals>
     <string name="complication_long">新規 %1$d · 学習 %2$d · 復習 %3$d</string>
+    <string name="undo">元に戻す</string>
+    <string name="undo_failed">元に戻せませんでした</string>
+    <string name="tap_to_reveal">タップで答えを表示</string>
+    <string name="close">閉じる</string>
+    <string name="zoom_hint">リューズを回してズーム</string>
+    <string name="done_title">完了！</string>
+    <string name="nothing_due">今日の予定はありません</string>
+    <string name="back_to_decks">デッキ一覧へ</string>
+    <string name="legend_new">新規</string>
+    <string name="legend_learn">学習中</string>
+    <string name="legend_due">復習</string>
+    <plurals name="done_count">
+        <item quantity="other">%2$s で %1$d 枚学習しました</item>
+    </plurals>
+    <string name="page_cards">カード</string>
+    <string name="page_cards_summary">文字サイズ、追加テキスト</string>
+    <string name="page_rating">評価</string>
+    <string name="page_rating_summary">ボタン、スワイプ、元に戻す</string>
+    <string name="page_sound">音声</string>
+    <string name="page_sound_summary">ヘッドホン、自動再生</string>
+    <string name="page_sync_summary">アカウント、メディア、モバイル</string>
+    <string name="page_decks_summary">凡例、空のデッキ、終了</string>
+    <string name="set_scrollbar">長いカードにスクロールバー</string>
+    <string name="set_button_labels">ボタンに文字</string>
+    <string name="set_legend">デッキの上に凡例</string>
 </resources>

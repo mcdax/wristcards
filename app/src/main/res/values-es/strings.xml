@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ Suelta para sincronizar</string>
     <string name="sync_failed">⚠ Error de sincronización</string>
     <string name="loading">Cargando…</string>
-    <string name="done">Todo listo en %1$s</string>
     <string name="show_hint">Mostrar pista</string>
     <string name="show_more">Mostrar extra</string>
     <string name="rating_failed">Error al valorar</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">Ajustes</string>
     <string name="open_settings">⚙ Ajustes</string>
-    <string name="group_study">Estudio</string>
     <string name="group_sync">Sincronización</string>
     <string name="group_decks">Lista de mazos</string>
     <string name="set_font_size">Tamaño del texto</string>
@@ -102,4 +100,30 @@
         <item quantity="other">%1$d tarjetas de Anki pendientes</item>
     </plurals>
     <string name="complication_long">%1$d nuevas · %2$d aprender · %3$d pend.</string>
+    <string name="undo">Deshacer</string>
+    <string name="undo_failed">No se pudo deshacer</string>
+    <string name="tap_to_reveal">Toca para ver la respuesta</string>
+    <string name="close">Cerrar</string>
+    <string name="zoom_hint">Gira la corona para ampliar</string>
+    <string name="done_title">¡Hecho!</string>
+    <string name="nothing_due">Nada pendiente hoy</string>
+    <string name="back_to_decks">Volver a mazos</string>
+    <string name="legend_new">Nuevas</string>
+    <string name="legend_learn">Aprend.</string>
+    <string name="legend_due">Pendientes</string>
+    <plurals name="done_count">
+        <item quantity="one">%1$d tarjeta estudiada en %2$s</item>
+        <item quantity="other">%1$d tarjetas estudiadas en %2$s</item>
+    </plurals>
+    <string name="page_cards">Tarjetas</string>
+    <string name="page_cards_summary">Tamaño, texto extra</string>
+    <string name="page_rating">Calificar</string>
+    <string name="page_rating_summary">Botones, deslizar, deshacer</string>
+    <string name="page_sound">Sonido</string>
+    <string name="page_sound_summary">Auriculares, automático</string>
+    <string name="page_sync_summary">Cuenta, multimedia, datos</string>
+    <string name="page_decks_summary">Leyenda, mazos vacíos, salir</string>
+    <string name="set_scrollbar">Barra en tarjetas largas</string>
+    <string name="set_button_labels">Palabras en botones</string>
+    <string name="set_legend">Leyenda sobre los mazos</string>
 </resources>

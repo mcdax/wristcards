@@ -10,7 +10,10 @@ import android.text.style.UnderlineSpan
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -239,12 +242,21 @@ private fun toAnnotated(html: String): AnnotatedString {
 
     // Markierungen entfernen, Positionen umrechnen, Lückenbereiche merken.
     val raw = spanned.toString()
+    val bullets = inlineBullets(raw)
     val map = IntArray(raw.length + 1)
     val text = StringBuilder()
     val clozes = mutableListOf<IntRange>()
     var clozeStart = -1
+    var skip = 0
     for (i in raw.indices) {
         map[i] = text.length
+        if (skip > 0) { skip--; continue }
+        when (bullets[i]) {
+            Bullet.SEPARATOR -> { text.append("\n• "); skip = INLINE_SEPARATOR.length - 1; continue }
+            Bullet.AFTER_COLON -> { text.append("\n• "); continue }
+            Bullet.BEFORE -> text.append("• ")
+            null -> Unit
+        }
         when (raw[i]) {
             CLOZE_START -> clozeStart = text.length
             CLOZE_END -> if (clozeStart >= 0) {
@@ -290,10 +302,63 @@ private fun toAnnotated(html: String): AnnotatedString {
         val r = range(c.first, c.last + 1) ?: continue
         b.addStringAnnotation(CLOZE_TAG, "", r.first, r.last + 1)
     }
-    return b.toAnnotatedString()
+    return b.toAnnotatedString().withHangingBullets()
+}
+
+/**
+ * Aufzählungen mit hängendem Einzug: umbrochene Zeilen beginnen unter dem Text, nicht unter dem Punkt.
+ * Absatz-Stile in Compose trennen selbst; ein zusätzliches „\n“ ergäbe Leerzeilen. Deshalb wird jede Zeile
+ * ein eigener Absatz und die Zeilenumbrüche entfallen.
+ */
+private fun AnnotatedString.withHangingBullets(): AnnotatedString {
+    if (!text.startsWith("• ") && !text.contains("\n• ")) return this
+    val out = AnnotatedString.Builder()
+    var start = 0
+    while (start <= text.length) {
+        val end = text.indexOf('\n', start).let { if (it < 0) text.length else it }
+        val from = out.length
+        // Leere Zeile als Leerzeichen, sonst verschwände der leere Absatz.
+        if (end > start) out.append(subSequence(start, end)) else out.append(" ")
+        val indent = if (text.startsWith("• ", start)) TextIndent(firstLine = 0.sp, restLine = 0.75.em) else TextIndent.None
+        out.addStyle(ParagraphStyle(textIndent = indent), from, out.length)
+        start = end + 1
+    }
+    return out.toAnnotatedString()
 }
 
 const val CLOZE_TAG = "cloze"
+
+/** Aufzählungen, die in einer Zeile mit „ · “ getrennt sind, zeigt die Uhr untereinander. */
+private const val INLINE_SEPARATOR = " · "
+
+private enum class Bullet { SEPARATOR, AFTER_COLON, BEFORE }
+
+/**
+ * Wo im Text Aufzählungspunkte entstehen: jedes „ · “ wird Zeilenumbruch + „• “.
+ * Der erste Eintrag einer solchen Zeile bekommt ebenfalls „• “, entweder nach einem Doppelpunkt
+ * („Nenne …: A · B“ → Einleitung, dann Liste) oder am Zeilenanfang.
+ */
+private fun inlineBullets(raw: String): Map<Int, Bullet> {
+    val out = HashMap<Int, Bullet>()
+    var lineStart = 0
+    while (lineStart <= raw.length) {
+        val lineEnd = raw.indexOf('\n', lineStart).let { if (it < 0) raw.length else it }
+        val line = raw.substring(lineStart, lineEnd)
+        val first = line.indexOf(INLINE_SEPARATOR)
+        if (first >= 0) {
+            var at = first
+            while (at >= 0) {
+                out[lineStart + at] = Bullet.SEPARATOR
+                at = line.indexOf(INLINE_SEPARATOR, at + INLINE_SEPARATOR.length)
+            }
+            val colon = line.lastIndexOf(": ", first)
+            if (colon >= 0) out[lineStart + colon + 1] = Bullet.AFTER_COLON
+            else line.indexOfFirst { !it.isWhitespace() }.takeIf { it in 0 until first }?.let { out[lineStart + it] = Bullet.BEFORE }
+        }
+        lineStart = lineEnd + 1
+    }
+    return out
+}
 
 /** Färbt die markierten Lücken ein; Vorder- und Rückseite verschieden. */
 fun AnnotatedString.withClozeColors(bg: Color, fg: Color): AnnotatedString {

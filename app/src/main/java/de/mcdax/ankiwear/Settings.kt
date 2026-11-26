@@ -34,10 +34,14 @@ data class AppSettings(
     // Wischen links = Nochmal, rechts = Gut
     val swipeLeft: SwipeAction = SwipeAction.NONE,
     val swipeRight: SwipeAction = SwipeAction.NONE,
-    // Kurze Einblendung, welche Bewertung per Wischen vergeben wurde
+    // Kurze Einblendung nach jeder Bewertung, mit Rückgängig
     val swipeFeedback: Boolean = true,
     val twoButtons: Boolean = false,
+    // Wörter (Nochmal/Schwer/Gut/Einfach) auf den Knöpfen; aus = nur Zeiten bzw. Symbole
+    val showButtonLabels: Boolean = true,
     val showIntervals: Boolean = true,
+    // Balken am Rand, wenn die Karte länger als der Bildschirm ist
+    val showScrollbar: Boolean = true,
     val keepScreenOn: Boolean = true,
     // Sync; beide Auslöser aus = nur manuell (Antippen/Herunterziehen)
     val syncOnOpen: Boolean = true,
@@ -49,6 +53,8 @@ data class AppSettings(
     // Verlassen der App nur mit zweitem Zurück (Taste oder Wischen)
     val confirmExit: Boolean = true,
     val hideEmptyDecks: Boolean = false,
+    // Zeile „Neu · Lernen · Fällig“ über den Decks
+    val showLegend: Boolean = true,
     val pinnedDecks: Set<Long> = emptySet(),
     val hiddenDecks: Set<Long> = emptySet(),
     val collapseSubdecks: Boolean = false,
@@ -101,7 +107,10 @@ class SettingsStore private constructor(context: Context) {
             .putString("swipeRight", s.swipeRight.name)
             .putBoolean("swipeFeedback", s.swipeFeedback)
             .putBoolean("twoButtons", s.twoButtons)
+            .putBoolean("showButtonLabels", s.showButtonLabels)
             .putBoolean("showIntervals", s.showIntervals)
+            .putBoolean("showScrollbar", s.showScrollbar)
+            .putBoolean("showLegend", s.showLegend)
             .putBoolean("keepScreenOn", s.keepScreenOn)
             .putBoolean("syncOnOpen", s.syncOnOpen)
             .putBoolean("syncOnDeckExit", s.syncOnDeckExit)
@@ -146,7 +155,10 @@ private fun read(p: SharedPreferences): AppSettings {
             else enum("swipeRight", d.swipeRight, SwipeAction.entries.toTypedArray()),
         swipeFeedback = p.getBoolean("swipeFeedback", d.swipeFeedback),
         twoButtons = p.getBoolean("twoButtons", d.twoButtons),
+        showButtonLabels = p.getBoolean("showButtonLabels", d.showButtonLabels),
         showIntervals = p.getBoolean("showIntervals", d.showIntervals),
+        showScrollbar = p.getBoolean("showScrollbar", d.showScrollbar),
+        showLegend = p.getBoolean("showLegend", d.showLegend),
         keepScreenOn = p.getBoolean("keepScreenOn", d.keepScreenOn),
         syncOnOpen = p.getBoolean("syncOnOpen", d.syncOnOpen),
         syncOnDeckExit = p.getBoolean("syncOnDeckExit", d.syncOnDeckExit),

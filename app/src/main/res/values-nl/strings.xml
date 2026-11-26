@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ Loslaten om te synchroniseren</string>
     <string name="sync_failed">⚠ Sync mislukt</string>
     <string name="loading">Laden…</string>
-    <string name="done">Klaar met %1$s</string>
     <string name="show_hint">Hint tonen</string>
     <string name="show_more">Extra tonen</string>
     <string name="rating_failed">Beoordelen mislukt</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">Instellingen</string>
     <string name="open_settings">⚙ Instellingen</string>
-    <string name="group_study">Leren</string>
     <string name="group_sync">Sync</string>
     <string name="group_decks">Stapellijst</string>
     <string name="set_font_size">Tekstgrootte kaart</string>
@@ -100,4 +98,30 @@
         <item quantity="other">%1$d openstaande Anki-kaarten</item>
     </plurals>
     <string name="complication_long">%1$d nieuw · %2$d leren · %3$d open</string>
+    <string name="undo">Ongedaan</string>
+    <string name="undo_failed">Ongedaan maken mislukt</string>
+    <string name="tap_to_reveal">Tik voor het antwoord</string>
+    <string name="close">Sluiten</string>
+    <string name="zoom_hint">Draai de kroon om te zoomen</string>
+    <string name="done_title">Klaar!</string>
+    <string name="nothing_due">Vandaag niets te doen</string>
+    <string name="back_to_decks">Naar de stapels</string>
+    <string name="legend_new">Nieuw</string>
+    <string name="legend_learn">Leren</string>
+    <string name="legend_due">Herhalen</string>
+    <plurals name="done_count">
+        <item quantity="one">%1$d kaart geleerd in %2$s</item>
+        <item quantity="other">%1$d kaarten geleerd in %2$s</item>
+    </plurals>
+    <string name="page_cards">Kaarten</string>
+    <string name="page_cards_summary">Tekstgrootte, extra tekst</string>
+    <string name="page_rating">Beoordelen</string>
+    <string name="page_rating_summary">Knoppen, vegen, ongedaan</string>
+    <string name="page_sound">Geluid</string>
+    <string name="page_sound_summary">Koptelefoon, automatisch</string>
+    <string name="page_sync_summary">Account, media, mobiel</string>
+    <string name="page_decks_summary">Legenda, lege stapels, afsluiten</string>
+    <string name="set_scrollbar">Schuifbalk bij lange kaarten</string>
+    <string name="set_button_labels">Woorden op knoppen</string>
+    <string name="set_legend">Legenda boven stapels</string>
 </resources>

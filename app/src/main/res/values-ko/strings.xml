@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ 놓아서 동기화</string>
     <string name="sync_failed">⚠ 동기화 실패</string>
     <string name="loading">불러오는 중…</string>
-    <string name="done">%1$s 완료</string>
     <string name="show_hint">힌트 보기</string>
     <string name="show_more">추가 내용 보기</string>
     <string name="rating_failed">평가 실패</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">설정</string>
     <string name="open_settings">⚙ 설정</string>
-    <string name="group_study">학습</string>
     <string name="group_sync">동기화</string>
     <string name="group_decks">덱 목록</string>
     <string name="set_font_size">카드 글자 크기</string>
@@ -98,4 +96,29 @@
         <item quantity="other">Anki 복습 카드 %1$d장</item>
     </plurals>
     <string name="complication_long">신규 %1$d · 학습 %2$d · 복습 %3$d</string>
+    <string name="undo">실행 취소</string>
+    <string name="undo_failed">실행 취소 실패</string>
+    <string name="tap_to_reveal">탭하여 답 보기</string>
+    <string name="close">닫기</string>
+    <string name="zoom_hint">크라운을 돌려 확대</string>
+    <string name="done_title">완료!</string>
+    <string name="nothing_due">오늘 복습할 카드 없음</string>
+    <string name="back_to_decks">덱 목록으로</string>
+    <string name="legend_new">새 카드</string>
+    <string name="legend_learn">학습 중</string>
+    <string name="legend_due">복습</string>
+    <plurals name="done_count">
+        <item quantity="other">%2$s에서 %1$d장 학습</item>
+    </plurals>
+    <string name="page_cards">카드</string>
+    <string name="page_cards_summary">글자 크기, 추가 텍스트</string>
+    <string name="page_rating">평가</string>
+    <string name="page_rating_summary">버튼, 스와이프, 실행 취소</string>
+    <string name="page_sound">소리</string>
+    <string name="page_sound_summary">헤드폰, 자동 재생</string>
+    <string name="page_sync_summary">계정, 미디어, 셀룰러</string>
+    <string name="page_decks_summary">범례, 빈 덱, 종료</string>
+    <string name="set_scrollbar">긴 카드에 스크롤바</string>
+    <string name="set_button_labels">버튼에 글자</string>
+    <string name="set_legend">덱 위에 범례</string>
 </resources>

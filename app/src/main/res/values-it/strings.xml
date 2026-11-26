@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ Rilascia per sincronizzare</string>
     <string name="sync_failed">⚠ Sinc. non riuscita</string>
     <string name="loading">Caricamento…</string>
-    <string name="done">Completato: %1$s</string>
     <string name="show_hint">Mostra suggerimento</string>
     <string name="show_more">Mostra extra</string>
     <string name="rating_failed">Valutazione non riuscita</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">Impostazioni</string>
     <string name="open_settings">⚙ Impostazioni</string>
-    <string name="group_study">Studio</string>
     <string name="group_sync">Sincronizzazione</string>
     <string name="group_decks">Elenco mazzi</string>
     <string name="set_font_size">Dimensione testo carta</string>
@@ -102,4 +100,30 @@
         <item quantity="other">%1$d carte Anki in scadenza</item>
     </plurals>
     <string name="complication_long">%1$d nuove · %2$d appr. · %3$d da rivedere</string>
+    <string name="undo">Annulla</string>
+    <string name="undo_failed">Annullamento non riuscito</string>
+    <string name="tap_to_reveal">Tocca per la risposta</string>
+    <string name="close">Chiudi</string>
+    <string name="zoom_hint">Ruota la corona per ingrandire</string>
+    <string name="done_title">Fatto!</string>
+    <string name="nothing_due">Niente da ripassare oggi</string>
+    <string name="back_to_decks">Torna ai mazzi</string>
+    <string name="legend_new">Nuove</string>
+    <string name="legend_learn">In appr.</string>
+    <string name="legend_due">Da ripassare</string>
+    <plurals name="done_count">
+        <item quantity="one">%1$d carta studiata in %2$s</item>
+        <item quantity="other">%1$d carte studiate in %2$s</item>
+    </plurals>
+    <string name="page_cards">Carte</string>
+    <string name="page_cards_summary">Dimensione, testo extra</string>
+    <string name="page_rating">Valutazione</string>
+    <string name="page_rating_summary">Pulsanti, scorrere, annulla</string>
+    <string name="page_sound">Audio</string>
+    <string name="page_sound_summary">Cuffie, automatico</string>
+    <string name="page_sync_summary">Account, media, rete</string>
+    <string name="page_decks_summary">Legenda, mazzi vuoti, uscita</string>
+    <string name="set_scrollbar">Barra su carte lunghe</string>
+    <string name="set_button_labels">Parole sui pulsanti</string>
+    <string name="set_legend">Legenda sopra i mazzi</string>
 </resources>

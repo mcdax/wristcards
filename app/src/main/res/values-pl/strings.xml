@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ Puść, aby zsynchronizować</string>
     <string name="sync_failed">⚠ Synchronizacja nieudana</string>
     <string name="loading">Wczytywanie…</string>
-    <string name="done">Ukończono: %1$s</string>
     <string name="show_hint">Pokaż podpowiedź</string>
     <string name="show_more">Pokaż dodatek</string>
     <string name="rating_failed">Nie udało się ocenić</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">Ustawienia</string>
     <string name="open_settings">⚙ Ustawienia</string>
-    <string name="group_study">Nauka</string>
     <string name="group_sync">Synchronizacja</string>
     <string name="group_decks">Lista talii</string>
     <string name="set_font_size">Rozmiar tekstu karty</string>
@@ -104,4 +102,32 @@
         <item quantity="other">%1$d karty Anki do powtórki</item>
     </plurals>
     <string name="complication_long">%1$d nowych · %2$d nauka · %3$d powt.</string>
+    <string name="undo">Cofnij</string>
+    <string name="undo_failed">Nie udało się cofnąć</string>
+    <string name="tap_to_reveal">Dotknij, aby zobaczyć odpowiedź</string>
+    <string name="close">Zamknij</string>
+    <string name="zoom_hint">Obróć koronkę, aby powiększyć</string>
+    <string name="done_title">Gotowe!</string>
+    <string name="nothing_due">Na dziś nic do powtórki</string>
+    <string name="back_to_decks">Do listy talii</string>
+    <string name="legend_new">Nowe</string>
+    <string name="legend_learn">Nauka</string>
+    <string name="legend_due">Do powt.</string>
+    <plurals name="done_count">
+        <item quantity="one">%1$d karta w %2$s</item>
+        <item quantity="few">%1$d karty w %2$s</item>
+        <item quantity="many">%1$d kart w %2$s</item>
+        <item quantity="other">%1$d karty w %2$s</item>
+    </plurals>
+    <string name="page_cards">Karty</string>
+    <string name="page_cards_summary">Rozmiar, dodatkowy tekst</string>
+    <string name="page_rating">Ocenianie</string>
+    <string name="page_rating_summary">Przyciski, przesunięcia, cofnij</string>
+    <string name="page_sound">Dźwięk</string>
+    <string name="page_sound_summary">Słuchawki, automatycznie</string>
+    <string name="page_sync_summary">Konto, media, komórkowe</string>
+    <string name="page_decks_summary">Legenda, puste talie, wyjście</string>
+    <string name="set_scrollbar">Pasek przy długich kartach</string>
+    <string name="set_button_labels">Słowa na przyciskach</string>
+    <string name="set_legend">Legenda nad taliami</string>
 </resources>

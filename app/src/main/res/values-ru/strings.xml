@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ Отпустите для синхронизации</string>
     <string name="sync_failed">⚠ Ошибка синхронизации</string>
     <string name="loading">Загрузка…</string>
-    <string name="done">Готово: %1$s</string>
     <string name="show_hint">Показать подсказку</string>
     <string name="show_more">Показать дополнение</string>
     <string name="rating_failed">Не удалось оценить</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">Настройки</string>
     <string name="open_settings">⚙ Настройки</string>
-    <string name="group_study">Обучение</string>
     <string name="group_sync">Синхронизация</string>
     <string name="group_decks">Список колод</string>
     <string name="set_font_size">Размер текста карточки</string>
@@ -104,4 +102,32 @@
         <item quantity="other">%1$d карточки Anki к повтору</item>
     </plurals>
     <string name="complication_long">%1$d нов. · %2$d изуч. · %3$d повт.</string>
+    <string name="undo">Отменить</string>
+    <string name="undo_failed">Не удалось отменить</string>
+    <string name="tap_to_reveal">Нажмите, чтобы увидеть ответ</string>
+    <string name="close">Закрыть</string>
+    <string name="zoom_hint">Вращайте колёсико для масштаба</string>
+    <string name="done_title">Готово!</string>
+    <string name="nothing_due">На сегодня ничего нет</string>
+    <string name="back_to_decks">К колодам</string>
+    <string name="legend_new">Новые</string>
+    <string name="legend_learn">Изучаемые</string>
+    <string name="legend_due">К повтору</string>
+    <plurals name="done_count">
+        <item quantity="one">%1$d карточка в %2$s</item>
+        <item quantity="few">%1$d карточки в %2$s</item>
+        <item quantity="many">%1$d карточек в %2$s</item>
+        <item quantity="other">%1$d карточки в %2$s</item>
+    </plurals>
+    <string name="page_cards">Карточки</string>
+    <string name="page_cards_summary">Размер, доп. текст</string>
+    <string name="page_rating">Оценка</string>
+    <string name="page_rating_summary">Кнопки, свайпы, отмена</string>
+    <string name="page_sound">Звук</string>
+    <string name="page_sound_summary">Наушники, авто</string>
+    <string name="page_sync_summary">Аккаунт, медиа, сеть</string>
+    <string name="page_decks_summary">Легенда, пустые колоды, выход</string>
+    <string name="set_scrollbar">Полоса на длинных карточках</string>
+    <string name="set_button_labels">Слова на кнопках</string>
+    <string name="set_legend">Легенда над колодами</string>
 </resources>

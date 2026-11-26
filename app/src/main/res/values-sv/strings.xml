@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ Släpp för att synka</string>
     <string name="sync_failed">⚠ Synk misslyckades</string>
     <string name="loading">Läser in…</string>
-    <string name="done">Klart med %1$s</string>
     <string name="show_hint">Visa tips</string>
     <string name="show_more">Visa extra</string>
     <string name="rating_failed">Betygsättning misslyckades</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">Inställningar</string>
     <string name="open_settings">⚙ Inställningar</string>
-    <string name="group_study">Studera</string>
     <string name="group_sync">Synk</string>
     <string name="group_decks">Kortlekslista</string>
     <string name="set_font_size">Kortets textstorlek</string>
@@ -100,4 +98,30 @@
         <item quantity="other">%1$d förfallna Anki-kort</item>
     </plurals>
     <string name="complication_long">%1$d nya · %2$d lär · %3$d förf.</string>
+    <string name="undo">Ångra</string>
+    <string name="undo_failed">Det gick inte att ångra</string>
+    <string name="tap_to_reveal">Tryck för att visa svaret</string>
+    <string name="close">Stäng</string>
+    <string name="zoom_hint">Vrid kronan för att zooma</string>
+    <string name="done_title">Klart!</string>
+    <string name="nothing_due">Inget att repetera idag</string>
+    <string name="back_to_decks">Till kortlekarna</string>
+    <string name="legend_new">Nya</string>
+    <string name="legend_learn">Lär</string>
+    <string name="legend_due">Förfallna</string>
+    <plurals name="done_count">
+        <item quantity="one">%1$d kort repeterat i %2$s</item>
+        <item quantity="other">%1$d kort repeterade i %2$s</item>
+    </plurals>
+    <string name="page_cards">Kort</string>
+    <string name="page_cards_summary">Textstorlek, extratext</string>
+    <string name="page_rating">Bedöma</string>
+    <string name="page_rating_summary">Knappar, svep, ångra</string>
+    <string name="page_sound">Ljud</string>
+    <string name="page_sound_summary">Hörlurar, automatiskt</string>
+    <string name="page_sync_summary">Konto, media, mobil</string>
+    <string name="page_decks_summary">Förklaring, tomma lekar, avsluta</string>
+    <string name="set_scrollbar">Rullningslist på långa kort</string>
+    <string name="set_button_labels">Ord på knapparna</string>
+    <string name="set_legend">Förklaring ovanför lekar</string>
 </resources>

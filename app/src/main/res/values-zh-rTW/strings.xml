@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ 放開以同步</string>
     <string name="sync_failed">⚠ 同步失敗</string>
     <string name="loading">載入中…</string>
-    <string name="done">%1$s 已全部完成</string>
     <string name="show_hint">顯示提示</string>
     <string name="show_more">顯示額外內容</string>
     <string name="rating_failed">評分失敗</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">設定</string>
     <string name="open_settings">⚙ 設定</string>
-    <string name="group_study">學習</string>
     <string name="group_sync">同步</string>
     <string name="group_decks">牌組列表</string>
     <string name="set_font_size">卡片文字大小</string>
@@ -98,4 +96,29 @@
         <item quantity="other">Anki 有 %1$d 張卡片待複習</item>
     </plurals>
     <string name="complication_long">新卡 %1$d · 學習 %2$d · 複習 %3$d</string>
+    <string name="undo">復原</string>
+    <string name="undo_failed">復原失敗</string>
+    <string name="tap_to_reveal">輕觸顯示答案</string>
+    <string name="close">關閉</string>
+    <string name="zoom_hint">轉動錶冠縮放</string>
+    <string name="done_title">完成！</string>
+    <string name="nothing_due">今天沒有到期卡片</string>
+    <string name="back_to_decks">返回牌組</string>
+    <string name="legend_new">新</string>
+    <string name="legend_learn">學習中</string>
+    <string name="legend_due">到期</string>
+    <plurals name="done_count">
+        <item quantity="other">已在 %2$s 中學習 %1$d 張卡片</item>
+    </plurals>
+    <string name="page_cards">卡片</string>
+    <string name="page_cards_summary">字級、附加文字</string>
+    <string name="page_rating">評分</string>
+    <string name="page_rating_summary">按鈕、滑動、復原</string>
+    <string name="page_sound">聲音</string>
+    <string name="page_sound_summary">耳機、自動播放</string>
+    <string name="page_sync_summary">帳戶、媒體、行動網路</string>
+    <string name="page_decks_summary">圖例、空牌組、退出</string>
+    <string name="set_scrollbar">長卡片顯示捲軸</string>
+    <string name="set_button_labels">按鈕顯示文字</string>
+    <string name="set_legend">牌組上方顯示圖例</string>
 </resources>

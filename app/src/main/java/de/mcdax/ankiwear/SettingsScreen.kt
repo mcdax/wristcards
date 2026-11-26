@@ -58,7 +58,12 @@ import kotlinx.coroutines.launch
  * MainActivity hängt sie mit einer Zeile in ihren SwipeDismissableNavHost.
  */
 fun NavGraphBuilder.settingsGraph(nav: NavHostController, repo: AnkiRepository, decks: () -> List<DeckTreeNode>) {
-    composable("settings") { SettingsScreen(repo, onNavigate = { nav.navigate(it) }) }
+    composable("settings") { SettingsScreen(repo, page = null, onNavigate = { nav.navigate(it) }) }
+    // Untermenüs, damit die Liste auf der Uhr kurz bleibt.
+    composable("settings/page/{page}") { entry ->
+        val page = SettingsPage.entries.firstOrNull { it.name == entry.arguments?.getString("page") } ?: return@composable
+        SettingsScreen(repo, page, onNavigate = { nav.navigate(it) })
+    }
     composable("settings/choice/{key}") { entry ->
         val choice = choices.firstOrNull { it.key == entry.arguments?.getString("key") } ?: return@composable
         ChoiceScreen(choice, onDone = { nav.popBackStack() })
@@ -120,8 +125,17 @@ private val mediaChoice = Choice(
 private val choices: List<Choice<*>> =
     listOf(fontSizeChoice, extraChoice, audioChoice, audioOutputChoice, swipeLeftChoice, swipeRightChoice, buttonsChoice, mediaChoice)
 
+/** Untermenüs der Einstellungen; Titel und kurze Beschreibung für die Übersicht. */
+private enum class SettingsPage(@StringRes val title: Int, @StringRes val summary: Int) {
+    CARDS(R.string.page_cards, R.string.page_cards_summary),
+    RATING(R.string.page_rating, R.string.page_rating_summary),
+    SOUND(R.string.page_sound, R.string.page_sound_summary),
+    SYNC(R.string.group_sync, R.string.page_sync_summary),
+    DECKS(R.string.group_decks, R.string.page_decks_summary),
+}
+
 @Composable
-private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
+private fun SettingsScreen(repo: AnkiRepository, page: SettingsPage?, onNavigate: (String) -> Unit) {
     val context = LocalContext.current
     val store = remember { SettingsStore.get(context) }
     val s by store.flow.collectAsState()
@@ -129,53 +143,70 @@ private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
     val account = repo.account
 
     SettingsList {
-        item { Header(R.string.settings) }
-
-        item { Group(R.string.group_study) }
-        item { ChoiceRow(fontSizeChoice, s, onNavigate) }
-        item { ChoiceRow(extraChoice, s, onNavigate) }
-        item { ChoiceRow(audioOutputChoice, s, onNavigate) }
-        if (s.audioOutput != AudioOutput.NEVER) item { ChoiceRow(audioChoice, s, onNavigate) }
-        item { Toggle(R.string.set_vibrate_rate, s.vibrateOnRate) { v -> store.update { it.copy(vibrateOnRate = v) } } }
-        item { Toggle(R.string.set_vibrate_done, s.vibrateOnDeckDone) { v -> store.update { it.copy(vibrateOnDeckDone = v) } } }
-        item { ChoiceRow(swipeLeftChoice, s, onNavigate) }
-        item { ChoiceRow(swipeRightChoice, s, onNavigate) }
-        if (s.swipeToRate) item { Note(R.string.set_swipe_hint) }
-        if (s.swipeToRate) item {
-            Toggle(R.string.set_swipe_feedback, s.swipeFeedback, R.string.set_swipe_feedback_hint) { v -> store.update { it.copy(swipeFeedback = v) } }
-        }
-        item { ChoiceRow(buttonsChoice, s, onNavigate) }
-        item { Toggle(R.string.set_intervals, s.showIntervals) { v -> store.update { it.copy(showIntervals = v) } } }
-        item { Toggle(R.string.set_keep_screen_on, s.keepScreenOn) { v -> store.update { it.copy(keepScreenOn = v) } } }
-
-        item { Group(R.string.group_sync) }
-        item { Toggle(R.string.set_sync_open, s.syncOnOpen) { v -> store.update { it.copy(syncOnOpen = v) } } }
-        item { Toggle(R.string.set_sync_exit, s.syncOnDeckExit) { v -> store.update { it.copy(syncOnDeckExit = v) } } }
-        if (!s.syncOnOpen && !s.syncOnDeckExit) item { Note(R.string.set_sync_manual_hint) }
-        item { Toggle(R.string.set_cellular_sync, s.cellularSync, R.string.set_cellular_sync_hint) { v -> store.update { it.copy(cellularSync = v) } } }
-        item { ChoiceRow(mediaChoice, s, onNavigate) }
-        item {
-            val label = when (account) {
-                is Account.SignedIn -> account.user
-                Account.BuiltIn -> stringResource(R.string.account_built_in)
-                Account.SignedOut -> stringResource(R.string.account_signed_out)
+        item { Header(page?.title ?: R.string.settings) }
+        when (page) {
+            null -> SettingsPage.entries.forEach { p ->
+                item { NavRow(p.title, stringResource(p.summary)) { onNavigate("settings/page/${p.name}") } }
             }
-            NavRow(R.string.set_account, label) { onNavigate("settings/account") }
-        }
 
-        item { Group(R.string.group_decks) }
-        item { Toggle(R.string.set_confirm_exit, s.confirmExit, R.string.set_confirm_exit_hint) { v -> store.update { it.copy(confirmExit = v) } } }
-        item { Toggle(R.string.set_hide_empty, s.hideEmptyDecks) { v -> store.update { it.copy(hideEmptyDecks = v) } } }
-        item {
-            // Neuer Standard: einzeln umgeklappte Decks folgen wieder dem Standard.
-            Toggle(R.string.set_collapse, s.collapseSubdecks) { v -> store.update { it.copy(collapseSubdecks = v, toggledDecks = emptySet()) } }
-        }
-        if (s.hiddenDecks.isNotEmpty()) {
-            item {
-                NavRow(R.string.set_hidden_decks, pluralStringResource(R.plurals.deck_count, s.hiddenDecks.size, s.hiddenDecks.size)) { onNavigate("settings/decks/hidden") }
+            SettingsPage.CARDS -> {
+                item { ChoiceRow(fontSizeChoice, s, onNavigate) }
+                item { ChoiceRow(extraChoice, s, onNavigate) }
+                item { Toggle(R.string.set_scrollbar, s.showScrollbar) { v -> store.update { it.copy(showScrollbar = v) } } }
+                item { Toggle(R.string.set_keep_screen_on, s.keepScreenOn) { v -> store.update { it.copy(keepScreenOn = v) } } }
+            }
+
+            SettingsPage.RATING -> {
+                item { ChoiceRow(buttonsChoice, s, onNavigate) }
+                item { Toggle(R.string.set_button_labels, s.showButtonLabels) { v -> store.update { it.copy(showButtonLabels = v) } } }
+                item { Toggle(R.string.set_intervals, s.showIntervals) { v -> store.update { it.copy(showIntervals = v) } } }
+                item {
+                    Toggle(R.string.set_swipe_feedback, s.swipeFeedback, R.string.set_swipe_feedback_hint) { v -> store.update { it.copy(swipeFeedback = v) } }
+                }
+                item { ChoiceRow(swipeLeftChoice, s, onNavigate) }
+                item { ChoiceRow(swipeRightChoice, s, onNavigate) }
+                if (s.swipeToRate) item { Note(R.string.set_swipe_hint) }
+                item { Toggle(R.string.set_vibrate_rate, s.vibrateOnRate) { v -> store.update { it.copy(vibrateOnRate = v) } } }
+                item { Toggle(R.string.set_vibrate_done, s.vibrateOnDeckDone) { v -> store.update { it.copy(vibrateOnDeckDone = v) } } }
+            }
+
+            SettingsPage.SOUND -> {
+                item { ChoiceRow(audioOutputChoice, s, onNavigate) }
+                if (s.audioOutput != AudioOutput.NEVER) item { ChoiceRow(audioChoice, s, onNavigate) }
+            }
+
+            SettingsPage.SYNC -> {
+                item { Toggle(R.string.set_sync_open, s.syncOnOpen) { v -> store.update { it.copy(syncOnOpen = v) } } }
+                item { Toggle(R.string.set_sync_exit, s.syncOnDeckExit) { v -> store.update { it.copy(syncOnDeckExit = v) } } }
+                if (!s.syncOnOpen && !s.syncOnDeckExit) item { Note(R.string.set_sync_manual_hint) }
+                item { Toggle(R.string.set_cellular_sync, s.cellularSync, R.string.set_cellular_sync_hint) { v -> store.update { it.copy(cellularSync = v) } } }
+                item { ChoiceRow(mediaChoice, s, onNavigate) }
+                item {
+                    val label = when (account) {
+                        is Account.SignedIn -> account.user
+                        Account.BuiltIn -> stringResource(R.string.account_built_in)
+                        Account.SignedOut -> stringResource(R.string.account_signed_out)
+                    }
+                    NavRow(R.string.set_account, label) { onNavigate("settings/account") }
+                }
+            }
+
+            SettingsPage.DECKS -> {
+                item { Toggle(R.string.set_legend, s.showLegend) { v -> store.update { it.copy(showLegend = v) } } }
+                item { Toggle(R.string.set_confirm_exit, s.confirmExit, R.string.set_confirm_exit_hint) { v -> store.update { it.copy(confirmExit = v) } } }
+                item { Toggle(R.string.set_hide_empty, s.hideEmptyDecks) { v -> store.update { it.copy(hideEmptyDecks = v) } } }
+                item {
+                    // Neuer Standard: einzeln umgeklappte Decks folgen wieder dem Standard.
+                    Toggle(R.string.set_collapse, s.collapseSubdecks) { v -> store.update { it.copy(collapseSubdecks = v, toggledDecks = emptySet()) } }
+                }
+                if (s.hiddenDecks.isNotEmpty()) {
+                    item {
+                        NavRow(R.string.set_hidden_decks, pluralStringResource(R.plurals.deck_count, s.hiddenDecks.size, s.hiddenDecks.size)) { onNavigate("settings/decks/hidden") }
+                    }
+                }
+                item { Note(R.string.set_long_press_hint) }
             }
         }
-        item { Note(R.string.set_long_press_hint) }
     }
 }
 
@@ -366,7 +397,7 @@ private fun NavRow(@StringRes label: Int, value: String, onClick: () -> Unit) {
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = c.surface, contentColor = c.text, secondaryContentColor = c.accent),
         modifier = Modifier.fillMaxWidth(),
-        secondaryLabel = { Text(value, maxLines = 1) },
+        secondaryLabel = { Text(value, maxLines = 2) },
         label = { Text(stringResource(label)) },
     )
 }

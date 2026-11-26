@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ Relâcher pour synchroniser</string>
     <string name="sync_failed">⚠ Échec de la synchro</string>
     <string name="loading">Chargement…</string>
-    <string name="done">%1$s terminé</string>
     <string name="show_hint">Afficher l\'indice</string>
     <string name="show_more">Afficher l\'extra</string>
     <string name="rating_failed">Échec de la notation</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">Réglages</string>
     <string name="open_settings">⚙ Réglages</string>
-    <string name="group_study">Étude</string>
     <string name="group_sync">Synchro</string>
     <string name="group_decks">Liste des paquets</string>
     <string name="set_font_size">Taille du texte</string>
@@ -102,4 +100,30 @@
         <item quantity="other">%1$d cartes Anki dues</item>
     </plurals>
     <string name="complication_long">%1$d nouv. · %2$d appr. · %3$d dues</string>
+    <string name="undo">Annuler</string>
+    <string name="undo_failed">Échec de l\'annulation</string>
+    <string name="tap_to_reveal">Touchez pour voir la réponse</string>
+    <string name="close">Fermer</string>
+    <string name="zoom_hint">Tournez la couronne pour zoomer</string>
+    <string name="done_title">Bravo !</string>
+    <string name="nothing_due">Rien à réviser aujourd\'hui</string>
+    <string name="back_to_decks">Retour aux paquets</string>
+    <string name="legend_new">Nouv.</string>
+    <string name="legend_learn">Appr.</string>
+    <string name="legend_due">À revoir</string>
+    <plurals name="done_count">
+        <item quantity="one">%1$d carte étudiée dans %2$s</item>
+        <item quantity="other">%1$d cartes étudiées dans %2$s</item>
+    </plurals>
+    <string name="page_cards">Cartes</string>
+    <string name="page_cards_summary">Taille, texte extra</string>
+    <string name="page_rating">Évaluer</string>
+    <string name="page_rating_summary">Boutons, glisser, annuler</string>
+    <string name="page_sound">Son</string>
+    <string name="page_sound_summary">Écouteurs, auto</string>
+    <string name="page_sync_summary">Compte, médias, cellulaire</string>
+    <string name="page_decks_summary">Légende, paquets vides, quitter</string>
+    <string name="set_scrollbar">Barre sur cartes longues</string>
+    <string name="set_button_labels">Mots sur les boutons</string>
+    <string name="set_legend">Légende au-dessus</string>
 </resources>

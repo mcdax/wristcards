@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableFloatStateOf
@@ -397,6 +398,21 @@ private fun DeckList(
                 Text(sync.message, color = c.textDim, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 3)
             }
         }
+        // Legende für die drei Zahlen rechts an jedem Deck.
+        if (settings.showLegend) item {
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = c.newCount)) { append(stringResource(R.string.legend_new)) }
+                    append("  ·  ")
+                    withStyle(SpanStyle(color = c.learnCount)) { append(stringResource(R.string.legend_learn)) }
+                    append("  ·  ")
+                    withStyle(SpanStyle(color = c.reviewCount)) { append(stringResource(R.string.legend_due)) }
+                },
+                color = c.textDim,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
         // [settings] arrangeDecks (DeckListPrefs.kt) wendet Ausblenden/Anheften/Einklappen an.
         items(arrangeDecks(decks, settings), key = { it.key }) { entry ->
             DeckRow(
@@ -472,6 +488,11 @@ private fun DeckRow(
             fontWeight = FontWeight.Normal,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            // Lange Wörter nach Silben trennen statt „Allgemeinwisse/n“.
+            style = androidx.compose.ui.text.TextStyle(
+                hyphens = androidx.compose.ui.text.style.Hyphens.Auto,
+                lineBreak = androidx.compose.ui.text.style.LineBreak.Paragraph,
+            ),
             modifier = Modifier.weight(1f).padding(start = if (sub) 8.dp else 14.dp, top = 10.dp, bottom = 10.dp),
         )
         Text(
@@ -482,19 +503,22 @@ private fun DeckRow(
                 count(deck.reviewCount, c.reviewCount)
             },
             fontSize = 13.sp,
-            modifier = Modifier.padding(start = 6.dp, end = if (entry.hasChildren) 0.dp else 14.dp),
+            // Rechts genug Abstand, damit der runde Rand die letzte Zahl nicht abschneidet.
+            modifier = Modifier.padding(start = 6.dp, end = if (entry.hasChildren) 0.dp else 18.dp),
         )
         // [settings] Pfeil zum Auf-/Zuklappen an Oberdecks; rechts, damit der Name die volle Breite hat
         if (entry.hasChildren) {
             Text(
                 if (entry.collapsed) "▸" else "▾",
                 color = c.accent,
-                fontSize = 14.sp,
+                fontSize = 20.sp,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .padding(end = 6.dp)
+                    .padding(end = 4.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable(onClickLabel = stringResource(if (entry.collapsed) R.string.deck_expand else R.string.deck_collapse), onClick = onToggleCollapse)
-                    .padding(horizontal = 6.dp, vertical = 8.dp),
+                    .padding(top = 6.dp),
             )
         }
     }
@@ -505,6 +529,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     val c = LocalAnkiColors.current
     val scope = rememberCoroutineScope()
     val ratingFailed = stringResource(R.string.rating_failed)
+    val undoFailed = stringResource(R.string.undo_failed)
     var card by remember { mutableStateOf<ReviewCard?>(null) }
     var loaded by remember { mutableStateOf(false) }
     var revealed by rememberSaveable { mutableStateOf(false) }
@@ -520,16 +545,29 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     val audio = remember { CardAudio(context) }
     var zoomed by remember { mutableStateOf<ImageBitmap?>(null) }
     var extraOpen by rememberSaveable { mutableStateOf(false) }
-    // Einblendung nach Bewertung per Wischen: Text und Farbe
-    var swipeNote by remember { mutableStateOf<Pair<String, Color>?>(null) }
+    // Einblendung nach jeder Bewertung, mit Rückgängig, solange sie zu sehen ist.
+    var ratedNote by remember { mutableStateOf<RatedNote?>(null) }
     val ratedLabels = listOf(
         stringResource(R.string.rated_again), stringResource(R.string.rated_hard),
         stringResource(R.string.rated_good), stringResource(R.string.rated_easy),
     )
-    LaunchedEffect(swipeNote) {
-        if (swipeNote != null) {
-            kotlinx.coroutines.delay(800)
-            swipeNote = null
+    LaunchedEffect(ratedNote) {
+        if (ratedNote != null) {
+            kotlinx.coroutines.delay(RATED_NOTE_MS)
+            ratedNote = null
+        }
+    }
+    // Für den Abschluss: in dieser Sitzung bewertete Karten.
+    var studied by rememberSaveable { mutableStateOf(0) }
+    // Hinweis „Tippen zum Aufdecken“, bis man es oft genug getan hat.
+    val hints = remember { context.getSharedPreferences("ui_hints", android.content.Context.MODE_PRIVATE) }
+    var revealsSeen by remember { mutableStateOf(hints.getInt("revealsSeen", 0)) }
+    fun reveal() {
+        if (revealed) return
+        revealed = true
+        if (revealsSeen < REVEAL_HINT_COUNT) {
+            revealsSeen++
+            hints.edit().putInt("revealsSeen", revealsSeen).apply()
         }
     }
     DisposableEffect(Unit) { onDispose { audio.stop() } }
@@ -605,10 +643,11 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
 
     // Zeitpunkt der letzten Bewertung (uptimeMillis), für die Sperre gegen Doppelwischen.
     var ratedAt by remember { mutableLongStateOf(0L) }
-    fun rate(current: ReviewCard, rating: CardAnswer.Rating) {
+    fun rate(current: ReviewCard, idx: Int) {
         if (busy) return
         busy = true
         ratedAt = android.os.SystemClock.uptimeMillis()
+        val rating = GRADES[idx]
         scope.launch {
             try {
                 // Vorschau bewertet nichts.
@@ -619,6 +658,14 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                     repo.answer(current, rating)
                     card = null
                     revealed = false
+                }
+                studied++
+                if (settings.swipeFeedback) {
+                    ratedNote = RatedNote(
+                        ratedLabels[idx],
+                        listOf(c.again, c.hard, c.good, c.easy)[idx],
+                        current.queued.card.id,
+                    )
                 }
                 if (settings.vibrateOnRate) vibrate(context, android.os.VibrationEffect.EFFECT_TICK)
                 card = repo.nextCard()
@@ -644,13 +691,30 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             SwipeAction.EASY -> 3
             SwipeAction.NONE -> return
         }
-        val rating = listOf(CardAnswer.Rating.AGAIN, CardAnswer.Rating.HARD, CardAnswer.Rating.GOOD, CardAnswer.Rating.EASY)[idx]
-        if (settings.swipeFeedback && !busy) {
-            val color = listOf(c.again, c.hard, c.good, c.easy)[idx]
-            swipeNote = "${ratedLabels[idx]}  ${current.intervals.getOrNull(idx).orEmpty()}" to color
-        }
         android.util.Log.d(TAG, "result rate $action")
-        rate(current, rating)
+        rate(current, idx)
+    }
+
+    // Nimmt die zuletzt eingeblendete Bewertung zurück und zeigt die Karte wieder mit Antwort.
+    fun undo(note: RatedNote) {
+        if (busy) return
+        busy = true
+        ratedNote = null
+        scope.launch {
+            try {
+                card = withContext(kotlinx.coroutines.NonCancellable) { repo.undoAnswer(note.cardId) }
+                revealed = true
+                studied = (studied - 1).coerceAtLeast(0)
+                error = null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Rückgängig fehlgeschlagen", e)
+                error = undoFailed
+            } finally {
+                busy = false
+            }
+        }
     }
 
     val current = card
@@ -686,7 +750,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             revealed -> rateBySwipe(shown, settings.swipeRight)
             else -> {
                 android.util.Log.d(TAG, "result reveal")
-                revealed = true
+                reveal()
             }
         }
     }
@@ -723,7 +787,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 .fillMaxSize()
                 .rotaryScrollable(RotaryScrollableDefaults.behavior(scrollableState = scroll), focus)
                 .verticalScroll(scroll)
-                .clickable(enabled = current != null && !revealed) { revealed = true }
+                .clickable(enabled = current != null && !revealed) { reveal() }
                 // Wisch-Abkürzung (nur aufgedeckt); Rechtswischen kann auch Zurück sein, siehe swipedRight.
                 .then(
                     if (current != null) Modifier.pointerInput(current, revealed, settings) {
@@ -757,7 +821,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                                 // sonst deckt ein Doppelwisch die neue Karte ungelesen auf.
                                 dx < -80.dp.toPx() && lastTouchDownTime - ratedAt >= RATE_LOCK_MS -> {
                                     android.util.Log.d(TAG, "result reveal")
-                                    revealed = true
+                                    reveal()
                                 }
                             }
                         }
@@ -766,7 +830,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 // Mindestens bildschirmhoch, damit kurze Fragen mittig stehen können; längere scrollen ab oben.
                 .heightIn(min = LocalConfiguration.current.screenHeightDp.dp)
                 // Unten Platz für die festen Bewertungsknöpfe lassen.
-                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) 100.dp else 48.dp),
+                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) 110.dp else 60.dp),
             // Frage mittig, Antwort oben (Erklärung und Bewertungsknöpfe gehören zusammen).
             verticalArrangement = if (revealed) Arrangement.spacedBy(10.dp) else Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         ) {
@@ -774,14 +838,25 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 // Kurze lokale Kartenwechsel ohne aufblitzenden Ladehinweis.
                 !loaded || busy -> Unit
                 current == null -> {
-                    if (error == null) CenterNote(stringResource(R.string.done, deck?.name.orEmpty()))
+                    if (error == null) DoneNote(deck?.name.orEmpty(), studied, onBack = { leave() })
                 }
                 else -> {
                     val side = if (revealed) current.answer else current.question
                     val cloze = if (revealed) c.answerBg to c.answerFg else c.hintBg to c.hintFg
-                    val ctx = BlockContext(repo, side, audio, cloze, onZoom = { zoomed = it })
+                    // Frage: Tippen aufs Bild deckt auf wie überall. Antwort: Tippen vergrößert.
+                    val ctx = BlockContext(repo, side, audio, cloze, zoomable = revealed, onImageTap = { if (revealed) zoomed = it else reveal() })
                     Blocks(side.main, ctx, dim = false)
                     side.hints.forEach { HintChip(it) }
+                    // Wie deckt man auf? Für die ersten Karten unter der Frage, scrollt mit dem Text.
+                    if (!revealed && revealsSeen < REVEAL_HINT_COUNT) {
+                        Text(
+                            stringResource(R.string.tap_to_reveal),
+                            color = c.textDim,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        )
+                    }
                     if (side.extra.isNotEmpty() && settings.extraMode != ExtraMode.HIDE) {
                         Box(Modifier.fillMaxWidth().height(1.dp).background(c.surface))
                         if (settings.extraMode == ExtraMode.SHOW || extraOpen) {
@@ -804,36 +879,75 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             error?.let { Text(it, color = c.again, fontSize = 12.sp) }
         }
 
+        // Zeigt an, dass die Karte weitergeht (Text unter den Knöpfen).
+        // Nur wenn wirklich etwas außer Sicht ist; jede Karte ist wegen der Mindesthöhe minimal scrollbar.
+        if (settings.showScrollbar && loaded && current != null && scroll.maxValue > with(LocalDensity.current) { 60.dp.toPx() }) {
+            androidx.wear.compose.material3.ScrollIndicator(scroll, modifier = Modifier.align(Alignment.CenterEnd))
+        }
         if (revealed && current != null) {
-            // Text läuft hinter den Knöpfen weich aus.
+            // Text läuft hinter den Knöpfen aus, bleibt aber erkennbar (dann weiß man, dass man scrollen kann).
             Box(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(90.dp)
-                    .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to c.background)),
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(96.dp)
+                    .background(Brush.verticalGradient(0f to Color.Transparent, 0.4f to c.background.copy(alpha = 0.9f), 0.6f to c.background)),
             )
-            GradeBar(current.intervals, enabled = !busy, twoButtons = settings.twoButtons, showIntervals = settings.showIntervals) { rate(current, it) }
+            GradeBar(
+                current.intervals, enabled = !busy, twoButtons = settings.twoButtons,
+                showLabels = settings.showButtonLabels, showIntervals = settings.showIntervals,
+            ) { rate(current, it) }
         }
         zoomed?.let { ZoomOverlay(it) { zoomed = null } }
         androidx.compose.animation.AnimatedVisibility(
-            visible = swipeNote != null,
+            visible = ratedNote != null,
             enter = androidx.compose.animation.fadeIn(),
             exit = androidx.compose.animation.fadeOut(),
-            // Unten, klein: über dem unteren Rand, wo nach dem Bewerten die Vorderseite noch Platz hat.
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
+            // Unten: nach dem Bewerten ist die nächste Karte verdeckt, dort sind keine Knöpfe.
+            // Etwas höher, wo der runde Bildschirm breit genug ist.
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp),
         ) {
-            val (text, color) = swipeNote ?: ("" to c.text)
-            Text(
-                text,
-                color = color,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(c.surface.copy(alpha = 0.95f))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-            )
+            val note = ratedNote
+            if (note != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(c.surface.copy(alpha = 0.97f)),
+                ) {
+                    Text(
+                        note.text,
+                        color = note.color,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                    )
+                    Text(
+                        stringResource(R.string.undo),
+                        color = c.accent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable { undo(note) }
+                            .padding(start = 6.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                    )
+                }
+            }
         }
     }
 }
+
+/** Einblendung nach einer Bewertung; cardId für Rückgängig. */
+private data class RatedNote(val text: String, val color: Color, val cardId: Long)
+
+/** Reihenfolge wie die Intervalle des Kerns: Nochmal, Schwer, Gut, Einfach. */
+private val GRADES = listOf(CardAnswer.Rating.AGAIN, CardAnswer.Rating.HARD, CardAnswer.Rating.GOOD, CardAnswer.Rating.EASY)
+
+/** So lange bleibt die Einblendung mit Rückgängig stehen. */
+private const val RATED_NOTE_MS = 3000L
+
+/** Bis zu so vielen Aufdeckungen zeigt die Frage den Hinweis „Tippen zum Aufdecken“. */
+private const val REVEAL_HINT_COUNT = 15
 
 /** Was die Bausteine einer Seite zum Darstellen brauchen. */
 private class BlockContext(
@@ -841,7 +955,9 @@ private class BlockContext(
     val side: CardSide,
     val audio: CardAudio,
     val cloze: Pair<Color, Color>,
-    val onZoom: (ImageBitmap) -> Unit,
+    /** Antwortseite: Bilder zeigen ein Lupensymbol und vergrößern beim Antippen. */
+    val zoomable: Boolean,
+    val onImageTap: (ImageBitmap) -> Unit,
 )
 
 private fun CardSide.audioIndexes(): List<Int> =
@@ -915,39 +1031,70 @@ private fun ImageBlock(block: Block, ctx: BlockContext) {
     }
     val bmp = bitmap
     when {
-        bmp != null -> androidx.compose.foundation.Image(
-            bitmap = bmp,
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxWidth()
-                // Sehr hohe Bilder begrenzen; Antippen öffnet die Zoomansicht.
-                .heightIn(max = 220.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable { ctx.onZoom(bmp) },
-        )
+        bmp != null -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.Image(
+                bitmap = bmp,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Sehr hohe Bilder begrenzen; auf der Antwort öffnet Antippen die Zoomansicht.
+                    .heightIn(max = 220.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { ctx.onImageTap(bmp) },
+            )
+            if (ctx.zoomable) {
+                Text(
+                    "🔍",
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                        .clip(CircleShape)
+                        .background(c.background.copy(alpha = 0.7f))
+                        .padding(4.dp),
+                )
+            }
+        }
         missing -> Text(stringResource(R.string.image_unavailable), color = c.textDim, fontSize = 12.sp)
         else -> Box(Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(8.dp)).background(c.surface))
     }
 }
 
-/** Vollbild-Zoom: Finger zum Vergrößern/Verschieben, Krone zoomt, Antippen schließt. */
+/** Vollbild-Zoom: Finger oder Krone zoomen, Ziehen verschiebt, Antippen, ✕ oder Zurück schließt. */
 @Composable
 private fun ZoomOverlay(bitmap: ImageBitmap, onClose: () -> Unit) {
+    val c = LocalAnkiColors.current
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var size by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
     val focus = remember { FocusRequester() }
+    // Verschieben nur so weit, dass das Bild den Bildschirm nicht verlässt.
+    fun clamp(o: Offset, s: Float): Offset {
+        val maxX = size.width * (s - 1f) / 2f
+        val maxY = size.height * (s - 1f) / 2f
+        return Offset(o.x.coerceIn(-maxX, maxX), o.y.coerceIn(-maxY, maxY))
+    }
     val state = rememberTransformableState { zoom, pan, _ ->
         scale = (scale * zoom).coerceIn(1f, 6f)
-        offset += pan
+        offset = clamp(offset + pan, scale)
     }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    // Zurück schließt erst die Vergrößerung, nicht gleich die Karte.
+    androidx.activity.compose.BackHandler(onBack = onClose)
+    var hint by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        focus.requestFocus()
+        kotlinx.coroutines.delay(2500)
+        hint = false
+    }
     Box(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .onSizeChanged { size = it }
             .onRotaryScrollEvent {
                 scale = (scale * (1f + it.verticalScrollPixels / 400f)).coerceIn(1f, 6f)
+                offset = clamp(offset, scale)
                 true
             }
             .focusRequester(focus)
@@ -967,20 +1114,83 @@ private fun ZoomOverlay(bitmap: ImageBitmap, onClose: () -> Unit) {
                     translationX = offset.x; translationY = offset.y
                 },
         )
+        Text(
+            "✕",
+            color = c.text,
+            fontSize = 16.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 14.dp)
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(c.surface.copy(alpha = 0.85f))
+                .clickable(onClickLabel = stringResource(R.string.close), onClick = onClose)
+                .padding(top = 7.dp),
+        )
+        androidx.compose.animation.AnimatedVisibility(
+            visible = hint,
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 26.dp),
+        ) {
+            Text(
+                stringResource(R.string.zoom_hint),
+                color = c.text,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(c.surface.copy(alpha = 0.9f))
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+            )
+        }
     }
 }
 
+/** Ende eines Decks: was geschafft ist und ein klarer Weg zurück. */
 @Composable
-private fun CenterNote(text: String) {
+private fun DoneNote(deckName: String, studied: Int, onBack: () -> Unit) {
     val c = LocalAnkiColors.current
-    Text(text, color = c.textDim, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 40.dp))
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+    ) {
+        Text(if (studied > 0) "✓" else "☕", color = c.good, fontSize = 28.sp)
+        Text(
+            if (studied > 0) stringResource(R.string.done_title) else stringResource(R.string.nothing_due),
+            color = c.text,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            if (studied > 0) androidx.compose.ui.res.pluralStringResource(R.plurals.done_count, studied, studied, deckName)
+            else deckName,
+            color = c.textDim,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            stringResource(R.string.back_to_decks),
+            color = c.background,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .clip(RoundedCornerShape(50))
+                .background(c.accent)
+                .clickable(onClick = onBack)
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+        )
+    }
 }
 
 @Composable
 private fun CardBody(text: AnnotatedString) {
     val c = LocalAnkiColors.current
     // Kurze Karten (Hauptstadt, Vokabel) mittig, längere Texte linksbündig lesen sich besser.
-    val short = text.length < 60 && '\n' !in text
+    val short = text.length < 60 && '\n' !in text && text.paragraphStyles.isEmpty()
     val k = LocalSettings.current.textScale
     Text(
         text,
@@ -1008,48 +1218,73 @@ private fun HintChip(hint: AnnotatedString) {
     )
 }
 
-/** Vier runde Knöpfe auf dem unteren Bogen; die äußeren sitzen höher, wie der Rand des Displays. */
+/**
+ * Bewertungsknöpfe auf dem unteren Bogen: Wort oben, nächste Wiederholung klein darunter.
+ * Die äußeren sitzen höher, wie der Rand des Displays. onRate bekommt den Index (Nochmal, Schwer, Gut, Einfach).
+ */
 @Composable
 private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
     intervals: List<String>,
     enabled: Boolean,
     twoButtons: Boolean,
+    showLabels: Boolean,
     showIntervals: Boolean,
-    onRate: (CardAnswer.Rating) -> Unit,
+    onRate: (Int) -> Unit,
 ) {
     val c = LocalAnkiColors.current
-    // Index passt zu den Intervallen des Kerns (Nochmal, Schwer, Gut, Leicht).
-    val all = listOf(
-        Triple(0, CardAnswer.Rating.AGAIN, c.again),
-        Triple(1, CardAnswer.Rating.HARD, c.hard),
-        Triple(2, CardAnswer.Rating.GOOD, c.good),
-        Triple(3, CardAnswer.Rating.EASY, c.easy),
+    val colors = listOf(c.again, c.hard, c.good, c.easy)
+    val labels = listOf(
+        stringResource(R.string.opt_again), stringResource(R.string.opt_hard),
+        stringResource(R.string.opt_good), stringResource(R.string.opt_easy),
     )
-    val buttons = if (twoButtons) all.filter { it.first == 0 || it.first == 2 } else all
+    val buttons = if (twoButtons) listOf(0, 2) else listOf(0, 1, 2, 3)
+    // Ohne Wörter und ohne Zeiten bleibt ein Symbol, damit der Knopf nicht leer ist.
     val symbols = listOf("✕", "–", "✓", "★")
+    val twoLines = showLabels && showIntervals
     Row(
         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
-        buttons.forEachIndexed { pos, (i, rating, color) ->
+        buttons.forEachIndexed { pos, i ->
             val outer = !twoButtons && (pos == 0 || pos == buttons.lastIndex)
-            Box(
+            val color = colors[i]
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .padding(bottom = if (outer) 10.dp else 0.dp, start = if (twoButtons && pos == 1) 18.dp else 0.dp)
-                    .size(if (twoButtons) 44.dp else 36.dp)
-                    .clip(CircleShape)
+                    .padding(bottom = if (outer) 24.dp else 0.dp, start = if (twoButtons && pos == 1) 10.dp else 0.dp)
+                    .width(if (twoButtons) 70.dp else 44.dp)
+                    .height(if (twoLines) 40.dp else 34.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    // Deckend, damit Kartentext dahinter nicht durchscheint.
+                    .background(c.background)
                     .background(color.copy(alpha = if (enabled) 0.22f else 0.08f))
-                    .clickable(enabled = enabled) { onRate(rating) },
-                contentAlignment = Alignment.Center,
+                    .clickable(enabled = enabled) { onRate(i) },
             ) {
-                Text(
-                    if (showIntervals) intervals.getOrElse(i) { "" } else symbols[i],
-                    color = color,
-                    fontSize = if (showIntervals) 11.sp else 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                )
+                if (showLabels || !showIntervals) {
+                    Text(
+                        if (showLabels) labels[i] else symbols[i],
+                        color = color,
+                        fontSize = if (showLabels) 10.sp else 15.sp,
+                        lineHeight = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                    )
+                }
+                if (showIntervals) {
+                    Text(
+                        intervals.getOrElse(i) { "" },
+                        color = if (twoLines) color.copy(alpha = 0.8f) else color,
+                        fontSize = if (twoLines) 9.sp else 11.sp,
+                        lineHeight = 10.sp,
+                        fontWeight = if (twoLines) FontWeight.Normal else FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
             }
         }
     }

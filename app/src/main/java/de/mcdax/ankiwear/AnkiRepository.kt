@@ -63,7 +63,10 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
-    private val backend: Backend = BackendFactory.getBackend()
+    // Sprache der Uhr, damit der Kern Intervalle („2 T“) und Meldungen wie Anki selbst übersetzt.
+    private val backend: Backend = BackendFactory.getBackend(
+        context.resources.configuration.locales.let { l -> (0 until l.size()).map { l[it].toLanguageTag() } },
+    )
     private val dir = context.filesDir
     private val collectionFile = File(dir, "collection.anki2")
     private val mediaDir = File(dir, "collection.media").apply { mkdirs() }
@@ -348,5 +351,18 @@ class AnkiRepository private constructor(private val context: Context) {
                 .build()
         )
         refreshDueComplication(context)
+    }
+
+    /** Letzte Bewertung zurücknehmen (Ankis eigenes Rückgängig); danach die Karte wieder zeigen. */
+    suspend fun undoAnswer(cardId: Long): ReviewCard = io {
+        backend.undo()
+        renderedCards.remove(cardId)
+        refreshDueComplication(context)
+        build(
+            QueuedCards.QueuedCard.newBuilder()
+                .setCard(backend.getCard(cardId))
+                .setStates(backend.getSchedulingStates(cardId))
+                .build()
+        )
     }
 }

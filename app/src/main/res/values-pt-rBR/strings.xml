@@ -7,7 +7,6 @@
     <string name="release_to_sync">↓ Solte para sincronizar</string>
     <string name="sync_failed">⚠ Falha ao sincronizar</string>
     <string name="loading">Carregando…</string>
-    <string name="done">%1$s concluído</string>
     <string name="show_hint">Mostrar dica</string>
     <string name="show_more">Mostrar extra</string>
     <string name="rating_failed">Falha ao avaliar</string>
@@ -16,7 +15,6 @@
 
     <string name="settings">Configurações</string>
     <string name="open_settings">⚙ Configurações</string>
-    <string name="group_study">Estudo</string>
     <string name="group_sync">Sincronização</string>
     <string name="group_decks">Lista de baralhos</string>
     <string name="set_font_size">Tamanho do texto</string>
@@ -102,4 +100,30 @@
         <item quantity="other">%1$d cartões Anki pendentes</item>
     </plurals>
     <string name="complication_long">%1$d novos · %2$d aprend. · %3$d pend.</string>
+    <string name="undo">Desfazer</string>
+    <string name="undo_failed">Falha ao desfazer</string>
+    <string name="tap_to_reveal">Toque para ver a resposta</string>
+    <string name="close">Fechar</string>
+    <string name="zoom_hint">Gire a coroa para ampliar</string>
+    <string name="done_title">Concluído!</string>
+    <string name="nothing_due">Nada para hoje</string>
+    <string name="back_to_decks">Voltar aos baralhos</string>
+    <string name="legend_new">Novos</string>
+    <string name="legend_learn">Aprend.</string>
+    <string name="legend_due">Revisar</string>
+    <plurals name="done_count">
+        <item quantity="one">%1$d cartão estudado em %2$s</item>
+        <item quantity="other">%1$d cartões estudados em %2$s</item>
+    </plurals>
+    <string name="page_cards">Cartões</string>
+    <string name="page_cards_summary">Tamanho, texto extra</string>
+    <string name="page_rating">Avaliar</string>
+    <string name="page_rating_summary">Botões, deslizar, desfazer</string>
+    <string name="page_sound">Som</string>
+    <string name="page_sound_summary">Fones, automático</string>
+    <string name="page_sync_summary">Conta, mídia, celular</string>
+    <string name="page_decks_summary">Legenda, baralhos vazios, sair</string>
+    <string name="set_scrollbar">Barra em cartões longos</string>
+    <string name="set_button_labels">Palavras nos botões</string>
+    <string name="set_legend">Legenda acima dos baralhos</string>
 </resources>
