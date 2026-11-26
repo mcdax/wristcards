@@ -135,6 +135,9 @@ private const val BACK_ZONE = 0.20f
 
 private const val TAG = "AnkiBack"
 
+/** So lange nach einer Bewertung wird Rechtswischen ignoriert. */
+private const val RATE_LOCK_MS = 400L
+
 private sealed interface SyncState {
     data object Idle : SyncState
     data object Running : SyncState
@@ -497,9 +500,12 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         }
     }
 
+    // Zeitpunkt der letzten Bewertung (uptimeMillis), für die Sperre gegen Doppelwischen.
+    var ratedAt by remember { mutableLongStateOf(0L) }
     fun rate(current: ReviewCard, rating: CardAnswer.Rating) {
         if (busy) return
         busy = true
+        ratedAt = android.os.SystemClock.uptimeMillis()
         scope.launch {
             try {
                 // Vorschau bewertet nichts.
@@ -537,8 +543,8 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     }
 
     val current = card
-    // Das System fängt Rechtswischen ab, bevor die Karte es sieht. Verdeckt oder vom linken Rand (BACK_ZONE) = zurück,
-    // sonst = bewerten. Die Zurück-Taste liefert keinen Wischfortschritt und führt immer zurück.
+    // Das System fängt Rechtswischen ab, bevor die Karte es sieht. Vom linken Rand (BACK_ZONE) = zurück,
+    // sonst aufgedeckt = bewerten, verdeckt = nichts. Die Zurück-Taste liefert keinen Wischfortschritt und führt immer zurück.
     val screenWidth = context.resources.displayMetrics.widthPixels
     val swipeMin = with(LocalDensity.current) { 50.dp.toPx() }
     // Karte und System können dieselbe Geste melden; zweimal zurück würde die Deckliste schließen.
@@ -555,9 +561,19 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         if (handledGesture == lastTouchDownTime) return
         handledGesture = lastTouchDownTime
         val shown = card
-        val back = !revealed || shown == null || settings.swipeRight == SwipeAction.NONE || lastTouchDownX < screenWidth * BACK_ZONE
+        // Ein schneller zweiter Wisch gehört noch zur letzten Bewertung, auch wenn er am Rand ansetzt.
+        if (lastTouchDownTime - ratedAt < RATE_LOCK_MS) {
+            android.util.Log.d(TAG, "right down=$lastTouchDownX ignoriert (Sperre)")
+            return
+        }
+        // Zurück nur vom linken Rand. Ohne Karte oder ohne Rechts-Aktion hat Rechtswischen keine andere Bedeutung.
+        val back = shown == null || settings.swipeRight == SwipeAction.NONE || lastTouchDownX < screenWidth * BACK_ZONE
         android.util.Log.d(TAG, "right down=$lastTouchDownX revealed=$revealed card=${shown != null} back=$back")
-        if (back) leave() else rateBySwipe(shown, settings.swipeRight)
+        when {
+            back -> leave()
+            revealed -> rateBySwipe(shown, settings.swipeRight)
+            // Verdeckt und nicht vom Rand: nichts tun, aufgedeckt wird per Tippen.
+        }
     }
     // Lambda statt ::swipedRight: Funktionsreferenzen gelten als gleich, der Stand würde nie aktualisiert.
     val latestSwipe by rememberUpdatedState({ swipedRight() })
