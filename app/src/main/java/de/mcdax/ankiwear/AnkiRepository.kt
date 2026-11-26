@@ -1,5 +1,7 @@
 package de.mcdax.ankiwear
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -54,7 +56,9 @@ class AnkiRepository private constructor(private val context: Context) {
 
         // Das Backend-Artefakt lädt seine native Bibliothek nicht selbst (AnkiDroid macht das beim App-Start).
         init {
+            val start = android.os.SystemClock.elapsedRealtime()
             System.loadLibrary("rsdroid")
+            if (BuildConfig.DEBUG) android.util.Log.d("AnkiPerf", "native=${android.os.SystemClock.elapsedRealtime()-start}ms thread=${Thread.currentThread().name}")
         }
     }
 
@@ -76,7 +80,9 @@ class AnkiRepository private constructor(private val context: Context) {
     private val lock = Mutex()
 
     init {
+        val start = android.os.SystemClock.elapsedRealtime()
         openCollection()
+        if (BuildConfig.DEBUG) android.util.Log.d("AnkiPerf", "open=${android.os.SystemClock.elapsedRealtime()-start}ms thread=${Thread.currentThread().name}")
     }
 
     private fun openCollection() {
@@ -217,14 +223,18 @@ class AnkiRepository private constructor(private val context: Context) {
         while (backend.mediaSyncStatus().active) Thread.sleep(500)
     }
 
-    suspend fun decks(): List<DeckTreeNode> = lock.withLock {
-        val root = backend.deckTree(System.currentTimeMillis() / 1000)
-        val out = mutableListOf<DeckTreeNode>()
-        fun walk(node: DeckTreeNode) {
-            node.childrenList.forEach { out += it; walk(it) }
+    suspend fun decks(): List<DeckTreeNode> = withContext(Dispatchers.IO) {
+        lock.withLock {
+            val start = android.os.SystemClock.elapsedRealtime()
+            val root = backend.deckTree(System.currentTimeMillis() / 1000)
+            val out = mutableListOf<DeckTreeNode>()
+            fun walk(node: DeckTreeNode) {
+                node.childrenList.forEach { out += it; walk(it) }
+            }
+            walk(root)
+            if (BuildConfig.DEBUG) android.util.Log.d("AnkiPerf", "decks=${android.os.SystemClock.elapsedRealtime()-start}ms thread=${Thread.currentThread().name}")
+            out
         }
-        walk(root)
-        out
     }
 
     /** Einmal bei der Deckwahl; schreibt die Config, daher nicht pro Karte. */

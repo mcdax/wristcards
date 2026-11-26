@@ -1,5 +1,7 @@
 package de.mcdax.ankiwear
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.os.Bundle
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.runtime.CompositionLocalProvider
@@ -147,9 +149,23 @@ private sealed interface SyncState {
 
 @Composable
 private fun App(openDeck: String? = null, previewCard: Long? = null) {
+    val context = LocalContext.current.applicationContext
+    var repository by remember { mutableStateOf<AnkiRepository?>(null) }
+    // Native Bibliothek und SQLite öffnen, ohne die erste Compose-Frame zu blockieren.
+    LaunchedEffect(context) {
+        repository = withContext(Dispatchers.IO) {
+            AnkiRepository.get(context)
+        }
+    }
+    val repo = repository
+    if (repo == null) CenterNote(stringResource(R.string.loading))
+    else LoadedApp(repo, openDeck, previewCard)
+}
+
+@Composable
+private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val repo = remember { AnkiRepository.get(context) }
     val nav = rememberSwipeDismissableNavController()
     // Liegt hier statt in der Deckliste, damit die Scrollposition das Lernen überlebt.
     val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)

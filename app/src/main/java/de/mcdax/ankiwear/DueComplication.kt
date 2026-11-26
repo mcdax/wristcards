@@ -2,6 +2,8 @@ package de.mcdax.ankiwear
 
 import android.app.PendingIntent
 import android.content.ComponentName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
@@ -24,7 +26,8 @@ data class DueCounts(val new: Int, val learn: Int, val review: Int) {
 suspend fun dueCounts(context: Context): DueCounts {
     val hidden = SettingsStore.get(context).current.hiddenDecks
     // Oberste Ebene reicht: deren Zahlen enthalten die Unterdecks schon (mit Ankis Limits).
-    val top = AnkiRepository.get(context).decks().filter { it.level == 1 && it.deckId !in hidden }
+    val repo = withContext(Dispatchers.IO) { AnkiRepository.get(context) }
+    val top = repo.decks().filter { it.level == 1 && it.deckId !in hidden }
     return DueCounts(top.sumOf { it.newCount }, top.sumOf { it.learnCount }, top.sumOf { it.reviewCount })
 }
 
