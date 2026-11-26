@@ -617,6 +617,12 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                             onDragEnd = {
                                 when {
                                     dx < -80.dp.toPx() && revealed -> rateBySwipe(current, settings.swipeLeft)
+                                    // Verdeckt: Linkswischen deckt auf. Nicht direkt nach einer Bewertung,
+                                    // sonst deckt ein Doppelwisch die neue Karte ungelesen auf.
+                                    dx < -80.dp.toPx() && lastTouchDownTime - ratedAt >= RATE_LOCK_MS -> {
+                                        android.util.Log.d(TAG, "result reveal")
+                                        revealed = true
+                                    }
                                 }
                             },
                         ) { _, amount -> dx += amount }
