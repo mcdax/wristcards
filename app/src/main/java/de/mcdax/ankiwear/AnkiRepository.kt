@@ -42,7 +42,8 @@ sealed interface SyncResult {
 
 /**
  * Hält die Anki-Sammlung auf der Uhr und spricht direkt mit dem Sync-Server.
- * Alle Methoden blockieren; Aufrufer laufen auf Dispatchers.IO.
+ * Suspendierende Kern-Aufrufe laufen serialisiert auf Dispatchers.IO.
+ * Initialisierung erfolgt ebenfalls auf IO (App und Komplikation).
  */
 class AnkiRepository private constructor(private val context: Context) {
     companion object {
@@ -78,6 +79,9 @@ class AnkiRepository private constructor(private val context: Context) {
 
     // Der Kern verträgt keine gleichzeitigen Aufrufe; während des Vollabgleichs ist die Sammlung zu.
     private val lock = Mutex()
+
+    private suspend fun <T> io(block: suspend () -> T): T =
+        withContext(Dispatchers.IO) { lock.withLock { block() } }
 
     init {
         val start = android.os.SystemClock.elapsedRealtime()
@@ -147,7 +151,7 @@ class AnkiRepository private constructor(private val context: Context) {
     }
 
     /** [settings] Anmeldung aus den Einstellungen; gespeichert wird nur der Host-Key. */
-    suspend fun signIn(endpoint: String, user: String, password: String): SyncResult = lock.withLock {
+    suspend fun signIn(endpoint: String, user: String, password: String): SyncResult = io {
         try {
             val url = normalizeEndpoint(endpoint)
             val result = onWifi {
@@ -168,7 +172,7 @@ class AnkiRepository private constructor(private val context: Context) {
     }
 
     /** [settings] Abmelden: Host-Key löschen, kein Rückfall auf BuildConfig mehr. */
-    suspend fun signOut() = lock.withLock {
+    suspend fun signOut() = io {
         credentials.clear()
         auth = null
     }
@@ -179,7 +183,7 @@ class AnkiRepository private constructor(private val context: Context) {
      * Normaler Sync; beim ersten Mal (leere Sammlung auf der Uhr) ein Vollabgleich als Download.
      * Ein Vollupload von der Uhr wird bewusst nie ausgelöst, er würde den Server überschreiben.
      */
-    suspend fun sync(): SyncResult = lock.withLock {
+    suspend fun sync(): SyncResult = io {
         try {
             onWifi { syncLocked() }
         } catch (e: Exception) {
@@ -238,15 +242,15 @@ class AnkiRepository private constructor(private val context: Context) {
     }
 
     /** Einmal bei der Deckwahl; schreibt die Config, daher nicht pro Karte. */
-    suspend fun selectDeck(deckId: Long) = lock.withLock { backend.setCurrentDeck(deckId) }
+    suspend fun selectDeck(deckId: Long) = io { backend.setCurrentDeck(deckId) }
 
-    suspend fun nextCard(): ReviewCard? = lock.withLock {
-        val queued = backend.getQueuedCards(1, false).cardsList.firstOrNull() ?: return@withLock null
+    suspend fun nextCard(): ReviewCard? = io {
+        val queued = backend.getQueuedCards(1, false).cardsList.firstOrNull() ?: return@io null
         build(queued)
     }
 
     /** Nur für Tests im Emulator: eine bestimmte Karte anzeigen (adb ... --el card <id>). */
-    suspend fun cardById(cardId: Long): ReviewCard = lock.withLock {
+    suspend fun cardById(cardId: Long): ReviewCard = io {
         build(
             QueuedCards.QueuedCard.newBuilder()
                 .setCard(backend.getCard(cardId))
@@ -272,7 +276,7 @@ class AnkiRepository private constructor(private val context: Context) {
         )
     }
 
-    suspend fun answer(card: ReviewCard, rating: CardAnswer.Rating) = lock.withLock {
+    suspend fun answer(card: ReviewCard, rating: CardAnswer.Rating) = io {
         val states = card.queued.states
         val newState = when (rating) {
             CardAnswer.Rating.AGAIN -> states.again

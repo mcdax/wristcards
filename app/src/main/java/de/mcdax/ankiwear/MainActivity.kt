@@ -171,6 +171,7 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
     val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)
     var sync by remember { mutableStateOf<SyncState>(SyncState.Idle) }
     var decks by remember { mutableStateOf<List<DeckTreeNode>>(emptyList()) }
+    var decksLoaded by remember { mutableStateOf(false) }
     // [settings] Uhr-Einstellungen
     val store = remember { SettingsStore.get(context) }
     val settings by store.flow.collectAsState()
@@ -191,11 +192,18 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
 
     LaunchedEffect(Unit) {
         decks = repo.decks()
+        decksLoaded = true
         when {
             previewCard != null -> nav.navigate("preview/$previewCard")
             else -> decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") }
                 ?: run { if (store.current.syncOnOpen) runSync() } // [settings] Auto-Sync beim Öffnen
         }
+    }
+
+    if (decksLoaded) LaunchedEffect(Unit) {
+        androidx.compose.runtime.withFrameNanos { }
+        (context as? android.app.Activity)?.reportFullyDrawn()
+        if (BuildConfig.DEBUG) android.util.Log.d("AnkiPerf", "decks ready")
     }
 
     // Wischen nach rechts zeigt beim Zurückgehen die Deckliste darunter, statt eines schwarzen Bildschirms.
