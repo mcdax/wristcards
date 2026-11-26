@@ -80,6 +80,28 @@ class AnkiRepository private constructor(private val context: Context) {
     // Der Kern verträgt keine gleichzeitigen Aufrufe; während des Vollabgleichs ist die Sammlung zu.
     private val lock = Mutex()
 
+    // Nur vorbereitete Anzeige, niemals gespeicherte Scheduler-Zustände.
+    // Ausschließlich unter lock lesen/schreiben; klein halten für die ARM32-Uhr.
+    private val renderedCards = linkedMapOf<Long, Pair<CardSide, CardSide>>()
+    private var renderGeneration = 0L
+    private fun invalidateRenderedCards() {
+        renderedCards.clear()
+        renderGeneration++
+    }
+
+    /** Optionales Vorladen: kein Deckwechsel, kein Bewerten, kein Netzwerk. */
+    suspend fun preloadUpcomingCards() {
+        val (generation, ids) = io {
+            renderGeneration to backend.getQueuedCards(4, false).cardsList.map { it.card.id }
+        }
+        for (id in ids) {
+            kotlinx.coroutines.yield()
+            io {
+                if (generation == renderGeneration) renderedSides(id)
+            }
+        }
+    }
+
     private suspend fun <T> io(block: suspend () -> T): T =
         withContext(Dispatchers.IO) { lock.withLock { block() } }
 
@@ -152,6 +174,7 @@ class AnkiRepository private constructor(private val context: Context) {
 
     /** [settings] Anmeldung aus den Einstellungen; gespeichert wird nur der Host-Key. */
     suspend fun signIn(endpoint: String, user: String, password: String): SyncResult = io {
+        invalidateRenderedCards()
         try {
             val url = normalizeEndpoint(endpoint)
             val result = onWifi {
@@ -173,6 +196,7 @@ class AnkiRepository private constructor(private val context: Context) {
 
     /** [settings] Abmelden: Host-Key löschen, kein Rückfall auf BuildConfig mehr. */
     suspend fun signOut() = io {
+        invalidateRenderedCards()
         credentials.clear()
         auth = null
     }
@@ -184,6 +208,7 @@ class AnkiRepository private constructor(private val context: Context) {
      * Ein Vollupload von der Uhr wird bewusst nie ausgelöst, er würde den Server überschreiben.
      */
     suspend fun sync(): SyncResult = io {
+        invalidateRenderedCards()
         try {
             onWifi { syncLocked() }
         } catch (e: Exception) {
@@ -259,24 +284,38 @@ class AnkiRepository private constructor(private val context: Context) {
         )
     }
 
-    private fun build(queued: QueuedCards.QueuedCard): ReviewCard {
-        val rendered = backend.renderExistingCard(queued.card.id, false, false)
+    private fun renderedSides(id: Long): Pair<CardSide, CardSide> {
+        renderedCards[id]?.let {
+            if (BuildConfig.DEBUG) android.util.Log.d("AnkiPerf", "render cache hit")
+            return it
+        }
+        val rendered = backend.renderExistingCard(id, false, false)
         fun nodes(list: List<anki.card_rendering.RenderedTemplateNode>) =
             list.joinToString("") { if (it.hasText()) it.text else it.replacement.currentText }
-        // Wie Anki: [sound:…] wird zu [anki:play:q:N] bzw. [anki:play:a:N], die Dateien kommen als Liste.
         val q = backend.extractAvTags(nodes(rendered.questionNodesList), true)
         val a = backend.extractAvTags(nodes(rendered.answerNodesList), false)
         fun files(tags: List<anki.card_rendering.AVTag>) = tags.map { if (it.hasSoundOrVideo()) it.soundOrVideo else null }
+        val sides = parseSide(q.text, files(q.avTagsList), isAnswer = false) to
+            parseSide(answerPart(a.text), files(a.avTagsList), isAnswer = true)
+        renderedCards[id] = sides
+        while (renderedCards.size > 8) renderedCards.remove(renderedCards.keys.first())
+        return sides
+    }
+
+    private fun build(queued: QueuedCards.QueuedCard): ReviewCard {
+        val sides = renderedSides(queued.card.id)
         return ReviewCard(
             queued = queued,
-            question = parseSide(q.text, files(q.avTagsList), isAnswer = false),
-            answer = parseSide(answerPart(a.text), files(a.avTagsList), isAnswer = true),
+            question = sides.first,
+            answer = sides.second,
+            // Immer frisch: keine geplanten Zustände/Intervalle aus dem Vorladepuffer.
             intervals = backend.describeNextStates(queued.states),
             shownAtMillis = System.currentTimeMillis(),
         )
     }
 
     suspend fun answer(card: ReviewCard, rating: CardAnswer.Rating) = io {
+        renderedCards.remove(card.queued.card.id)
         val states = card.queued.states
         val newState = when (rating) {
             CardAnswer.Rating.AGAIN -> states.again

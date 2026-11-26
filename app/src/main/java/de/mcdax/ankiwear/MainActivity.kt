@@ -174,6 +174,7 @@ private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, op
     var sync by remember { mutableStateOf<SyncState>(SyncState.Idle) }
     var decks by remember { mutableStateOf(initialDecks) }
     var decksLoaded by remember { mutableStateOf(false) }
+    var startupDrawn by remember { mutableStateOf(false) }
     // [settings] Uhr-Einstellungen
     val store = remember { SettingsStore.get(context) }
     val settings by store.flow.collectAsState()
@@ -204,7 +205,17 @@ private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, op
     if (decksLoaded) LaunchedEffect(Unit) {
         androidx.compose.runtime.withFrameNanos { }
         (context as? android.app.Activity)?.reportFullyDrawn()
+        startupDrawn = true
         if (BuildConfig.DEBUG) android.util.Log.d("AnkiPerf", "decks ready")
+    }
+
+    LaunchedEffect(decks, startupDrawn) {
+        // Erst die gefüllte Deckliste zeichnen; Vorladen gehört nicht zum Startpfad.
+        if (!startupDrawn) return@LaunchedEffect
+        kotlinx.coroutines.delay(250)
+        try { repo.preloadUpcomingCards() }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { android.util.Log.w("AnkiPerf", "Optionales Vorladen übersprungen", e) }
     }
 
     // Wischen nach rechts zeigt beim Zurückgehen die Deckliste darunter, statt eines schwarzen Bildschirms.
@@ -511,6 +522,16 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         }
         loaded = true
     }
+    LaunchedEffect(card?.queued?.card?.id) {
+        if (card != null && previewCard == null) {
+            // Die sichtbare Karte hat Vorrang vor ihren möglichen Nachfolgern.
+            androidx.compose.runtime.withFrameNanos { }
+            kotlinx.coroutines.delay(100)
+            try { repo.preloadUpcomingCards() }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { android.util.Log.w("AnkiPerf", "Optionales Vorladen übersprungen", e) }
+        }
+    }
     // Neue Karte oder aufgedeckt: oben anfangen, Krone wieder auf den Text lenken.
     LaunchedEffect(revealed, card?.queued?.card?.id) {
         scroll.scrollTo(0)
@@ -599,13 +620,17 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             android.util.Log.d(TAG, "right down=$lastTouchDownX ignoriert (Sperre)")
             return
         }
-        // Zurück nur vom linken Rand. Ohne Karte oder ohne Rechts-Aktion hat Rechtswischen keine andere Bedeutung.
-        val back = shown == null || settings.swipeRight == SwipeAction.NONE || lastTouchDownX < screenWidth * BACK_ZONE
+        // Verdeckt: Rand = zurück, weiter innen = aufdecken. Aufgedeckt gilt die Rechts-Aktion.
+        val back = shown == null || lastTouchDownX < screenWidth * BACK_ZONE ||
+            (revealed && settings.swipeRight == SwipeAction.NONE)
         android.util.Log.d(TAG, "right down=$lastTouchDownX revealed=$revealed card=${shown != null} back=$back")
         when {
             back -> leave()
             revealed -> rateBySwipe(shown, settings.swipeRight)
-            // Verdeckt und nicht vom Rand: nichts tun, aufgedeckt wird per Tippen.
+            else -> {
+                android.util.Log.d(TAG, "result reveal")
+                revealed = true
+            }
         }
     }
     // Lambda statt ::swipedRight: Funktionsreferenzen gelten als gleich, der Stand würde nie aktualisiert.
@@ -666,8 +691,8 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             when {
-                !loaded -> CenterNote(stringResource(R.string.loading))
-                busy -> CenterNote(stringResource(R.string.loading))
+                // Kurze lokale Kartenwechsel ohne aufblitzenden Ladehinweis.
+                !loaded || busy -> Unit
                 current == null -> {
                     if (error == null) CenterNote(stringResource(R.string.done, deck?.name.orEmpty()))
                 }
