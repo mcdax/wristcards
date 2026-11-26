@@ -10,7 +10,7 @@
     <string name="loading">Loading…</string>
     <string name="done">All done in %1$s</string>
     <string name="show_hint">Show hint</string>
-    <string name="show_more">Show more</string>
+    <string name="show_more">Show extra</string>
     <string name="rating_failed">Rating failed</string>
     <string name="upload_required">Full upload required — stopped. Please check on desktop.</string>
     <string name="unknown_sync">Unknown sync result: %1$s</string>
@@ -63,7 +63,7 @@
     <string name="opt_normal">Normal</string>
     <string name="opt_large">Large</string>
     <string name="opt_show">Show</string>
-    <string name="opt_collapsed">Collapsed ("Show more")</string>
+    <string name="opt_collapsed">Collapsed ("Show extra")</string>
     <string name="opt_hide">Hide</string>
     <string name="opt_auto">Play automatically</string>
     <string name="opt_on_tap">Only on tap</string>
