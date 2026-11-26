@@ -160,8 +160,15 @@ private fun App(startup: Deferred<Pair<AnkiRepository, List<DeckTreeNode>>>, ope
     var ready by remember(startup) { mutableStateOf<Pair<AnkiRepository, List<DeckTreeNode>>?>(null) }
     LaunchedEffect(startup) { ready = startup.await() }
     val initial = ready
-    if (initial == null) CenterNote(stringResource(R.string.loading))
-    else LoadedApp(initial.first, initial.second, openDeck, previewCard)
+    if (initial == null) {
+        Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_cards),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier.size(64.dp),
+            )
+        }
+    } else LoadedApp(initial.first, initial.second, openDeck, previewCard)
 }
 
 @Composable
