@@ -6,6 +6,8 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.content.res.AssetManager
+import java.security.MessageDigest
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
@@ -27,8 +29,9 @@ object CardImages {
         override fun sizeOf(key: String, value: Bitmap) = value.allocationByteCount
     }
 
-    suspend fun load(file: File): Bitmap? = withContext(Dispatchers.IO) {
-        cache.get(file.path) ?: decode(file)?.also { cache.put(file.path, it) }
+    suspend fun load(file: File, assets: AssetManager): Bitmap? = withContext(Dispatchers.IO) {
+        val key = "${file.path}|${file.length()}|${file.lastModified()}"
+        cache.get(key) ?: decode(file, assets)?.also { cache.put(key, it) }
     }
 
     /** Bild mit IOE-Maske (SVG in Bildgröße) darüber. */
@@ -98,17 +101,32 @@ object CardImages {
         }
     }
 
-    private fun decode(file: File): Bitmap? = runCatching {
-        if (file.name.endsWith(".svg", ignoreCase = true)) return@runCatching decodeSvg(file)
+    private fun decode(file: File, assets: AssetManager? = null): Bitmap? = runCatching {
+        if (file.name.endsWith(".svg", ignoreCase = true)) return@runCatching decodeSvg(file, assets)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         var sample = 1
         while (bounds.outWidth / (sample * 2) >= MAX_PX || bounds.outHeight / (sample * 2) >= MAX_PX) sample *= 2
         BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+    }.onFailure {
+        if (BuildConfig.DEBUG) android.util.Log.w("CardImages", "Bild konnte nicht gerendert werden", it)
     }.getOrNull()
 
-    private fun decodeSvg(file: File): Bitmap {
-        val svg = SVG.getFromInputStream(file.inputStream())
+    private fun decodeSvg(file: File, assets: AssetManager?): Bitmap {
+        val source = file.readBytes()
+        if (file.name.contains("-blur", ignoreCase = true) &&
+            Regex("""<(?:[\w-]+:)?filter\b""", RegexOption.IGNORE_CASE).containsMatchIn(source.toString(Charsets.UTF_8))) {
+            // AndroidSVG kann Filter nicht zeichnen. Für die drei bekannten UG-Medien
+            // liegt eine filtergetreue Rasterisierung vor; nur exakt gleiche Bytes nutzen.
+            val hash = MessageDigest.getInstance("SHA-256").digest(source).joinToString("") { "%02x".format(it) }
+            val raster = runCatching {
+                assets?.open("svg-filters/$hash.png")?.use { BitmapFactory.decodeStream(it) }
+            }.getOrNull()
+            if (raster != null) return raster
+            // Nicht still ohne Blur zeichnen: Das könnte die gesuchte Antwort verraten.
+            error("SVG-Filter ohne passende Rasterisierung")
+        }
+        val svg = source.inputStream().use { SVG.getFromInputStream(it) }
         val w = svg.documentWidth.takeIf { it > 0 } ?: svg.documentViewBox?.width() ?: MAX_PX.toFloat()
         val h = svg.documentHeight.takeIf { it > 0 } ?: svg.documentViewBox?.height() ?: MAX_PX.toFloat()
         val scale = MAX_PX / maxOf(w, h)

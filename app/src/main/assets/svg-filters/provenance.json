@@ -1,0 +1,23 @@
+[
+  {
+    "source": "ug-flag-guam-blur.svg",
+    "sha256": "e408e0cd0622ae4b9d52c9235163aed905b3f8d66520b181d1ca720fd7410fe5",
+    "width": 720,
+    "height": 386,
+    "png_bytes": 23379
+  },
+  {
+    "source": "ug-flag-paraguay-blur.svg",
+    "sha256": "53459fc2bce68419f774ffe30f9d7ce9e8a0bb19075d500143188b0589abc207",
+    "width": 720,
+    "height": 396,
+    "png_bytes": 16705
+  },
+  {
+    "source": "ug-flag-nicaragua-blur.svg",
+    "sha256": "c1af50d2816a354d3219a7e0a9792edd502744c53370a01d494d9ab4d76328ca",
+    "width": 720,
+    "height": 432,
+    "png_bytes": 22925
+  }
+]

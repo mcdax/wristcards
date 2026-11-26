@@ -875,11 +875,12 @@ private fun AudioButton(index: Int, ctx: BlockContext) {
 @Composable
 private fun ImageBlock(block: Block, ctx: BlockContext) {
     val c = LocalAnkiColors.current
+    val assets = LocalContext.current.applicationContext.assets
     var bitmap by remember(block) { mutableStateOf<ImageBitmap?>(null) }
     var missing by remember(block) { mutableStateOf(false) }
     LaunchedEffect(block) {
         val bmp = when (block) {
-            is Block.Image -> ctx.repo.mediaFile(block.file)?.let { CardImages.load(it) }
+            is Block.Image -> ctx.repo.mediaFile(block.file)?.let { CardImages.load(it, assets) }
             is Block.MaskedImage -> ctx.repo.mediaFile(block.image)?.let { CardImages.loadMasked(it, ctx.repo.mediaFile(block.mask)) }
             is Block.OccludedImage -> ctx.repo.mediaFile(block.image)?.let { CardImages.loadOccluded(it, block) }
             else -> null
@@ -900,7 +901,7 @@ private fun ImageBlock(block: Block, ctx: BlockContext) {
                 .clip(RoundedCornerShape(8.dp))
                 .clickable { ctx.onZoom(bmp) },
         )
-        missing -> Text("🖼 (missing)", color = c.textDim, fontSize = 12.sp)
+        missing -> Text(stringResource(R.string.image_unavailable), color = c.textDim, fontSize = 12.sp)
         else -> Box(Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(8.dp)).background(c.surface))
     }
 }

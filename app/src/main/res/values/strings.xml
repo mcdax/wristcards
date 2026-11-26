@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Anki Wear</string>
+    <string name="image_unavailable">🖼 Image unavailable</string>
     <string name="sync">↻ Sync</string>
     <string name="syncing">Syncing…</string>
     <string name="synced">✓ Synced</string>

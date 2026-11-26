@@ -4,12 +4,14 @@ import android.graphics.Typeface
 import android.text.Html
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
+import android.text.style.RelativeSizeSpan
 import android.text.style.TypefaceSpan
 import android.text.style.UnderlineSpan
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -77,10 +79,46 @@ private val IO_SHAPE = Regex("""<(?:div|span)\b([^>]*\bdata-shape\s*=[^>]*)>""",
 private val ATTR = Regex("""([\w-]+)\s*=\s*"([^"]*)"""")
 private val MARKER = Regex("""(\d+)""")
 
+// Ultimate-Geography verwendet diese semantischen Klassen für alle vier Vorlagen.
+// Nur flache divs umformen; unbekannte/verschachtelte Inhalte bleiben unverändert.
+private val GEO_DIV = Regex("""<div\b([^>]*)>((?:(?!<div\b)[\s\S])*?)</div>""", RegexOption.IGNORE_CASE)
+private val GEO_CLASS = Regex("""\bclass\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE)
+private fun isGeography(html: String): Boolean =
+    html.contains("value--top") && GEO_DIV.findAll(html).any {
+        "type" in GEO_CLASS.find(it.groupValues[1])?.groupValues?.get(1).orEmpty().split(Regex("\\s+"))
+    }
+
+private fun prepareGeography(html: String): String = GEO_DIV.replace(html) { div ->
+    val classes = GEO_CLASS.find(div.groupValues[1])?.groupValues?.get(1).orEmpty().split(Regex("\\s+"))
+    var content = div.groupValues[2]
+    if ("value--front" in classes || "value--back" in classes) {
+        val images = IMG.findAll(content).toList()
+        val discard = mutableSetOf<Int>()
+        images.zipWithNext().forEachIndexed { index, (blur, clear) ->
+            // Entspricht der CSS-Regel: auf der Frage nur unscharf, auf der Antwort nur klar.
+            if ("-blur" in blur.groupValues[1] && "-blur" !in clear.groupValues[1] &&
+                content.substring(blur.range.last + 1, clear.range.first).isBlank()) {
+                discard += if ("value--front" in classes) index + 1 else index
+            }
+        }
+        var index = 0
+        content = IMG.replace(content) { if (index++ in discard) "" else it.value }
+    }
+    content = when {
+        "type" in classes -> "<small><b>$content</b></small>"
+        "info" in classes -> "<small><i>$content</i></small>"
+        else -> content
+    }
+    "<div${div.groupValues[1]}>$content</div>"
+}
+
 /** Antwortseite: nur der Teil nach <hr id=answer>, damit die Antwort oben steht. */
 fun answerPart(answerHtml: String): String {
     val m = HR_ANSWER.find(answerHtml) ?: return answerHtml
-    return answerHtml.substring(m.range.last + 1)
+    val answer = answerHtml.substring(m.range.last + 1)
+    // Hauptstadt-Antwort zuerst, aber das gefragte Land und seine Hinweise nicht verlieren.
+    return if (isGeography(answerHtml)) answer + "<hr>" + answerHtml.substring(0, m.range.first)
+        else answer
 }
 
 /**
@@ -89,6 +127,7 @@ fun answerPart(answerHtml: String): String {
  */
 fun parseSide(html: String, audio: List<String?>, isAnswer: Boolean): CardSide {
     var h = STRIP_BLOCKS.replace(html, "")
+    if (isGeography(h)) h = prepareGeography(h)
     h = BUTTON.replace(h, "")
     val hints = HINT_FIELD.findAll(h).map { toAnnotated(it.groupValues[1]) }.toList()
     h = HINT_FIELD.replace(h, "")
@@ -235,6 +274,7 @@ private fun toAnnotated(html: String): AnnotatedString {
             span is StyleSpan && span.style == Typeface.ITALIC -> SpanStyle(fontStyle = FontStyle.Italic)
             span is StyleSpan && span.style == Typeface.BOLD_ITALIC ->
                 SpanStyle(fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Italic)
+            span is RelativeSizeSpan -> SpanStyle(fontSize = span.sizeChange.em)
             span is UnderlineSpan -> SpanStyle(textDecoration = TextDecoration.Underline)
             span is TypefaceSpan && span.family == "monospace" -> SpanStyle(fontFamily = FontFamily.Monospace)
             // Syntaxfarben aus Code-Blöcken behalten; sie sind für dunklen Hintergrund gedacht.
