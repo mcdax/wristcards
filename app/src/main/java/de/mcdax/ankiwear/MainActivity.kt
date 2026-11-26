@@ -1,5 +1,8 @@
 package de.mcdax.ankiwear
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.os.Bundle
@@ -114,13 +117,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Parallel zur ersten UI-Komposition vorbereiten, nicht erst nach der Loading-Frame.
+        val startup = lifecycleScope.async(Dispatchers.IO) {
+            val repo = AnkiRepository.get(applicationContext)
+            repo to repo.decks()
+        }
         // Beim Lernen nicht mitten in der Karte abdunkeln (Wear OS beendet sonst gern den Prozess).
         // Farbvariante zum Ausprobieren: adb shell am start ... --ei theme 1
         val variant = intent.getIntExtra("theme", 0).coerceIn(themeVariants.indices)
         // Für Screenshots im Emulator: --es deck <Name> öffnet das Deck direkt.
         val openDeck = intent.getStringExtra("deck")
         val previewCard = intent.getLongExtra("card", 0L).takeIf { it != 0L }
-        setContent { AnkiTheme(themeVariants[variant]) { App(openDeck, previewCard) } }
+        setContent { AnkiTheme(themeVariants[variant]) { App(startup, openDeck, previewCard) } }
     }
 }
 
@@ -148,29 +156,23 @@ private sealed interface SyncState {
 }
 
 @Composable
-private fun App(openDeck: String? = null, previewCard: Long? = null) {
-    val context = LocalContext.current.applicationContext
-    var repository by remember { mutableStateOf<AnkiRepository?>(null) }
-    // Native Bibliothek und SQLite öffnen, ohne die erste Compose-Frame zu blockieren.
-    LaunchedEffect(context) {
-        repository = withContext(Dispatchers.IO) {
-            AnkiRepository.get(context)
-        }
-    }
-    val repo = repository
-    if (repo == null) CenterNote(stringResource(R.string.loading))
-    else LoadedApp(repo, openDeck, previewCard)
+private fun App(startup: Deferred<Pair<AnkiRepository, List<DeckTreeNode>>>, openDeck: String? = null, previewCard: Long? = null) {
+    var ready by remember(startup) { mutableStateOf<Pair<AnkiRepository, List<DeckTreeNode>>?>(null) }
+    LaunchedEffect(startup) { ready = startup.await() }
+    val initial = ready
+    if (initial == null) CenterNote(stringResource(R.string.loading))
+    else LoadedApp(initial.first, initial.second, openDeck, previewCard)
 }
 
 @Composable
-private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long?) {
+private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, openDeck: String?, previewCard: Long?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val nav = rememberSwipeDismissableNavController()
     // Liegt hier statt in der Deckliste, damit die Scrollposition das Lernen überlebt.
     val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)
     var sync by remember { mutableStateOf<SyncState>(SyncState.Idle) }
-    var decks by remember { mutableStateOf<List<DeckTreeNode>>(emptyList()) }
+    var decks by remember { mutableStateOf(initialDecks) }
     var decksLoaded by remember { mutableStateOf(false) }
     // [settings] Uhr-Einstellungen
     val store = remember { SettingsStore.get(context) }
@@ -191,7 +193,6 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
     }
 
     LaunchedEffect(Unit) {
-        decks = repo.decks()
         decksLoaded = true
         when {
             previewCard != null -> nav.navigate("preview/$previewCard")
@@ -534,12 +535,20 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             try {
                 // Vorschau bewertet nichts.
                 if (previewCard != null) return@launch
-                repo.answer(current, rating)
+                // Der native Schreibzugriff ist nicht abbrechbar. Commit und Entfernen
+                // der alten Karte gehören zusammen, auch wenn die Ansicht geschlossen wird.
+                withContext(kotlinx.coroutines.NonCancellable) {
+                    repo.answer(current, rating)
+                    card = null
+                    revealed = false
+                }
                 if (settings.vibrateOnRate) vibrate(context, android.os.VibrationEffect.EFFECT_TICK)
                 card = repo.nextCard()
                 if (card == null && settings.vibrateOnDeckDone) vibrate(context, android.os.VibrationEffect.EFFECT_DOUBLE_CLICK)
                 revealed = false
                 error = null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 error = ratingFailed
             } finally {
@@ -658,7 +667,10 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         ) {
             when {
                 !loaded -> CenterNote(stringResource(R.string.loading))
-                current == null -> CenterNote(stringResource(R.string.done, deck?.name.orEmpty()))
+                busy -> CenterNote(stringResource(R.string.loading))
+                current == null -> {
+                    if (error == null) CenterNote(stringResource(R.string.done, deck?.name.orEmpty()))
+                }
                 else -> {
                     val side = if (revealed) current.answer else current.question
                     val cloze = if (revealed) c.answerBg to c.answerFg else c.hintBg to c.hintFg
