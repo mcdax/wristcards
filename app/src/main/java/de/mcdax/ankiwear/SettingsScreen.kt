@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -171,7 +172,7 @@ private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
         }
         if (s.hiddenDecks.isNotEmpty()) {
             item {
-                NavRow(R.string.set_hidden_decks, stringResource(R.string.deck_count, s.hiddenDecks.size)) { onNavigate("settings/decks/hidden") }
+                NavRow(R.string.set_hidden_decks, pluralStringResource(R.plurals.deck_count, s.hiddenDecks.size, s.hiddenDecks.size)) { onNavigate("settings/decks/hidden") }
             }
         }
         item { Note(R.string.set_long_press_hint) }

@@ -53,7 +53,7 @@ class DueComplicationService : SuspendingComplicationDataSourceService() {
             PendingIntent.FLAG_IMMUTABLE,
         )
         val total = c.total.toString()
-        val desc = PlainComplicationText.Builder(getString(R.string.complication_desc, c.total)).build()
+        val desc = PlainComplicationText.Builder(resources.getQuantityString(R.plurals.complication_desc, c.total, c.total)).build()
         return when (type) {
             ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
                 PlainComplicationText.Builder(total).build(), desc,

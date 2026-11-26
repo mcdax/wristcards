@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Anki Wear</string>
+    <string name="app_name" translatable="false">Anki Wear</string>
     <string name="image_unavailable">🖼 Image unavailable</string>
     <string name="sync">↻ Sync</string>
     <string name="syncing">Syncing…</string>
@@ -58,7 +58,10 @@
     <string name="set_hidden_decks">Hidden decks</string>
     <string name="set_long_press_hint">Long-press a deck to pin or hide it.</string>
     <string name="hidden_decks_hint">Switch off to show a deck again.</string>
-    <string name="deck_count">%1$d decks</string>
+    <plurals name="deck_count">
+        <item quantity="one">%1$d deck</item>
+        <item quantity="other">%1$d decks</item>
+    </plurals>
     <string name="opt_small">Small</string>
     <string name="opt_normal">Normal</string>
     <string name="opt_large">Large</string>
@@ -94,6 +97,9 @@
     <string name="deck_expand">Expand subdecks</string>
     <string name="deck_collapse">Collapse subdecks</string>
     <string name="complication_name">Anki: cards due</string>
-    <string name="complication_desc">%1$d Anki cards due</string>
+    <plurals name="complication_desc">
+        <item quantity="one">%1$d Anki card due</item>
+        <item quantity="other">%1$d Anki cards due</item>
+    </plurals>
     <string name="complication_long">%1$d new · %2$d learn · %3$d due</string>
 </resources>

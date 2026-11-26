@@ -31,6 +31,11 @@ android {
         buildConfigField("String", "SYNC_PASSWORD", "\"${local.getProperty("sync.password", "")}\"")
     }
 
+    // Sprachliste für die App-Sprachauswahl des Systems (Android 13+) aus den values-*-Ordnern erzeugen.
+    androidResources {
+        generateLocaleConfig = true
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
