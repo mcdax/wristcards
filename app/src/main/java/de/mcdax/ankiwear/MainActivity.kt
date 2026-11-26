@@ -63,6 +63,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -117,6 +118,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "create restored=${savedInstanceState != null}")
         // Parallel zur ersten UI-Komposition vorbereiten, nicht erst nach der Loading-Frame.
         val startup = lifecycleScope.async(Dispatchers.IO) {
             val repo = AnkiRepository.get(applicationContext)
@@ -128,7 +130,15 @@ class MainActivity : ComponentActivity() {
         // Für Screenshots im Emulator: --es deck <Name> öffnet das Deck direkt.
         val openDeck = intent.getStringExtra("deck")
         val previewCard = intent.getLongExtra("card", 0L).takeIf { it != 0L }
-        setContent { AnkiTheme(themeVariants[variant]) { App(startup, openDeck, previewCard) } }
+        setContent { AnkiTheme(themeVariants[variant]) { App(startup, openDeck, previewCard, restoring = savedInstanceState != null) } }
+    }
+    override fun onResume() {
+        super.onResume()
+        if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "resume")
+    }
+    override fun onStop() {
+        super.onStop()
+        if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "stop")
     }
 }
 
@@ -156,7 +166,7 @@ private sealed interface SyncState {
 }
 
 @Composable
-private fun App(startup: Deferred<Pair<AnkiRepository, List<DeckTreeNode>>>, openDeck: String? = null, previewCard: Long? = null) {
+private fun App(startup: Deferred<Pair<AnkiRepository, List<DeckTreeNode>>>, openDeck: String? = null, previewCard: Long? = null, restoring: Boolean = false) {
     var ready by remember(startup) { mutableStateOf<Pair<AnkiRepository, List<DeckTreeNode>>?>(null) }
     LaunchedEffect(startup) { ready = startup.await() }
     val initial = ready
@@ -168,11 +178,11 @@ private fun App(startup: Deferred<Pair<AnkiRepository, List<DeckTreeNode>>>, ope
                 modifier = Modifier.size(64.dp),
             )
         }
-    } else LoadedApp(initial.first, initial.second, openDeck, previewCard)
+    } else LoadedApp(initial.first, initial.second, openDeck, previewCard, restoring)
 }
 
 @Composable
-private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, openDeck: String?, previewCard: Long?) {
+private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, openDeck: String?, previewCard: Long?, restoring: Boolean) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val nav = rememberSwipeDismissableNavController()
@@ -202,6 +212,9 @@ private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, op
 
     LaunchedEffect(Unit) {
         decksLoaded = true
+        // NavController stellt seine Lernansicht selbst wieder her. Weder erneut
+        // navigieren noch Start-Sync davor in die gemeinsame Backend-Warteschlange setzen.
+        if (restoring) return@LaunchedEffect
         when {
             previewCard != null -> nav.navigate("preview/$previewCard")
             else -> decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") }
@@ -274,11 +287,12 @@ private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, op
         composable("review/{deckId}") { entry ->
             val deckId = entry.arguments?.getString("deckId")?.toLongOrNull()
             val deck = decks.firstOrNull { it.deckId == deckId } ?: return@composable
-            DisposableEffect(deckId) {
-                // Bewertungen gleich hochladen, damit sie bei einem späteren Vollabgleich nicht verloren gehen.
-                onDispose { if (store.current.syncOnDeckExit) runSync() } // [settings] Auto-Sync nach dem Deck
-            }
-            ReviewScreen(repo, deck, onBack = { nav.popBackStack() })
+            ReviewScreen(repo, deck, onBack = {
+                nav.popBackStack()
+                // Nur beim tatsächlichen Verlassen des Decks, nicht beim Abbau
+                // der Activity durch Wear OS im Hintergrund.
+                if (store.current.syncOnDeckExit) runSync()
+            })
         }
         composable("preview/{cardId}") { entry ->
             val cid = entry.arguments?.getString("cardId")?.toLongOrNull() ?: return@composable
@@ -490,7 +504,10 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     val ratingFailed = stringResource(R.string.rating_failed)
     var card by remember { mutableStateOf<ReviewCard?>(null) }
     var loaded by remember { mutableStateOf(false) }
-    var revealed by remember { mutableStateOf(false) }
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    var lastShownCardId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var lastShownReps by rememberSaveable { mutableStateOf(-1) }
+    var lastShownAnswer by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scroll = rememberScrollState()
@@ -499,7 +516,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     val settings = LocalSettings.current
     val audio = remember { CardAudio(context) }
     var zoomed by remember { mutableStateOf<ImageBitmap?>(null) }
-    var extraOpen by remember { mutableStateOf(false) }
+    var extraOpen by rememberSaveable { mutableStateOf(false) }
     // Einblendung nach Bewertung per Wischen: Text und Farbe
     var swipeNote by remember { mutableStateOf<Pair<String, Color>?>(null) }
     val ratedLabels = listOf(
@@ -513,6 +530,17 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         }
     }
     DisposableEffect(Unit) { onDispose { audio.stop() } }
+    DisposableEffect(context) {
+        val lifecycle = (context as? ComponentActivity)?.lifecycle
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (BuildConfig.DEBUG && event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                android.util.Log.d("AnkiResume", "review stopped scroll=${scroll.value} revealed=$revealed")
+            }
+        }
+        lifecycle?.addObserver(observer)
+        onDispose { lifecycle?.removeObserver(observer) }
+    }
+
     // Bildschirm nur beim Lernen wach halten, nicht in der Deckliste.
     DisposableEffect(settings.keepScreenOn) {
         val window = (context as? android.app.Activity)?.window
@@ -521,13 +549,19 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     }
 
     LaunchedEffect(deck?.deckId, previewCard) {
+        val loadStart = android.os.SystemClock.uptimeMillis()
         card = if (previewCard != null) {
             repo.cardById(previewCard)
         } else {
             deck?.let { repo.selectDeck(it.deckId) }
             repo.nextCard()
         }
+        val loadedCard = card?.queued?.card
+        if (lastShownCardId != null && (loadedCard?.id != lastShownCardId || loadedCard?.reps != lastShownReps)) {
+            revealed = false
+        }
         loaded = true
+        if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "review ready wait=${android.os.SystemClock.uptimeMillis() - loadStart}ms revealed=$revealed")
     }
     LaunchedEffect(card?.queued?.card?.id) {
         if (card != null && previewCard == null) {
@@ -541,15 +575,28 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     }
     // Neue Karte oder aufgedeckt: oben anfangen, Krone wieder auf den Text lenken.
     LaunchedEffect(revealed, card?.queued?.card?.id) {
-        scroll.scrollTo(0)
+        val shown = card ?: return@LaunchedEffect
+        val sameSide = lastShownCardId == shown.queued.card.id &&
+            lastShownReps == shown.queued.card.reps && lastShownAnswer == revealed
+        if (!sameSide) {
+            scroll.scrollTo(0)
+            extraOpen = false
+        }
+        lastShownCardId = shown.queued.card.id
+        lastShownReps = shown.queued.card.reps
+        lastShownAnswer = revealed
         focus.requestFocus()
-        extraOpen = false
-        // Wie Anki: beim Zeigen einer Seite deren Audio automatisch abspielen.
-        val side = card?.let { if (revealed) it.answer else it.question } ?: return@LaunchedEffect
-        if (settings.audioMode == AudioMode.AUTO) {
+        // Wiederherstellen derselben Seite setzt weder Scrollposition zurück
+        // noch startet es deren Audio erneut. Neue Seiten verhalten sich wie bisher.
+        val side = if (revealed) shown.answer else shown.question
+        if (!sameSide && settings.audioMode == AudioMode.AUTO) {
             audio.play(side.audioIndexes().mapNotNull { side.audio.getOrNull(it)?.let(repo::mediaFile) }, settings.audioOutput)
         } else {
             audio.stop()
+        }
+        if (BuildConfig.DEBUG) {
+            androidx.compose.runtime.withFrameNanos { }
+            android.util.Log.d("AnkiResume", "side ready same=$sameSide scroll=${scroll.value} revealed=$revealed")
         }
     }
 
@@ -667,7 +714,8 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         }
     }
     Box(Modifier.fillMaxSize().background(c.background)) {
-        Column(
+        // Vorhandene Scrollposition nicht durch eine leere Lade-Column auf 0 klemmen.
+        if (loaded) Column(
             modifier = Modifier
                 .fillMaxSize()
                 .rotaryScrollable(RotaryScrollableDefaults.behavior(scrollableState = scroll), focus)
