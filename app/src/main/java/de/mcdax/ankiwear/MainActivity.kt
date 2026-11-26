@@ -6,10 +6,12 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.os.Bundle
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.wear.compose.navigation.currentBackStackEntryAsState
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -724,21 +726,40 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 // Wisch-Abkürzung (nur aufgedeckt); Rechtswischen kann auch Zurück sein, siehe swipedRight.
                 .then(
                     if (current != null) Modifier.pointerInput(current, revealed, settings) {
-                        var dx = 0f
-                        detectHorizontalDragGestures(
-                            onDragStart = { dx = 0f },
-                            onDragEnd = {
-                                when {
-                                    dx < -80.dp.toPx() && revealed -> rateBySwipe(current, settings.swipeLeft)
-                                    // Verdeckt: Linkswischen deckt auf. Nicht direkt nach einer Bewertung,
-                                    // sonst deckt ein Doppelwisch die neue Karte ungelesen auf.
-                                    dx < -80.dp.toPx() && lastTouchDownTime - ratedAt >= RATE_LOCK_MS -> {
-                                        android.util.Log.d(TAG, "result reveal")
-                                        revealed = true
-                                    }
+                        // Waagerecht erst, wenn die Bewegung klar waagerecht ist (wie rechts: |dy| < |dx|/2).
+                        // Der Daumen läuft auf der runden Uhr im Bogen; schräges Scrollen bleibt so beim Scrollen.
+                        val slop = viewConfiguration.touchSlop
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            var dx = 0f
+                            var dy = 0f
+                            var horizontal = false
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+                                if (!change.pressed) break
+                                // Scrollen hat die Geste übernommen.
+                                if (!horizontal && change.isConsumed) return@awaitEachGesture
+                                val delta = change.positionChange()
+                                dx += delta.x
+                                dy += delta.y
+                                if (!horizontal) {
+                                    if (kotlin.math.abs(dx) > slop && kotlin.math.abs(dy) < kotlin.math.abs(dx) / 2) horizontal = true
+                                    else if (kotlin.math.abs(dy) > slop) return@awaitEachGesture
                                 }
-                            },
-                        ) { _, amount -> dx += amount }
+                                if (horizontal) change.consume()
+                            }
+                            if (!horizontal) return@awaitEachGesture
+                            when {
+                                dx < -80.dp.toPx() && revealed -> rateBySwipe(current, settings.swipeLeft)
+                                // Verdeckt: Linkswischen deckt auf. Nicht direkt nach einer Bewertung,
+                                // sonst deckt ein Doppelwisch die neue Karte ungelesen auf.
+                                dx < -80.dp.toPx() && lastTouchDownTime - ratedAt >= RATE_LOCK_MS -> {
+                                    android.util.Log.d(TAG, "result reveal")
+                                    revealed = true
+                                }
+                            }
+                        }
                     } else Modifier,
                 )
                 // Unten Platz für die festen Bewertungsknöpfe lassen.

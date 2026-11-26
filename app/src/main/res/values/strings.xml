@@ -49,8 +49,8 @@
     <string name="set_sync_open">Sync on app start</string>
     <string name="set_sync_exit">Sync after leaving a deck</string>
     <string name="set_sync_manual_hint">Manual only: tap Sync or pull down in the deck list.</string>
-    <string name="set_wifi_only">Wi-Fi only</string>
-    <string name="set_wifi_only_hint">Off: fall back to phone / LTE</string>
+    <string name="set_cellular_sync">Cellular sync</string>
+    <string name="set_cellular_sync_hint">Wi-Fi and phone always work</string>
     <string name="set_media">Download media</string>
     <string name="set_account">Server &amp; account</string>
     <string name="set_hide_empty">Hide empty decks</string>
@@ -87,7 +87,7 @@
     <string name="account_built_in">Built-in account</string>
     <string name="account_signed_out">Not signed in</string>
     <string name="not_signed_in">Not signed in. Open Settings → Server &amp; account.</string>
-    <string name="no_wifi">No Wi-Fi (Wi-Fi only is on)</string>
+    <string name="no_wifi">No Wi-Fi or phone (cellular sync is off)</string>
     <string name="deck_pin">Pin to top</string>
     <string name="deck_unpin">Unpin</string>
     <string name="deck_hide">Hide deck</string>

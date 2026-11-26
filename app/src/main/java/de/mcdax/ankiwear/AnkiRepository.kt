@@ -149,10 +149,16 @@ class AnkiRepository private constructor(private val context: Context) {
             }
         }
         try {
-            // Kein WLAN in 15 s (z. B. im Emulator ohne Uhr-WLAN): mit dem Standardnetz versuchen.
-            // [settings] Außer „Nur WLAN“ ist eingeschaltet.
-            if (network == null && settings.current.wifiOnly) error(context.getString(R.string.no_wifi))
-            if (network != null) cm.bindProcessToNetwork(network)
+            // Kein WLAN in 15 s: Standardnetz nehmen, meist das Handy per Bluetooth.
+            // [settings] Ist das das eigene LTE der Uhr, nur mit „Cellular sync“.
+            val target = network ?: cm.activeNetwork?.also { fallback ->
+                val caps = cm.getNetworkCapabilities(fallback)
+                val cellular = caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) &&
+                    !caps.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH)
+                if (cellular && !settings.current.cellularSync) error(context.getString(R.string.no_wifi))
+            }
+            // Fest binden, damit der Kern nicht mitten im Sync auf ein anderes Netz (z. B. LTE) wechselt.
+            if (target != null) cm.bindProcessToNetwork(target)
             return block()
         } finally {
             cm.bindProcessToNetwork(null)

@@ -151,7 +151,7 @@ private fun SettingsScreen(repo: AnkiRepository, onNavigate: (String) -> Unit) {
         item { Toggle(R.string.set_sync_open, s.syncOnOpen) { v -> store.update { it.copy(syncOnOpen = v) } } }
         item { Toggle(R.string.set_sync_exit, s.syncOnDeckExit) { v -> store.update { it.copy(syncOnDeckExit = v) } } }
         if (!s.syncOnOpen && !s.syncOnDeckExit) item { Note(R.string.set_sync_manual_hint) }
-        item { Toggle(R.string.set_wifi_only, s.wifiOnly, R.string.set_wifi_only_hint) { v -> store.update { it.copy(wifiOnly = v) } } }
+        item { Toggle(R.string.set_cellular_sync, s.cellularSync, R.string.set_cellular_sync_hint) { v -> store.update { it.copy(cellularSync = v) } } }
         item { ChoiceRow(mediaChoice, s, onNavigate) }
         item {
             val label = when (account) {

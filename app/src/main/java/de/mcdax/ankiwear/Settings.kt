@@ -42,8 +42,8 @@ data class AppSettings(
     // Sync; beide Auslöser aus = nur manuell (Antippen/Herunterziehen)
     val syncOnOpen: Boolean = true,
     val syncOnDeckExit: Boolean = true,
-    // Aus: erst WLAN versuchen, sonst über Handy/LTE (bisheriges Verhalten)
-    val wifiOnly: Boolean = false,
+    // WLAN und Handy (Bluetooth) gehen immer; eigenes LTE der Uhr nur, wenn erlaubt.
+    val cellularSync: Boolean = false,
     val mediaMode: MediaMode = MediaMode.ALL,
     // Deckliste
     // Verlassen der App nur mit zweitem Zurück (Taste oder Wischen)
@@ -105,7 +105,7 @@ class SettingsStore private constructor(context: Context) {
             .putBoolean("keepScreenOn", s.keepScreenOn)
             .putBoolean("syncOnOpen", s.syncOnOpen)
             .putBoolean("syncOnDeckExit", s.syncOnDeckExit)
-            .putBoolean("wifiOnly", s.wifiOnly)
+            .putBoolean("cellularSync", s.cellularSync)
             .putString("mediaMode", s.mediaMode.name)
             .putBoolean("confirmExit", s.confirmExit)
             .putBoolean("hideEmptyDecks", s.hideEmptyDecks)
@@ -150,7 +150,8 @@ private fun read(p: SharedPreferences): AppSettings {
         keepScreenOn = p.getBoolean("keepScreenOn", d.keepScreenOn),
         syncOnOpen = p.getBoolean("syncOnOpen", d.syncOnOpen),
         syncOnDeckExit = p.getBoolean("syncOnDeckExit", d.syncOnDeckExit),
-        wifiOnly = p.getBoolean("wifiOnly", d.wifiOnly),
+        // Früherer Schalter "wifiOnly" hat nichts zu übernehmen: LTE ist jetzt standardmäßig aus.
+        cellularSync = p.getBoolean("cellularSync", d.cellularSync),
         mediaMode = enum("mediaMode", d.mediaMode, MediaMode.entries.toTypedArray()),
         confirmExit = p.getBoolean("confirmExit", d.confirmExit),
         hideEmptyDecks = p.getBoolean("hideEmptyDecks", d.hideEmptyDecks),
