@@ -9,6 +9,7 @@ import android.os.Bundle
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -762,9 +763,12 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                         }
                     } else Modifier,
                 )
+                // Mindestens bildschirmhoch, damit kurze Fragen mittig stehen können; längere scrollen ab oben.
+                .heightIn(min = LocalConfiguration.current.screenHeightDp.dp)
                 // Unten Platz für die festen Bewertungsknöpfe lassen.
                 .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) 100.dp else 48.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            // Frage mittig, Antwort oben (Erklärung und Bewertungsknöpfe gehören zusammen).
+            verticalArrangement = if (revealed) Arrangement.spacedBy(10.dp) else Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         ) {
             when {
                 // Kurze lokale Kartenwechsel ohne aufblitzenden Ladehinweis.
