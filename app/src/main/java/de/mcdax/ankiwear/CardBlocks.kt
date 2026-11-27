@@ -245,18 +245,9 @@ internal fun ZoomOverlay(bitmap: ImageBitmap, onClose: () -> Unit) {
         androidx.compose.animation.AnimatedVisibility(
             visible = hint,
             exit = androidx.compose.animation.fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 26.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = TOAST_BOTTOM),
         ) {
-            Text(
-                stringResource(R.string.zoom_hint),
-                color = c.text,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(c.surface.copy(alpha = 0.9f))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-            )
+            Toast(stringResource(R.string.zoom_hint))
         }
     }
 }

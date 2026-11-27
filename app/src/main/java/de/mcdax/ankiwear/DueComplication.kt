@@ -12,7 +12,6 @@ import androidx.wear.watchface.complications.data.ComplicationType
 import androidx.wear.watchface.complications.data.LongTextComplicationData
 import androidx.wear.watchface.complications.data.MonochromaticImage
 import androidx.wear.watchface.complications.data.PlainComplicationText
-import androidx.wear.watchface.complications.data.RangedValueComplicationData
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
@@ -113,11 +112,6 @@ class DueComplicationService : SuspendingComplicationDataSourceService() {
             ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
                 PlainComplicationText.Builder(getString(R.string.complication_long, c.new, c.learn, c.review)).build(), desc,
             ).setTitle(PlainComplicationText.Builder(getString(R.string.app_name)).build())
-                .setMonochromaticImage(icon).setTapAction(tap).build()
-            // Ring füllt sich, je weniger offen ist; Obergrenze grob 100 Karten.
-            ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(
-                value = c.total.coerceAtMost(100).toFloat(), min = 0f, max = maxOf(100f, c.total.toFloat()), contentDescription = desc,
-            ).setText(PlainComplicationText.Builder(total).build())
                 .setMonochromaticImage(icon).setTapAction(tap).build()
             else -> null
         }

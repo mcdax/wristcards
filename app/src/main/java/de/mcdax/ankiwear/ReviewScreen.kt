@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -387,23 +388,29 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             exit = androidx.compose.animation.fadeOut(),
             // Unten: nach dem Bewerten ist die nächste Karte verdeckt, dort sind keine Knöpfe.
             // Etwas höher, wo der runde Bildschirm breit genug ist.
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = TOAST_BOTTOM),
         ) {
             val note = ratedNote
             if (note != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                // Untereinander statt nebeneinander: Unten auf dem runden Display ist es zu schmal für beides in einer Zeile.
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(c.surface.copy(alpha = 0.97f)),
+                        .widthIn(max = TOAST_MAX_WIDTH)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(c.surface.copy(alpha = 0.97f))
+                        .padding(top = 6.dp, bottom = 2.dp),
                 ) {
                     Text(
                         note.text,
                         color = note.color,
                         fontSize = 12.sp,
+                        lineHeight = 15.sp,
                         fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
                         maxLines = 1,
-                        modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 12.dp),
                     )
                     Text(
                         stringResource(R.string.undo),
@@ -414,7 +421,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .clickable { undo(note) }
-                            .padding(start = 6.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                     )
                 }
             }

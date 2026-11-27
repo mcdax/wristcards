@@ -1,5 +1,6 @@
 package de.mcdax.ankiwear
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,5 +50,29 @@ internal fun PillButton(label: String, background: Color, foreground: Color, onC
             .background(background)
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
+    )
+}
+
+/** Unten auf dem runden Display ist wenig Platz: Hinweise so hoch und schmal halten, dass sie ganz sichtbar bleiben. */
+internal val TOAST_BOTTOM = 36.dp
+internal val TOAST_MAX_WIDTH = 150.dp
+
+/** Kurzer Hinweis unten; bricht bei Bedarf in eine zweite Zeile um, statt am Rand abgeschnitten zu werden. */
+@Composable
+internal fun Toast(text: String, modifier: Modifier = Modifier) {
+    val c = LocalAnkiColors.current
+    Text(
+        text,
+        color = c.text,
+        fontSize = 12.sp,
+        lineHeight = 15.sp,
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+            .widthIn(max = TOAST_MAX_WIDTH)
+            .clip(RoundedCornerShape(16.dp))
+            .background(c.surface.copy(alpha = 0.95f))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }

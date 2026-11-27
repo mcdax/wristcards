@@ -143,17 +143,7 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
 
             if (exitArmed) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                    Text(
-                        stringResource(R.string.back_again_to_exit),
-                        color = LocalAnkiColors.current.text,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .padding(bottom = 28.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(LocalAnkiColors.current.surface)
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                    )
+                    Toast(stringResource(R.string.back_again_to_exit), Modifier.padding(bottom = TOAST_BOTTOM))
                 }
             }
             }
