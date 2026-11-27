@@ -36,14 +36,14 @@ class SyncController private constructor(private val repo: AnkiRepository) {
     private val _state = MutableStateFlow<SyncState>(SyncState.Idle)
     val state: StateFlow<SyncState> get() = _state
 
-    /** [confirmFullDownload]: Der Nutzer hat bestätigt, dass die Sammlung der Uhr ersetzt werden darf. */
-    fun sync(confirmFullDownload: Boolean = false) {
+    /** [resolve]: Bei einem Konflikt die vom Nutzer bestätigte Seite; sonst null. */
+    fun sync(resolve: ConflictChoice? = null) {
         synchronized(this) {
             if (_state.value == SyncState.Running) return
             _state.value = SyncState.Running
         }
         scope.launch {
-            _state.value = when (val r = repo.sync(confirmFullDownload)) {
+            _state.value = when (val r = repo.sync(resolve)) {
                 SyncResult.Ok -> SyncState.Done
                 SyncResult.NeedsFullDownload -> SyncState.NeedsConfirmation
                 is SyncResult.Failed -> SyncState.Failed(r.message)

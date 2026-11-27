@@ -90,7 +90,7 @@
     <string name="deck_hide">Ocultar mazo</string>
     <string name="deck_expand">Expandir submazos</string>
     <string name="deck_collapse">Contraer submazos</string>
-    <string name="complication_name">Anki: tarjetas pendientes</string>
+    <string name="complication_name">Wristcards: tarjetas pendientes</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d tarjeta de Anki pendiente</item>
         <item quantity="many">%1$d de tarjetas de Anki pendientes</item>
@@ -126,8 +126,11 @@
     <string name="open_failed">No se pudo abrir la colección</string>
     <string name="load_failed">No se pudo cargar la tarjeta</string>
     <string name="retry">Reintentar</string>
-    <string name="full_download_question">El servidor y el reloj tienen cambios. ¿Reemplazar la colección del reloj por la del servidor? Se perderán los repasos no sincronizados del reloj.</string>
-    <string name="full_download_confirm">Reemplazar</string>
+    <string name="full_download_question">El servidor y el reloj tienen cambios que no se pueden combinar. ¿Qué versión debe prevalecer?</string>
+    <string name="full_download_confirm">Usar la del servidor</string>
     <string name="full_download_cancel">Ahora no</string>
     <string name="sync_paused">⚠ Sincronización en pausa</string>
+    <string name="full_upload_offer">Subir la del reloj</string>
+    <string name="full_upload_warning">Atención: esto sobrescribe la colección del servidor. Se perderán los cambios de otros dispositivos desde la última sincronización.</string>
+    <string name="full_upload_confirm">Subir de todos modos</string>
 </resources>

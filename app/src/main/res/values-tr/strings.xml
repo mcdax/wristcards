@@ -89,7 +89,7 @@
     <string name="deck_hide">Desteyi gizle</string>
     <string name="deck_expand">Alt desteleri genişlet</string>
     <string name="deck_collapse">Alt desteleri daralt</string>
-    <string name="complication_name">Anki: bekleyen kartlar</string>
+    <string name="complication_name">Wristcards: bekleyen kartlar</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d bekleyen Anki kartı</item>
         <item quantity="other">%1$d bekleyen Anki kartı</item>
@@ -124,8 +124,11 @@
     <string name="open_failed">Koleksiyon açılamadı</string>
     <string name="load_failed">Kart yüklenemedi</string>
     <string name="retry">Tekrar dene</string>
-    <string name="full_download_question">Hem sunucuda hem saatte değişiklik var. Saatteki koleksiyon sunucudakiyle değiştirilsin mi? Eşitlenmemiş tekrarlar kaybolur.</string>
-    <string name="full_download_confirm">Değiştir</string>
+    <string name="full_download_question">Sunucuda ve saatte birleştirilemeyen değişiklikler var. Hangi sürüm geçerli olsun?</string>
+    <string name="full_download_confirm">Sunucu sürümü</string>
     <string name="full_download_cancel">Şimdi değil</string>
     <string name="sync_paused">⚠ Eşitleme duraklatıldı</string>
+    <string name="full_upload_offer">Saat sürümünü yükle</string>
+    <string name="full_upload_warning">Dikkat: Sunucudaki koleksiyonun üzerine yazılır. Son eşitlemeden beri diğer cihazlardaki değişiklikler kaybolur.</string>
+    <string name="full_upload_confirm">Yine de yükle</string>
 </resources>

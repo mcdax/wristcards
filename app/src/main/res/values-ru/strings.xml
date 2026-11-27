@@ -91,7 +91,7 @@
     <string name="deck_hide">Скрыть колоду</string>
     <string name="deck_expand">Развернуть подколоды</string>
     <string name="deck_collapse">Свернуть подколоды</string>
-    <string name="complication_name">Anki: карточки к повтору</string>
+    <string name="complication_name">Wristcards: карточки к повтору</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d карточка Anki к повтору</item>
         <item quantity="few">%1$d карточки Anki к повтору</item>
@@ -130,8 +130,11 @@
     <string name="open_failed">Не удалось открыть коллекцию</string>
     <string name="load_failed">Не удалось загрузить карточку</string>
     <string name="retry">Повторить</string>
-    <string name="full_download_question">Изменения есть и на сервере, и на часах. Заменить коллекцию на часах версией с сервера? Несинхронизированные повторения будут потеряны.</string>
-    <string name="full_download_confirm">Заменить</string>
+    <string name="full_download_question">На сервере и на часах есть изменения, которые нельзя объединить. Какую версию оставить?</string>
+    <string name="full_download_confirm">Версия сервера</string>
     <string name="full_download_cancel">Не сейчас</string>
     <string name="sync_paused">⚠ Синхронизация приостановлена</string>
+    <string name="full_upload_offer">Загрузить версию часов</string>
+    <string name="full_upload_warning">Внимание: коллекция на сервере будет перезаписана. Изменения с других устройств после последней синхронизации пропадут.</string>
+    <string name="full_upload_confirm">Всё равно загрузить</string>
 </resources>

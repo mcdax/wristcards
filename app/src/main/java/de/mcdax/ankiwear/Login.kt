@@ -31,6 +31,8 @@ class SyncCredentials(context: Context) {
         get() = when {
             prefs.contains("hkey") -> Account.SignedIn(prefs.getString("user", "") ?: "", prefs.getString("endpoint", "") ?: "")
             prefs.getBoolean("signedOut", false) -> Account.SignedOut
+            // Eingebautes Testkonto gibt es nur im Debug-Build (siehe build.gradle.kts).
+            BuildConfig.SYNC_USER.isEmpty() -> Account.SignedOut
             else -> Account.BuiltIn
         }
 

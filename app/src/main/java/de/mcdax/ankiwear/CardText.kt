@@ -340,14 +340,14 @@ const val CLOZE_TAG = "cloze"
 /** Aufzählungen, die in einer Zeile mit „ · “ getrennt sind, zeigt die Uhr untereinander. */
 private const val INLINE_SEPARATOR = " · "
 
-private enum class Bullet { SEPARATOR, AFTER_COLON, BEFORE }
+internal enum class Bullet { SEPARATOR, AFTER_COLON, BEFORE }
 
 /**
  * Wo im Text Aufzählungspunkte entstehen: jedes „ · “ wird Zeilenumbruch + „• “.
  * Der erste Eintrag einer solchen Zeile bekommt ebenfalls „• “, entweder nach einem Doppelpunkt
  * („Nenne …: A · B“ → Einleitung, dann Liste) oder am Zeilenanfang.
  */
-private fun inlineBullets(raw: String): Map<Int, Bullet> {
+internal fun inlineBullets(raw: String): Map<Int, Bullet> {
     val out = HashMap<Int, Bullet>()
     var lineStart = 0
     while (lineStart <= raw.length) {

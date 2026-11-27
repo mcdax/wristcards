@@ -91,7 +91,7 @@
     <string name="deck_hide">Приховати колоду</string>
     <string name="deck_expand">Розгорнути підколоди</string>
     <string name="deck_collapse">Згорнути підколоди</string>
-    <string name="complication_name">Anki: картки до повторення</string>
+    <string name="complication_name">Wristcards: картки до повторення</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d картка Anki до повторення</item>
         <item quantity="few">%1$d картки Anki до повторення</item>
@@ -130,8 +130,11 @@
     <string name="open_failed">Не вдалося відкрити колекцію</string>
     <string name="load_failed">Не вдалося завантажити картку</string>
     <string name="retry">Повторити</string>
-    <string name="full_download_question">І на сервері, і на годиннику є зміни. Замінити колекцію на годиннику версією з сервера? Несинхронізовані повторення буде втрачено.</string>
-    <string name="full_download_confirm">Замінити</string>
+    <string name="full_download_question">На сервері й на годиннику є зміни, які не можна об’єднати. Яку версію залишити?</string>
+    <string name="full_download_confirm">Версія сервера</string>
     <string name="full_download_cancel">Не зараз</string>
     <string name="sync_paused">⚠ Синхронізацію призупинено</string>
+    <string name="full_upload_offer">Завантажити версію годинника</string>
+    <string name="full_upload_warning">Увага: колекцію на сервері буде перезаписано. Зміни з інших пристроїв після останньої синхронізації зникнуть.</string>
+    <string name="full_upload_confirm">Усе одно завантажити</string>
 </resources>

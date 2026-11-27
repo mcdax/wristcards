@@ -90,7 +90,7 @@
     <string name="deck_hide">Nascondi mazzo</string>
     <string name="deck_expand">Espandi sottomazzi</string>
     <string name="deck_collapse">Comprimi sottomazzi</string>
-    <string name="complication_name">Anki: carte in scadenza</string>
+    <string name="complication_name">Wristcards: carte in scadenza</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d carta Anki in scadenza</item>
         <item quantity="many">%1$d di carte Anki in scadenza</item>
@@ -126,8 +126,11 @@
     <string name="open_failed">Impossibile aprire la raccolta</string>
     <string name="load_failed">Impossibile caricare la carta</string>
     <string name="retry">Riprova</string>
-    <string name="full_download_question">Server e orologio hanno modifiche. Sostituire la raccolta dell\'orologio con quella del server? I ripassi non sincronizzati andranno persi.</string>
-    <string name="full_download_confirm">Sostituisci</string>
+    <string name="full_download_question">Server e orologio hanno modifiche non unibili. Quale versione deve valere?</string>
+    <string name="full_download_confirm">Usa quella del server</string>
     <string name="full_download_cancel">Non ora</string>
     <string name="sync_paused">⚠ Sincronizzazione in pausa</string>
+    <string name="full_upload_offer">Carica quella dell\'orologio</string>
+    <string name="full_upload_warning">Attenzione: sovrascrive la raccolta sul server. Le modifiche di altri dispositivi dall\'ultima sincronizzazione andranno perse.</string>
+    <string name="full_upload_confirm">Carica comunque</string>
 </resources>

@@ -89,7 +89,7 @@
     <string name="deck_hide">Deck ausblenden</string>
     <string name="deck_expand">Unterdecks aufklappen</string>
     <string name="deck_collapse">Unterdecks einklappen</string>
-    <string name="complication_name">Anki: fällige Karten</string>
+    <string name="complication_name">Wristcards: fällige Karten</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d Anki-Karte fällig</item>
         <item quantity="other">%1$d Anki-Karten fällig</item>
@@ -124,8 +124,11 @@
     <string name="open_failed">Sammlung konnte nicht geöffnet werden</string>
     <string name="load_failed">Karte konnte nicht geladen werden</string>
     <string name="retry">Erneut versuchen</string>
-    <string name="full_download_question">Server und Uhr haben beide Änderungen. Sammlung der Uhr durch die vom Server ersetzen? Noch nicht abgeglichene Bewertungen der Uhr gehen verloren.</string>
-    <string name="full_download_confirm">Ersetzen</string>
+    <string name="full_download_question">Server und Uhr haben beide Änderungen, die sich nicht zusammenführen lassen. Welche Version soll gelten?</string>
+    <string name="full_download_confirm">Server-Version laden</string>
     <string name="full_download_cancel">Jetzt nicht</string>
     <string name="sync_paused">⚠ Abgleich angehalten</string>
+    <string name="full_upload_offer">Uhr-Version hochladen</string>
+    <string name="full_upload_warning">Achtung: Das überschreibt die Sammlung auf dem Server. Änderungen von anderen Geräten seit dem letzten Abgleich gehen verloren.</string>
+    <string name="full_upload_confirm">Wirklich hochladen</string>
 </resources>

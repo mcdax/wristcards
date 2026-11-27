@@ -91,7 +91,7 @@
     <string name="deck_hide">Ukryj talię</string>
     <string name="deck_expand">Rozwiń podtalie</string>
     <string name="deck_collapse">Zwiń podtalie</string>
-    <string name="complication_name">Anki: karty do powtórki</string>
+    <string name="complication_name">Wristcards: karty do powtórki</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d karta Anki do powtórki</item>
         <item quantity="few">%1$d karty Anki do powtórki</item>
@@ -130,8 +130,11 @@
     <string name="open_failed">Nie można otworzyć kolekcji</string>
     <string name="load_failed">Nie można wczytać karty</string>
     <string name="retry">Spróbuj ponownie</string>
-    <string name="full_download_question">Serwer i zegarek mają zmiany. Zastąpić kolekcję na zegarku wersją z serwera? Niezsynchronizowane powtórki zostaną utracone.</string>
-    <string name="full_download_confirm">Zastąp</string>
+    <string name="full_download_question">Serwer i zegarek mają zmiany, których nie da się połączyć. Która wersja ma obowiązywać?</string>
+    <string name="full_download_confirm">Wersja z serwera</string>
     <string name="full_download_cancel">Nie teraz</string>
     <string name="sync_paused">⚠ Synchronizacja wstrzymana</string>
+    <string name="full_upload_offer">Wyślij wersję z zegarka</string>
+    <string name="full_upload_warning">Uwaga: to nadpisze kolekcję na serwerze. Zmiany z innych urządzeń od ostatniej synchronizacji zostaną utracone.</string>
+    <string name="full_upload_confirm">Wyślij mimo to</string>
 </resources>

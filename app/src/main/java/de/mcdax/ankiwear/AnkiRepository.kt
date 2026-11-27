@@ -40,10 +40,17 @@ sealed interface SyncResult {
     data class Failed(val message: String) : SyncResult
     /**
      * Server und Uhr haben beide unvereinbare Änderungen (z. B. Notiztyp am PC geändert, anderes Konto).
-     * Ein Vollabgleich ersetzt die Sammlung der Uhr; nicht abgeglichene Bewertungen gingen verloren.
-     * Deshalb erst nach Rückfrage: sync(confirmFullDownload = true).
+     * Eine Seite muss gewinnen; deshalb erst nach Rückfrage: sync(resolve = …).
      */
     data object NeedsFullDownload : SyncResult
+}
+
+/** Wie ein Konflikt aufgelöst wird, den der Nutzer bestätigt hat. */
+enum class ConflictChoice {
+    /** Sammlung der Uhr durch die vom Server ersetzen; Bewertungen der Uhr seit dem letzten Abgleich gehen verloren. */
+    USE_SERVER,
+    /** Server mit der Sammlung der Uhr überschreiben; Änderungen vom PC seit dem letzten Abgleich gehen verloren. */
+    USE_WATCH,
 }
 
 /**
@@ -93,7 +100,7 @@ class AnkiRepository private constructor(private val context: Context) {
             .takeIf { it.toPath().startsWith(mediaRoot) && it.isFile }
     }.getOrNull()
     private var auth: SyncAuth? = null
-    // [settings] Gespeicherter Host-Key und Uhr-Einstellungen (WLAN, Medien)
+    // Gespeicherter Host-Key und Uhr-Einstellungen (WLAN, Medien)
     private val credentials = SyncCredentials(context)
     private val settings = SettingsStore.get(context)
 
@@ -193,7 +200,7 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
-    // [settings] Reihenfolge: gespeicherter Host-Key, sonst (nie angemeldet) die BuildConfig-Werte.
+    // Reihenfolge: gespeicherter Host-Key, sonst (nie angemeldet) die BuildConfig-Werte.
     private fun login(): SyncAuth = auth ?: credentials.load()?.also { auth = it } ?: run {
         if (credentials.account == Account.SignedOut) error(context.getString(R.string.not_signed_in))
         backend.syncLogin(
@@ -205,7 +212,7 @@ class AnkiRepository private constructor(private val context: Context) {
         ).also { auth = it }
     }
 
-    /** [settings] Anmeldung aus den Einstellungen; gespeichert wird nur der Host-Key. */
+    /** Anmeldung aus den Einstellungen; gespeichert wird nur der Host-Key. */
     suspend fun signIn(endpoint: String, user: String, password: String): SyncResult = withContext(Dispatchers.IO) {
         networkLock.withLock {
             try {
@@ -235,7 +242,7 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
-    /** [settings] Abmelden: Host-Key löschen, kein Rückfall auf BuildConfig mehr. */
+    /** Abmelden: Host-Key löschen, kein Rückfall auf BuildConfig mehr. */
     suspend fun signOut() = io {
         invalidateRenderedCards()
         credentials.clear()
@@ -250,13 +257,13 @@ class AnkiRepository private constructor(private val context: Context) {
      * Die Kern-Sperre gilt nur für den Abgleich der Sammlung; Warten auf WLAN und der Medienabgleich
      * laufen daneben, damit man währenddessen weiterlernen kann.
      */
-    suspend fun sync(confirmFullDownload: Boolean = false): SyncResult = withContext(Dispatchers.IO) {
+    suspend fun sync(resolve: ConflictChoice? = null): SyncResult = withContext(Dispatchers.IO) {
         networkLock.withLock {
             try {
                 onWifi {
                     val (result, auth) = lock.withLock {
                         invalidateRenderedCards()
-                        syncCollectionLocked(confirmFullDownload)
+                        syncCollectionLocked(resolve)
                     }
                     if (result == SyncResult.Ok && auth != null && settings.current.mediaMode != MediaMode.NONE) syncMedia(auth)
                     result
@@ -270,7 +277,7 @@ class AnkiRepository private constructor(private val context: Context) {
     }
 
     /** Abgleich der Sammlung unter [lock]; liefert die (ggf. auf den AnkiWeb-Host umgestellte) Anmeldung mit. */
-    private fun syncCollectionLocked(confirmFullDownload: Boolean): Pair<SyncResult, SyncAuth?> {
+    private fun syncCollectionLocked(resolve: ConflictChoice?): Pair<SyncResult, SyncAuth?> {
         var auth = login()
         val result = backend.syncCollection(auth, false)
         // AnkiWeb nennt im ersten Abgleich den zuständigen Sync-Host. Vollabgleich und Medien müssen dorthin,
@@ -283,18 +290,20 @@ class AnkiRepository private constructor(private val context: Context) {
         when (result.required) {
             ChangesRequired.NO_CHANGES, ChangesRequired.NORMAL_SYNC -> Unit
             // FULL_DOWNLOAD: Die Uhr hat nichts Eigenes (Erstabgleich), Herunterladen verliert nichts.
-            // FULL_SYNC: Beide Seiten haben Änderungen; Herunterladen verwirft die der Uhr, also nur nach Rückfrage.
+            // FULL_SYNC: Beide Seiten haben Änderungen; eine Seite verliert, also nur nach Rückfrage.
             ChangesRequired.FULL_DOWNLOAD, ChangesRequired.FULL_SYNC -> {
-                if (result.required == ChangesRequired.FULL_SYNC && !confirmFullDownload) {
+                if (result.required == ChangesRequired.FULL_SYNC && resolve == null) {
                     return SyncResult.NeedsFullDownload to null
                 }
+                // Hochladen nur, wenn der Nutzer es bei einem Konflikt ausdrücklich bestätigt hat; sonst nie.
+                val upload = result.required == ChangesRequired.FULL_SYNC && resolve == ConflictChoice.USE_WATCH
                 // Der Kern schließt die Sammlung für den Vollabgleich selbst (wie Ankis close_for_full_sync);
                 // danach muss sie wieder geöffnet werden.
                 try {
                     backend.fullUploadOrDownload(
                         FullUploadOrDownloadRequest.newBuilder()
                             .setAuth(auth)
-                            .setUpload(false)
+                            .setUpload(upload)
                             .setServerUsn(result.serverMediaUsn)
                             .build()
                     )

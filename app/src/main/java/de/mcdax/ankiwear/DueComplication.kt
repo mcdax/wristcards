@@ -112,7 +112,7 @@ class DueComplicationService : SuspendingComplicationDataSourceService() {
             ).setMonochromaticImage(icon).setTapAction(tap).build()
             ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
                 PlainComplicationText.Builder(getString(R.string.complication_long, c.new, c.learn, c.review)).build(), desc,
-            ).setTitle(PlainComplicationText.Builder("Anki").build())
+            ).setTitle(PlainComplicationText.Builder(getString(R.string.app_name)).build())
                 .setMonochromaticImage(icon).setTapAction(tap).build()
             // Ring füllt sich, je weniger offen ist; Obergrenze grob 100 Karten.
             ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(

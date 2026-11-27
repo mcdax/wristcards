@@ -90,7 +90,7 @@
     <string name="deck_hide">Masquer le paquet</string>
     <string name="deck_expand">Développer les sous-paquets</string>
     <string name="deck_collapse">Réduire les sous-paquets</string>
-    <string name="complication_name">Anki : cartes dues</string>
+    <string name="complication_name">Wristcards : cartes dues</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d carte Anki due</item>
         <item quantity="many">%1$d de cartes Anki dues</item>
@@ -126,8 +126,11 @@
     <string name="open_failed">Impossible d\'ouvrir la collection</string>
     <string name="load_failed">Impossible de charger la carte</string>
     <string name="retry">Réessayer</string>
-    <string name="full_download_question">Le serveur et la montre ont des modifications. Remplacer la collection de la montre par celle du serveur ? Les révisions non synchronisées de la montre seront perdues.</string>
-    <string name="full_download_confirm">Remplacer</string>
+    <string name="full_download_question">Le serveur et la montre ont des modifications impossibles à fusionner. Quelle version garder ?</string>
+    <string name="full_download_confirm">Version du serveur</string>
     <string name="full_download_cancel">Pas maintenant</string>
     <string name="sync_paused">⚠ Synchro en pause</string>
+    <string name="full_upload_offer">Envoyer celle de la montre</string>
+    <string name="full_upload_warning">Attention : cela écrase la collection du serveur. Les modifications des autres appareils depuis la dernière synchro seront perdues.</string>
+    <string name="full_upload_confirm">Envoyer quand même</string>
 </resources>

@@ -88,7 +88,7 @@
     <string name="deck_hide">隐藏牌组</string>
     <string name="deck_expand">展开子牌组</string>
     <string name="deck_collapse">折叠子牌组</string>
-    <string name="complication_name">Anki：待复习卡片</string>
+    <string name="complication_name">Wristcards：待复习卡片</string>
     <plurals name="complication_desc">
         <item quantity="other">Anki 有 %1$d 张卡片待复习</item>
     </plurals>
@@ -121,8 +121,11 @@
     <string name="open_failed">无法打开收藏</string>
     <string name="load_failed">无法加载卡片</string>
     <string name="retry">重试</string>
-    <string name="full_download_question">服务器和手表都有更改。用服务器版本替换手表上的收藏吗？手表上未同步的复习将丢失。</string>
-    <string name="full_download_confirm">替换</string>
+    <string name="full_download_question">服务器和手表都有无法合并的更改。保留哪个版本？</string>
+    <string name="full_download_confirm">使用服务器版本</string>
     <string name="full_download_cancel">暂不</string>
     <string name="sync_paused">⚠ 同步已暂停</string>
+    <string name="full_upload_offer">上传手表版本</string>
+    <string name="full_upload_warning">注意：这会覆盖服务器上的收藏。自上次同步以来其他设备上的更改将丢失。</string>
+    <string name="full_upload_confirm">仍要上传</string>
 </resources>

@@ -382,7 +382,8 @@ private fun Toggle(@StringRes label: Int, checked: Boolean, @StringRes hint: Int
         onCheckedChange = onChange,
         colors = switchColors(),
         modifier = Modifier.fillMaxWidth(),
-        secondaryLabel = hint?.let { { Text(stringResource(it)) } },
+        // Hinweise vollständig zeigen statt mit „…“ abzuschneiden.
+        secondaryLabel = hint?.let { { Text(stringResource(it), maxLines = 4) } },
         label = { Text(stringResource(label)) },
     )
 }

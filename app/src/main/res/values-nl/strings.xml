@@ -89,7 +89,7 @@
     <string name="deck_hide">Stapel verbergen</string>
     <string name="deck_expand">Substapels uitklappen</string>
     <string name="deck_collapse">Substapels samenvouwen</string>
-    <string name="complication_name">Anki: openstaande kaarten</string>
+    <string name="complication_name">Wristcards: openstaande kaarten</string>
     <plurals name="complication_desc">
         <item quantity="one">%1$d openstaande Anki-kaart</item>
         <item quantity="other">%1$d openstaande Anki-kaarten</item>
@@ -124,8 +124,11 @@
     <string name="open_failed">Collectie kon niet worden geopend</string>
     <string name="load_failed">Kaart kon niet worden geladen</string>
     <string name="retry">Opnieuw</string>
-    <string name="full_download_question">Server en horloge hebben allebei wijzigingen. Collectie op de horloge vervangen door die van de server? Niet gesynchroniseerde herhalingen gaan verloren.</string>
-    <string name="full_download_confirm">Vervangen</string>
+    <string name="full_download_question">Server en horloge hebben wijzigingen die niet samengevoegd kunnen worden. Welke versie geldt?</string>
+    <string name="full_download_confirm">Serverversie gebruiken</string>
     <string name="full_download_cancel">Nu niet</string>
     <string name="sync_paused">⚠ Synchronisatie gepauzeerd</string>
+    <string name="full_upload_offer">Horlogeversie uploaden</string>
+    <string name="full_upload_warning">Let op: dit overschrijft de collectie op de server. Wijzigingen van andere apparaten sinds de laatste synchronisatie gaan verloren.</string>
+    <string name="full_upload_confirm">Toch uploaden</string>
 </resources>
