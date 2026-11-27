@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

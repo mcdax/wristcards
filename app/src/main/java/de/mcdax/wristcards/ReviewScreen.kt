@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -218,13 +218,20 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             debugLog(TAG) { "right down=$lastTouchDownX ignored (lock)" }
             return
         }
-        // Hidden: edge = back, further inside = reveal. Revealed, the right action applies.
-        val back = shown == null || lastTouchDownX < screenWidth * BACK_ZONE ||
-            (session.revealed && settings.swipeRight == SwipeAction.NONE)
-        debugLog(TAG) { "right down=$lastTouchDownX revealed=${session.revealed} card=${shown != null} back=$back" }
+        // Hidden: edge = back to the deck list, further inside = reveal.
+        // Revealed: from the center the right-swipe rating applies (if set); otherwise the back swipe
+        // only covers the answer again and returns to the question.
+        val edge = lastTouchDownX < screenWidth * BACK_ZONE
+        val rateRight = shown != null && session.revealed && !edge && settings.swipeRight != SwipeAction.NONE
+        debugLog(TAG) { "right down=$lastTouchDownX revealed=${session.revealed} card=${shown != null} edge=$edge" }
         when {
-            back -> leave()
-            session.revealed -> rateBySwipe(shown, settings.swipeRight)
+            shown == null -> leave()
+            rateRight -> rateBySwipe(shown, settings.swipeRight)
+            session.revealed -> {
+                debugLog(TAG) { "result hide" }
+                session.hide()
+            }
+            edge -> leave()
             else -> {
                 debugLog(TAG) { "result reveal" }
                 session.reveal()

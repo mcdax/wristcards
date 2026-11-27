@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import android.content.SharedPreferences
 import androidx.compose.runtime.MutableState
@@ -82,6 +82,11 @@ internal class ReviewSession(
 
     fun retryLoad() {
         scope.launch { load() }
+    }
+
+    /** Covers the answer again and returns to the question (back swipe on a revealed card). */
+    fun hide() {
+        revealed = false
     }
 
     fun reveal() {

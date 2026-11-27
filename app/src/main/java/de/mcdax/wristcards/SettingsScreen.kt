@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background

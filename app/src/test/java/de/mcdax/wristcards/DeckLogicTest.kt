@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import anki.decks.DeckTreeNode
 import org.junit.Assert.assertEquals

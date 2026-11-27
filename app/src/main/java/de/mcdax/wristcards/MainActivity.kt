@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

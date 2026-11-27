@@ -11,7 +11,7 @@ val local = Properties().apply {
 }
 
 android {
-    namespace = "de.mcdax.ankiwear"
+    namespace = "de.mcdax.wristcards"
     // The current AndroidX libraries require at least 37.1.
     compileSdk {
         version = release(37) { minorApiLevel = 1 }
@@ -19,7 +19,7 @@ android {
     buildToolsVersion = "37.0.0"
 
     defaultConfig {
-        applicationId = "de.mcdax.ankiwear"
+        applicationId = "de.mcdax.wristcards"
         minSdk = 30
         targetSdk = 36
         versionCode = 1

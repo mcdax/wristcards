@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

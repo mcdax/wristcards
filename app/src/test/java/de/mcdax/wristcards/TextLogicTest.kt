@@ -1,4 +1,4 @@
-package de.mcdax.ankiwear
+package de.mcdax.wristcards
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
