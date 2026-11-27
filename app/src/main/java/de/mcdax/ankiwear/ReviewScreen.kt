@@ -332,7 +332,8 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                     Blocks(side.main, ctx, dim = false)
                     side.hints.forEach { HintChip(it) }
                     // Wie deckt man auf? Für die ersten Karten unter der Frage, scrollt mit dem Text.
-                    if (session.showRevealHint) {
+                    // Nicht gleichzeitig mit der Einblendung der letzten Bewertung, sonst zwei Hinweise auf einmal.
+                    if (session.showRevealHint && ratedNote == null) {
                         Text(
                             stringResource(R.string.tap_to_reveal),
                             color = c.textDim,
