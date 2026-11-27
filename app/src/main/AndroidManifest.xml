@@ -10,7 +10,8 @@
 
     <application
         android:label="@string/app_name"
-        android:icon="@drawable/ic_cards"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="false"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/AppTheme">

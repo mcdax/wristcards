@@ -1,9 +1,10 @@
 name: CI
 
+# Only on demand (Actions tab / gh workflow run) and for release tags, not on every push.
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
-  pull_request:
+    tags: ["v*"]
 
 jobs:
   build:

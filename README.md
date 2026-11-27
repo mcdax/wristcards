@@ -1,6 +1,12 @@
 # Wristcards for Anki
 
-A standalone Wear OS app for studying Anki flashcards on your watch. It runs the official Anki
+A standalone Wear OS app for studying Anki flashcards on your watch. It needs no phone app: cards, media and
+review progress come from your Anki sync server (self-hosted or AnkiWeb) and your reviews are synced back.
+
+**Study only:** Wristcards shows and grades existing cards. Adding or editing cards and decks is not possible on
+the watch; do that in Anki on your computer or phone and sync.
+
+It runs the official Anki
 scheduler (Anki's Rust core via [anki-backend-android](https://github.com/ankidroid/Anki-Android-Backend)),
 keeps the collection on the watch and syncs directly with a self-hosted Anki sync server or AnkiWeb.
 
