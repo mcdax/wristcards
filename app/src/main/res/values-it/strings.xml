@@ -6,7 +6,6 @@
     <string name="synced">✓ Sincronizzato</string>
     <string name="release_to_sync">↓ Rilascia per sincronizzare</string>
     <string name="sync_failed">⚠ Sinc. non riuscita</string>
-    <string name="loading">Caricamento…</string>
     <string name="show_hint">Mostra suggerimento</string>
     <string name="show_more">Mostra extra</string>
     <string name="rating_failed">Valutazione non riuscita</string>
@@ -71,8 +70,6 @@
     <string name="opt_never">Mai</string>
     <string name="opt_bt_only">Solo Bluetooth</string>
     <string name="opt_always">Sempre (altoparlante senza Bluetooth)</string>
-    <string name="opt_bluetooth">Cuffie Bluetooth</string>
-    <string name="opt_speaker">Altoparlante orologio</string>
     <string name="opt_four_buttons">4 livelli</string>
     <string name="opt_two_buttons">Ancora / Buono</string>
     <string name="opt_all">Tutto</string>
@@ -126,4 +123,11 @@
     <string name="set_scrollbar">Barra su carte lunghe</string>
     <string name="set_button_labels">Parole sui pulsanti</string>
     <string name="set_legend">Legenda sopra i mazzi</string>
+    <string name="open_failed">Impossibile aprire la raccolta</string>
+    <string name="load_failed">Impossibile caricare la carta</string>
+    <string name="retry">Riprova</string>
+    <string name="full_download_question">Server e orologio hanno modifiche. Sostituire la raccolta dell\'orologio con quella del server? I ripassi non sincronizzati andranno persi.</string>
+    <string name="full_download_confirm">Sostituisci</string>
+    <string name="full_download_cancel">Non ora</string>
+    <string name="sync_paused">⚠ Sincronizzazione in pausa</string>
 </resources>

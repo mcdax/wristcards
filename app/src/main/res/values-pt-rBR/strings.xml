@@ -6,7 +6,6 @@
     <string name="synced">✓ Sincronizado</string>
     <string name="release_to_sync">↓ Solte para sincronizar</string>
     <string name="sync_failed">⚠ Falha ao sincronizar</string>
-    <string name="loading">Carregando…</string>
     <string name="show_hint">Mostrar dica</string>
     <string name="show_more">Mostrar extra</string>
     <string name="rating_failed">Falha ao avaliar</string>
@@ -71,8 +70,6 @@
     <string name="opt_never">Nunca</string>
     <string name="opt_bt_only">Somente Bluetooth</string>
     <string name="opt_always">Sempre (alto-falante sem Bluetooth)</string>
-    <string name="opt_bluetooth">Fones Bluetooth</string>
-    <string name="opt_speaker">Alto-falante do relógio</string>
     <string name="opt_four_buttons">4 níveis</string>
     <string name="opt_two_buttons">Novamente / Bom</string>
     <string name="opt_all">Tudo</string>
@@ -126,4 +123,11 @@
     <string name="set_scrollbar">Barra em cartões longos</string>
     <string name="set_button_labels">Palavras nos botões</string>
     <string name="set_legend">Legenda acima dos baralhos</string>
+    <string name="open_failed">Não foi possível abrir a coleção</string>
+    <string name="load_failed">Não foi possível carregar o cartão</string>
+    <string name="retry">Tentar novamente</string>
+    <string name="full_download_question">Servidor e relógio têm alterações. Substituir a coleção do relógio pela do servidor? Revisões não sincronizadas serão perdidas.</string>
+    <string name="full_download_confirm">Substituir</string>
+    <string name="full_download_cancel">Agora não</string>
+    <string name="sync_paused">⚠ Sincronização pausada</string>
 </resources>

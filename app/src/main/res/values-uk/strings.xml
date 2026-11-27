@@ -6,7 +6,6 @@
     <string name="synced">✓ Синхронізовано</string>
     <string name="release_to_sync">↓ Відпустіть для синхронізації</string>
     <string name="sync_failed">⚠ Помилка синхронізації</string>
-    <string name="loading">Завантаження…</string>
     <string name="show_hint">Показати підказку</string>
     <string name="show_more">Показати додаток</string>
     <string name="rating_failed">Не вдалося оцінити</string>
@@ -72,8 +71,6 @@
     <string name="opt_never">Ніколи</string>
     <string name="opt_bt_only">Лише Bluetooth</string>
     <string name="opt_always">Завжди (динамік без Bluetooth)</string>
-    <string name="opt_bluetooth">Bluetooth-навушники</string>
-    <string name="opt_speaker">Динамік годинника</string>
     <string name="opt_four_buttons">4 оцінки</string>
     <string name="opt_two_buttons">Знову / Добре</string>
     <string name="opt_all">Усе</string>
@@ -130,4 +127,11 @@
     <string name="set_scrollbar">Смуга на довгих картках</string>
     <string name="set_button_labels">Слова на кнопках</string>
     <string name="set_legend">Легенда над колодами</string>
+    <string name="open_failed">Не вдалося відкрити колекцію</string>
+    <string name="load_failed">Не вдалося завантажити картку</string>
+    <string name="retry">Повторити</string>
+    <string name="full_download_question">І на сервері, і на годиннику є зміни. Замінити колекцію на годиннику версією з сервера? Несинхронізовані повторення буде втрачено.</string>
+    <string name="full_download_confirm">Замінити</string>
+    <string name="full_download_cancel">Не зараз</string>
+    <string name="sync_paused">⚠ Синхронізацію призупинено</string>
 </resources>

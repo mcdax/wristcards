@@ -6,7 +6,6 @@
     <string name="synced">✓ 同期済み</string>
     <string name="release_to_sync">↓ 離して同期</string>
     <string name="sync_failed">⚠ 同期に失敗</string>
-    <string name="loading">読み込み中…</string>
     <string name="show_hint">ヒントを表示</string>
     <string name="show_more">追加情報を表示</string>
     <string name="rating_failed">評価に失敗</string>
@@ -69,8 +68,6 @@
     <string name="opt_never">しない</string>
     <string name="opt_bt_only">Bluetoothのみ</string>
     <string name="opt_always">常に（Bluetoothがなければスピーカー）</string>
-    <string name="opt_bluetooth">Bluetoothヘッドホン</string>
-    <string name="opt_speaker">時計のスピーカー</string>
     <string name="opt_four_buttons">4段階</string>
     <string name="opt_two_buttons">もう一度 / 普通</string>
     <string name="opt_all">すべて</string>
@@ -121,4 +118,11 @@
     <string name="set_scrollbar">長いカードにスクロールバー</string>
     <string name="set_button_labels">ボタンに文字</string>
     <string name="set_legend">デッキの上に凡例</string>
+    <string name="open_failed">コレクションを開けません</string>
+    <string name="load_failed">カードを読み込めません</string>
+    <string name="retry">再試行</string>
+    <string name="full_download_question">サーバーと時計の両方に変更があります。時計のコレクションをサーバーの内容で置き換えますか？未同期の復習は失われます。</string>
+    <string name="full_download_confirm">置き換える</string>
+    <string name="full_download_cancel">今はしない</string>
+    <string name="sync_paused">⚠ 同期を一時停止</string>
 </resources>

@@ -23,17 +23,69 @@ data class DueCounts(val new: Int, val learn: Int, val review: Int) {
     val total get() = new + learn + review
 }
 
-suspend fun dueCounts(context: Context): DueCounts {
-    val hidden = SettingsStore.get(context).current.hiddenDecks
-    // Oberste Ebene reicht: deren Zahlen enthalten die Unterdecks schon (mit Ankis Limits).
-    val repo = withContext(Dispatchers.IO) { AnkiRepository.get(context) }
-    val top = repo.decks().filter { it.level == 1 && it.deckId !in hidden }
-    return DueCounts(top.sumOf { it.newCount }, top.sumOf { it.learnCount }, top.sumOf { it.reviewCount })
+/**
+ * Zahlen fürs Zifferblatt. Oberdecks enthalten ihre Unterdecks schon (mit Ankis Limits); ausgeblendete
+ * Unterdecks sichtbarer Oberdecks werden abgezogen. Wegen der Limits des Oberdecks ist das eine Näherung,
+ * deshalb nie unter 0.
+ */
+fun visibleDueCounts(decks: List<anki.decks.DeckTreeNode>, hidden: Set<Long>): DueCounts {
+    var new = 0; var learn = 0; var review = 0
+    var top: anki.decks.DeckTreeNode? = null
+    var topHidden = false
+    var hiddenBelow = Int.MAX_VALUE
+    var sub = IntArray(3)
+    fun flush() {
+        val t = top ?: return
+        if (!topHidden) {
+            new += (t.newCount - sub[0]).coerceAtLeast(0)
+            learn += (t.learnCount - sub[1]).coerceAtLeast(0)
+            review += (t.reviewCount - sub[2]).coerceAtLeast(0)
+        }
+    }
+    for (d in decks) {
+        if (d.level == 1) {
+            flush()
+            top = d; topHidden = d.deckId in hidden; sub = IntArray(3); hiddenBelow = Int.MAX_VALUE
+            continue
+        }
+        if (topHidden) continue
+        // Unter einem ausgeblendeten Unterdeck ist schon alles in dessen Zahlen enthalten.
+        if (d.level > hiddenBelow) continue
+        hiddenBelow = Int.MAX_VALUE
+        if (d.deckId in hidden) {
+            sub[0] += d.newCount; sub[1] += d.learnCount; sub[2] += d.reviewCount
+            hiddenBelow = d.level
+        }
+    }
+    flush()
+    return DueCounts(new, learn, review)
 }
 
 /**
+ * Läuft die App ohnehin, rechnet der Kern frisch. Sonst gelten die zuletzt gespeicherten Zahlen,
+ * solange sie vom selben Tag und höchstens [CACHE_MAX_AGE_MS] alt sind: Für drei Zahlen nicht jedes Mal
+ * die native Bibliothek laden und die Sammlung öffnen.
+ */
+suspend fun dueCounts(context: Context): DueCounts {
+    val prefs = context.getSharedPreferences("due_cache", Context.MODE_PRIVATE)
+    val now = System.currentTimeMillis()
+    val today = java.time.LocalDate.now().toEpochDay()
+    if (!AnkiRepository.isLoaded && prefs.getLong("day", -1) == today && now - prefs.getLong("at", 0) < CACHE_MAX_AGE_MS) {
+        return DueCounts(prefs.getInt("new", 0), prefs.getInt("learn", 0), prefs.getInt("review", 0))
+    }
+    val hidden = SettingsStore.get(context).current.hiddenDecks
+    val repo = withContext(Dispatchers.IO) { AnkiRepository.get(context) }
+    val counts = visibleDueCounts(repo.decks(), hidden)
+    prefs.edit().putLong("day", today).putLong("at", now)
+        .putInt("new", counts.new).putInt("learn", counts.learn).putInt("review", counts.review).apply()
+    return counts
+}
+
+private const val CACHE_MAX_AGE_MS = 2 * 60 * 60 * 1000L
+
+/**
  * Komplikation fürs Zifferblatt: Zahl offener Karten; Antippen öffnet die App.
- * Aktualisiert sich nach Bewertungen und Syncs (siehe [refreshDueComplication]) und sonst alle 30 min.
+ * Aktualisiert sich nach dem Lernen (App verlassen), nach Syncs (siehe [refreshDueComplication]) und sonst alle 30 min.
  */
 class DueComplicationService : SuspendingComplicationDataSourceService() {
 

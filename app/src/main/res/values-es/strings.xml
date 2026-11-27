@@ -6,7 +6,6 @@
     <string name="synced">✓ Sincronizado</string>
     <string name="release_to_sync">↓ Suelta para sincronizar</string>
     <string name="sync_failed">⚠ Error de sincronización</string>
-    <string name="loading">Cargando…</string>
     <string name="show_hint">Mostrar pista</string>
     <string name="show_more">Mostrar extra</string>
     <string name="rating_failed">Error al valorar</string>
@@ -71,8 +70,6 @@
     <string name="opt_never">Nunca</string>
     <string name="opt_bt_only">Solo Bluetooth</string>
     <string name="opt_always">Siempre (altavoz sin Bluetooth)</string>
-    <string name="opt_bluetooth">Auriculares Bluetooth</string>
-    <string name="opt_speaker">Altavoz del reloj</string>
     <string name="opt_four_buttons">4 niveles</string>
     <string name="opt_two_buttons">Otra vez / Bien</string>
     <string name="opt_all">Todo</string>
@@ -126,4 +123,11 @@
     <string name="set_scrollbar">Barra en tarjetas largas</string>
     <string name="set_button_labels">Palabras en botones</string>
     <string name="set_legend">Leyenda sobre los mazos</string>
+    <string name="open_failed">No se pudo abrir la colección</string>
+    <string name="load_failed">No se pudo cargar la tarjeta</string>
+    <string name="retry">Reintentar</string>
+    <string name="full_download_question">El servidor y el reloj tienen cambios. ¿Reemplazar la colección del reloj por la del servidor? Se perderán los repasos no sincronizados del reloj.</string>
+    <string name="full_download_confirm">Reemplazar</string>
+    <string name="full_download_cancel">Ahora no</string>
+    <string name="sync_paused">⚠ Sincronización en pausa</string>
 </resources>

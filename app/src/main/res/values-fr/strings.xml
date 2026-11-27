@@ -6,7 +6,6 @@
     <string name="synced">✓ Synchronisé</string>
     <string name="release_to_sync">↓ Relâcher pour synchroniser</string>
     <string name="sync_failed">⚠ Échec de la synchro</string>
-    <string name="loading">Chargement…</string>
     <string name="show_hint">Afficher l\'indice</string>
     <string name="show_more">Afficher l\'extra</string>
     <string name="rating_failed">Échec de la notation</string>
@@ -71,8 +70,6 @@
     <string name="opt_never">Jamais</string>
     <string name="opt_bt_only">Bluetooth seulement</string>
     <string name="opt_always">Toujours (haut-parleur sans Bluetooth)</string>
-    <string name="opt_bluetooth">Casque Bluetooth</string>
-    <string name="opt_speaker">Haut-parleur montre</string>
     <string name="opt_four_buttons">4 niveaux</string>
     <string name="opt_two_buttons">À revoir / Correct</string>
     <string name="opt_all">Tout</string>
@@ -126,4 +123,11 @@
     <string name="set_scrollbar">Barre sur cartes longues</string>
     <string name="set_button_labels">Mots sur les boutons</string>
     <string name="set_legend">Légende au-dessus</string>
+    <string name="open_failed">Impossible d\'ouvrir la collection</string>
+    <string name="load_failed">Impossible de charger la carte</string>
+    <string name="retry">Réessayer</string>
+    <string name="full_download_question">Le serveur et la montre ont des modifications. Remplacer la collection de la montre par celle du serveur ? Les révisions non synchronisées de la montre seront perdues.</string>
+    <string name="full_download_confirm">Remplacer</string>
+    <string name="full_download_cancel">Pas maintenant</string>
+    <string name="sync_paused">⚠ Synchro en pause</string>
 </resources>

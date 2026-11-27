@@ -6,7 +6,6 @@
     <string name="synced">✓ 已同步</string>
     <string name="release_to_sync">↓ 放開以同步</string>
     <string name="sync_failed">⚠ 同步失敗</string>
-    <string name="loading">載入中…</string>
     <string name="show_hint">顯示提示</string>
     <string name="show_more">顯示額外內容</string>
     <string name="rating_failed">評分失敗</string>
@@ -69,8 +68,6 @@
     <string name="opt_never">從不</string>
     <string name="opt_bt_only">僅藍牙</string>
     <string name="opt_always">一律（無藍牙時用喇叭）</string>
-    <string name="opt_bluetooth">藍牙耳機</string>
-    <string name="opt_speaker">手錶喇叭</string>
     <string name="opt_four_buttons">4 檔</string>
     <string name="opt_two_buttons">重來 / 良好</string>
     <string name="opt_all">全部</string>
@@ -121,4 +118,11 @@
     <string name="set_scrollbar">長卡片顯示捲軸</string>
     <string name="set_button_labels">按鈕顯示文字</string>
     <string name="set_legend">牌組上方顯示圖例</string>
+    <string name="open_failed">無法開啟收藏</string>
+    <string name="load_failed">無法載入卡片</string>
+    <string name="retry">重試</string>
+    <string name="full_download_question">伺服器和手錶都有變更。要以伺服器版本取代手錶上的收藏嗎？手錶上未同步的複習將會遺失。</string>
+    <string name="full_download_confirm">取代</string>
+    <string name="full_download_cancel">暫不</string>
+    <string name="sync_paused">⚠ 同步已暫停</string>
 </resources>

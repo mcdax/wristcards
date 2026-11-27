@@ -124,16 +124,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "create restored=${savedInstanceState != null}")
         // Parallel zur ersten UI-Komposition vorbereiten, nicht erst nach der Loading-Frame.
-        val startup = lifecycleScope.async(Dispatchers.IO) {
-            val repo = AnkiRepository.get(applicationContext)
-            repo to repo.decks()
-        }
+        val startup = lifecycleScope.async(Dispatchers.IO) { openRepository(applicationContext) }
         // Beim Lernen nicht mitten in der Karte abdunkeln (Wear OS beendet sonst gern den Prozess).
         // Farbvariante zum Ausprobieren: adb shell am start ... --ei theme 1
-        val variant = intent.getIntExtra("theme", 0).coerceIn(themeVariants.indices)
+        // Nur im Debug-Build: Die Activity ist exportiert, fremde Intents sollen nichts davon auslösen.
+        val debugIntent = intent.takeIf { BuildConfig.DEBUG }
+        val variant = (debugIntent?.getIntExtra("theme", 0) ?: 0).coerceIn(themeVariants.indices)
         // Für Screenshots im Emulator: --es deck <Name> öffnet das Deck direkt.
-        val openDeck = intent.getStringExtra("deck")
-        val previewCard = intent.getLongExtra("card", 0L).takeIf { it != 0L }
+        val openDeck = debugIntent?.getStringExtra("deck")
+        val previewCard = debugIntent?.getLongExtra("card", 0L)?.takeIf { it != 0L }
         setContent { AnkiTheme(themeVariants[variant]) { App(startup, openDeck, previewCard, restoring = savedInstanceState != null) } }
     }
     override fun onResume() {
@@ -143,7 +142,25 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "stop")
+        // Zifferblatt erst jetzt aktualisieren, nicht nach jeder einzelnen Bewertung.
+        refreshDueComplication(this)
     }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // Hintergrund oder knapper Speicher: Bilder lassen sich jederzeit neu laden.
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) CardImages.trim()
+    }
+}
+
+/** Ergebnis des Starts: Sammlung öffnen und Decks laden, oder der Fehler dabei (z. B. beschädigte Datei). */
+private suspend fun openRepository(context: android.content.Context): Result<AnkiRepository> = runCatching {
+    AnkiRepository.get(context).also { it.decks() }
+}
+
+/** Protokoll nur im Debug-Build; der Text wird im Release gar nicht erst gebaut. */
+private inline fun debugLog(tag: String, message: () -> String) {
+    if (BuildConfig.DEBUG) android.util.Log.d(tag, message())
 }
 
 /** Startpunkt der letzten Berührung in Pixeln. */
@@ -162,38 +179,77 @@ private const val TAG = "AnkiBack"
 /** So lange nach einer Bewertung wird Rechtswischen ignoriert. */
 private const val RATE_LOCK_MS = 400L
 
-private sealed interface SyncState {
-    data object Idle : SyncState
-    data object Running : SyncState
-    data object Done : SyncState
-    data class Failed(val message: String) : SyncState
-}
-
 @Composable
-private fun App(startup: Deferred<Pair<AnkiRepository, List<DeckTreeNode>>>, openDeck: String? = null, previewCard: Long? = null, restoring: Boolean = false) {
-    var ready by remember(startup) { mutableStateOf<Pair<AnkiRepository, List<DeckTreeNode>>?>(null) }
-    LaunchedEffect(startup) { ready = startup.await() }
-    val initial = ready
-    if (initial == null) {
-        Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+private fun App(startup: Deferred<Result<AnkiRepository>>, openDeck: String? = null, previewCard: Long? = null, restoring: Boolean = false) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pending by remember { mutableStateOf(startup) }
+    var result by remember { mutableStateOf<Result<AnkiRepository>?>(null) }
+    LaunchedEffect(pending) { result = pending.await() }
+    val r = result
+    when {
+        r == null -> Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.Image(
                 painter = androidx.compose.ui.res.painterResource(R.drawable.ic_cards),
                 contentDescription = stringResource(R.string.app_name),
                 modifier = Modifier.size(64.dp),
             )
         }
-    } else LoadedApp(initial.first, initial.second, openDeck, previewCard, restoring)
+        r.isFailure -> ErrorNote(
+            stringResource(R.string.open_failed),
+            r.exceptionOrNull()?.message,
+            onRetry = {
+                result = null
+                pending = scope.async(Dispatchers.IO) { openRepository(context.applicationContext) }
+            },
+        )
+        else -> LoadedApp(r.getOrThrow(), openDeck, previewCard, restoring)
+    }
+}
+
+/** Fehler mit kurzer Erklärung und „Erneut versuchen“, optional „Zurück“. */
+@Composable
+private fun ErrorNote(title: String, detail: String?, onRetry: () -> Unit, onBack: (() -> Unit)? = null) {
+    val c = LocalAnkiColors.current
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+        modifier = Modifier.fillMaxSize().background(c.background).padding(horizontal = 28.dp),
+    ) {
+        Text("⚠", color = c.again, fontSize = 24.sp)
+        Text(title, color = c.text, fontSize = 15.sp, textAlign = TextAlign.Center)
+        detail?.let { Text(it, color = c.textDim, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis) }
+        PillButton(stringResource(R.string.retry), c.accent, c.background, onRetry)
+        onBack?.let { PillButton(stringResource(R.string.back_to_decks), c.surface, c.text, it) }
+    }
 }
 
 @Composable
-private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, openDeck: String?, previewCard: Long?, restoring: Boolean) {
+private fun PillButton(label: String, background: Color, foreground: Color, onClick: () -> Unit) {
+    Text(
+        label,
+        color = foreground,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(background)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+    )
+}
+
+@Composable
+private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long?, restoring: Boolean) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val nav = rememberSwipeDismissableNavController()
     // Liegt hier statt in der Deckliste, damit die Scrollposition das Lernen überlebt.
     val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)
-    var sync by remember { mutableStateOf<SyncState>(SyncState.Idle) }
-    var decks by remember { mutableStateOf(initialDecks) }
+    // Abgleich und Deckliste leben außerhalb der Oberfläche und überstehen einen Neuaufbau der Activity.
+    val syncer = remember { SyncController.get(context) }
+    val sync by syncer.state.collectAsState()
+    val decks by repo.deckTree.collectAsState()
     var decksLoaded by remember { mutableStateOf(false) }
     var startupDrawn by remember { mutableStateOf(false) }
     // [settings] Uhr-Einstellungen
@@ -202,17 +258,7 @@ private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, op
     // Ausgeblendete Decks zählen in der Zifferblatt-Komplikation nicht mit.
     LaunchedEffect(settings.hiddenDecks) { refreshDueComplication(context) }
 
-    fun runSync() {
-        if (sync == SyncState.Running) return
-        sync = SyncState.Running
-        scope.launch {
-            sync = when (val r = repo.sync()) {
-                SyncResult.Ok -> SyncState.Done
-                is SyncResult.Failed -> SyncState.Failed(r.message)
-            }
-            decks = repo.decks()
-        }
-    }
+    fun runSync() = syncer.sync()
 
     LaunchedEffect(Unit) {
         decksLoaded = true
@@ -265,6 +311,8 @@ private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, op
             Box(Modifier.fillMaxSize()) {
             DeckList(
                 listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") },
+                onConfirmFullDownload = { syncer.sync(confirmFullDownload = true) },
+                onDismissFullDownload = syncer::dismissConfirmation,
                 // [settings] Filter/Anheften/Einklappen und Zugang zu den Einstellungen
                 settings = settings, onSettingsChange = store::update, onSettings = { nav.navigate("settings") },
             )
@@ -293,6 +341,8 @@ private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, op
             val deck = decks.firstOrNull { it.deckId == deckId } ?: return@composable
             ReviewScreen(repo, deck, onBack = {
                 nav.popBackStack()
+                // Zahlen sofort lokal neu laden, nicht erst nach dem Abgleich.
+                scope.launch { runCatching { repo.decks() } }
                 // Nur beim tatsächlichen Verlassen des Decks, nicht beim Abbau
                 // der Activity durch Wear OS im Hintergrund.
                 if (store.current.syncOnDeckExit) runSync()
@@ -313,7 +363,8 @@ private fun LoadedApp(repo: AnkiRepository, initialDecks: List<DeckTreeNode>, op
 }
 
 /** Einstellungen für tief verschachtelte Teile der Lernansicht. */
-private val LocalSettings = staticCompositionLocalOf { AppSettings() }
+// compositionLocalOf: Bei einer Änderung zeichnen sich nur die Stellen neu, die Einstellungen lesen.
+private val LocalSettings = androidx.compose.runtime.compositionLocalOf { AppSettings() }
 
 private val AppSettings.textScale: Float
     get() = when (fontSize) {
@@ -329,6 +380,8 @@ private fun DeckList(
     decks: List<DeckTreeNode>,
     onSync: () -> Unit,
     onOpen: (DeckTreeNode) -> Unit,
+    onConfirmFullDownload: () -> Unit,
+    onDismissFullDownload: () -> Unit,
     settings: AppSettings,
     onSettingsChange: ((AppSettings) -> AppSettings) -> Unit,
     onSettings: () -> Unit,
@@ -359,6 +412,8 @@ private fun DeckList(
         }
     }
 
+    // Nur neu ordnen, wenn sich Decks oder Einstellungen ändern, nicht bei jedem Sync-Status oder Herunterziehen.
+    val entries = remember(decks, settings) { arrangeDecks(decks, settings) }
     Box(Modifier.fillMaxSize()) {
     ScalingLazyColumn(
         state = listState,
@@ -378,6 +433,7 @@ private fun DeckList(
                 sync == SyncState.Running -> stringResource(R.string.syncing) to c.textDim
                 sync == SyncState.Done -> stringResource(R.string.synced) to c.accent
                 sync is SyncState.Failed -> stringResource(R.string.sync_failed) to c.again
+                sync == SyncState.NeedsConfirmation -> stringResource(R.string.sync_paused) to c.again
                 else -> stringResource(R.string.sync) to c.textDim
             }
             Text(
@@ -398,6 +454,16 @@ private fun DeckList(
                 Text(sync.message, color = c.textDim, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 3)
             }
         }
+        // Vollabgleich würde die Sammlung der Uhr ersetzen: nur auf ausdrücklichen Wunsch.
+        if (sync == SyncState.NeedsConfirmation) {
+            item {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.full_download_question), color = c.text, fontSize = 12.sp, textAlign = TextAlign.Center)
+                    PillButton(stringResource(R.string.full_download_confirm), c.again, c.background, onConfirmFullDownload)
+                    PillButton(stringResource(R.string.full_download_cancel), c.surface, c.text, onDismissFullDownload)
+                }
+            }
+        }
         // Legende für die drei Zahlen rechts an jedem Deck.
         if (settings.showLegend) item {
             Text(
@@ -414,7 +480,7 @@ private fun DeckList(
             )
         }
         // [settings] arrangeDecks (DeckListPrefs.kt) wendet Ausblenden/Anheften/Einklappen an.
-        items(arrangeDecks(decks, settings), key = { it.key }) { entry ->
+        items(entries, key = { it.key }) { entry ->
             DeckRow(
                 entry, onOpen,
                 onLongPress = { menuFor = entry },
@@ -538,6 +604,8 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     var lastShownAnswer by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    // Laden fehlgeschlagen (nicht Bewerten): Dann „Erneut versuchen“ statt „Fertig“.
+    var loadFailed by remember { mutableStateOf(false) }
     val scroll = rememberScrollState()
     val focus = remember { FocusRequester() }
     val context = LocalContext.current
@@ -570,12 +638,14 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             hints.edit().putInt("revealsSeen", revealsSeen).apply()
         }
     }
-    DisposableEffect(Unit) { onDispose { audio.stop() } }
+    DisposableEffect(Unit) { onDispose { audio.release() } }
     DisposableEffect(context) {
         val lifecycle = (context as? ComponentActivity)?.lifecycle
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (BuildConfig.DEBUG && event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                android.util.Log.d("AnkiResume", "review stopped scroll=${scroll.value} revealed=$revealed")
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                // Kein Hintergrund-Audio: Bildschirm aus oder App verlassen beendet den Ton.
+                audio.stop()
+                debugLog("AnkiResume") { "review stopped scroll=${scroll.value} revealed=$revealed" }
             }
         }
         lifecycle?.addObserver(observer)
@@ -589,13 +659,25 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
 
-    LaunchedEffect(deck?.deckId, previewCard) {
+    // Erhöhen lädt die Karte neu (nach einem Ladefehler).
+    var loadAttempt by remember { mutableStateOf(0) }
+    LaunchedEffect(deck?.deckId, previewCard, loadAttempt) {
         val loadStart = android.os.SystemClock.uptimeMillis()
-        card = if (previewCard != null) {
-            repo.cardById(previewCard)
-        } else {
-            deck?.let { repo.selectDeck(it.deckId) }
-            repo.nextCard()
+        loadFailed = false
+        card = try {
+            if (previewCard != null) {
+                repo.cardById(previewCard)
+            } else {
+                deck?.let { repo.selectDeck(it.deckId) }
+                repo.nextCard()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Karte konnte nicht geladen werden", e)
+            error = e.message
+            loadFailed = true
+            null
         }
         val loadedCard = card?.queued?.card
         if (lastShownCardId != null && (loadedCard?.id != lastShownCardId || loadedCard?.reps != lastShownReps)) {
@@ -631,7 +713,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         // noch startet es deren Audio erneut. Neue Seiten verhalten sich wie bisher.
         val side = if (revealed) shown.answer else shown.question
         if (!sameSide && settings.audioMode == AudioMode.AUTO) {
-            audio.play(side.audioIndexes().mapNotNull { side.audio.getOrNull(it)?.let(repo::mediaFile) }, settings.audioOutput)
+            audio.play(side.audioIndexes().mapNotNull { side.audioFiles.getOrNull(it) }, settings.audioOutput)
         } else {
             audio.stop()
         }
@@ -654,10 +736,19 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 if (previewCard != null) return@launch
                 // Der native Schreibzugriff ist nicht abbrechbar. Commit und Entfernen
                 // der alten Karte gehören zusammen, auch wenn die Ansicht geschlossen wird.
-                withContext(kotlinx.coroutines.NonCancellable) {
-                    repo.answer(current, rating)
-                    card = null
-                    revealed = false
+                try {
+                    withContext(kotlinx.coroutines.NonCancellable) {
+                        repo.answer(current, rating)
+                        card = null
+                        revealed = false
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Nicht gespeichert: Karte bleibt stehen, man kann es erneut versuchen.
+                    android.util.Log.w(TAG, "Bewerten fehlgeschlagen", e)
+                    error = ratingFailed
+                    return@launch
                 }
                 studied++
                 if (settings.swipeFeedback) {
@@ -668,14 +759,20 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                     )
                 }
                 if (settings.vibrateOnRate) vibrate(context, android.os.VibrationEffect.EFFECT_TICK)
-                card = repo.nextCard()
+                // Gespeichert ist die Bewertung jetzt; scheitert nur das Nachladen, wird nur das wiederholt.
+                try {
+                    card = repo.nextCard()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Nächste Karte konnte nicht geladen werden", e)
+                    error = e.message
+                    loadFailed = true
+                    return@launch
+                }
                 if (card == null && settings.vibrateOnDeckDone) vibrate(context, android.os.VibrationEffect.EFFECT_DOUBLE_CLICK)
                 revealed = false
                 error = null
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = ratingFailed
             } finally {
                 busy = false
             }
@@ -691,7 +788,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             SwipeAction.EASY -> 3
             SwipeAction.NONE -> return
         }
-        android.util.Log.d(TAG, "result rate $action")
+        debugLog(TAG) { "result rate $action" }
         rate(current, idx)
     }
 
@@ -727,7 +824,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
     fun leave() {
         if (left) return
         left = true
-        android.util.Log.d(TAG, "result back")
+        debugLog(TAG) { "result back" }
         onBack()
     }
     var handledGesture by remember { mutableLongStateOf(0L) }
@@ -738,18 +835,18 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
         val shown = card
         // Ein schneller zweiter Wisch gehört noch zur letzten Bewertung, auch wenn er am Rand ansetzt.
         if (lastTouchDownTime - ratedAt < RATE_LOCK_MS) {
-            android.util.Log.d(TAG, "right down=$lastTouchDownX ignoriert (Sperre)")
+            debugLog(TAG) { "right down=$lastTouchDownX ignoriert (Sperre)" }
             return
         }
         // Verdeckt: Rand = zurück, weiter innen = aufdecken. Aufgedeckt gilt die Rechts-Aktion.
         val back = shown == null || lastTouchDownX < screenWidth * BACK_ZONE ||
             (revealed && settings.swipeRight == SwipeAction.NONE)
-        android.util.Log.d(TAG, "right down=$lastTouchDownX revealed=$revealed card=${shown != null} back=$back")
+        debugLog(TAG) { "right down=$lastTouchDownX revealed=$revealed card=${shown != null} back=$back" }
         when {
             back -> leave()
             revealed -> rateBySwipe(shown, settings.swipeRight)
             else -> {
-                android.util.Log.d(TAG, "result reveal")
+                debugLog(TAG) { "result reveal" }
                 reveal()
             }
         }
@@ -771,10 +868,10 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                 lastX = it.touchX
                 maxX = maxOf(maxX, lastX)
             }
-            android.util.Log.d(TAG, "invoked swiped=$swiped down=$lastTouchDownX last=$lastX")
+            debugLog(TAG) { "invoked swiped=$swiped down=$lastTouchDownX last=$lastX" }
             if (swiped) swipedRight() else leave()
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            android.util.Log.d(TAG, "cancelled down=$lastTouchDownX last=$lastX max=$maxX")
+            debugLog(TAG) { "cancelled down=$lastTouchDownX last=$lastX max=$maxX" }
             // Schnelles Wischen bricht das System manchmal ab. Zurückgezogene Finger bleiben ein Abbruch.
             if (swiped && lastX - lastTouchDownX > swipeMin && maxX - lastX < swipeMin / 4) swipedRight()
             throw e
@@ -820,7 +917,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                                 // Verdeckt: Linkswischen deckt auf. Nicht direkt nach einer Bewertung,
                                 // sonst deckt ein Doppelwisch die neue Karte ungelesen auf.
                                 dx < -80.dp.toPx() && lastTouchDownTime - ratedAt >= RATE_LOCK_MS -> {
-                                    android.util.Log.d(TAG, "result reveal")
+                                    debugLog(TAG) { "result reveal" }
                                     reveal()
                                 }
                             }
@@ -837,14 +934,21 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
             when {
                 // Kurze lokale Kartenwechsel ohne aufblitzenden Ladehinweis.
                 !loaded || busy -> Unit
-                current == null -> {
-                    if (error == null) DoneNote(deck?.name.orEmpty(), studied, onBack = { leave() })
+                current == null -> when {
+                    loadFailed -> ErrorNote(
+                        stringResource(R.string.load_failed), error,
+                        onRetry = { error = null; loadAttempt++ },
+                        onBack = { leave() },
+                    )
+                    error == null -> DoneNote(deck?.name.orEmpty(), studied, onBack = { leave() })
                 }
                 else -> {
                     val side = if (revealed) current.answer else current.question
                     val cloze = if (revealed) c.answerBg to c.answerFg else c.hintBg to c.hintFg
                     // Frage: Tippen aufs Bild deckt auf wie überall. Antwort: Tippen vergrößert.
-                    val ctx = BlockContext(repo, side, audio, cloze, zoomable = revealed, onImageTap = { if (revealed) zoomed = it else reveal() })
+                    val ctx = remember(repo, side, cloze, revealed) {
+                        BlockContext(repo, side, audio, cloze, zoomable = revealed, onImageTap = { if (revealed) zoomed = it else reveal() })
+                    }
                     Blocks(side.main, ctx, dim = false)
                     side.hints.forEach { HintChip(it) }
                     // Wie deckt man auf? Für die ersten Karten unter der Frage, scrollt mit dem Text.
@@ -876,7 +980,7 @@ private fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard:
                     }
                 }
             }
-            error?.let { Text(it, color = c.again, fontSize = 12.sp) }
+            if (!loadFailed) error?.let { Text(it, color = c.again, fontSize = 12.sp) }
         }
 
         // Zeigt an, dass die Karte weitergeht (Text unter den Knöpfen).
@@ -983,11 +1087,14 @@ private fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
             continue
         }
         when (b) {
-            is Block.Text -> if (dim) {
-                val k = LocalSettings.current.textScale
-                Text(b.text.withClozeColors(ctx.cloze.first, ctx.cloze.second), color = c.textDim, fontSize = 14.sp * k, lineHeight = 19.sp * k)
-            } else {
-                CardBody(b.text.withClozeColors(ctx.cloze.first, ctx.cloze.second))
+            is Block.Text -> {
+                val text = remember(b.text, ctx.cloze) { b.text.withClozeColors(ctx.cloze.first, ctx.cloze.second) }
+                if (dim) {
+                    val k = LocalSettings.current.textScale
+                    Text(text, color = c.textDim, fontSize = 14.sp * k, lineHeight = 19.sp * k)
+                } else {
+                    CardBody(text)
+                }
             }
             is Block.Image, is Block.MaskedImage, is Block.OccludedImage -> ImageBlock(b, ctx)
             is Block.Audio -> Unit
@@ -1000,7 +1107,8 @@ private fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
 private fun AudioButton(index: Int, ctx: BlockContext) {
     val c = LocalAnkiColors.current
     val output = LocalSettings.current.audioOutput
-    val file = ctx.side.audio.getOrNull(index)?.let(ctx.repo::mediaFile)
+    // Schon im Repository (IO) aufgelöst, keine Dateizugriffe beim Zeichnen.
+    val file = ctx.side.audioFiles.getOrNull(index)
     Box(
         Modifier
             .size(34.dp)
@@ -1020,12 +1128,13 @@ private fun ImageBlock(block: Block, ctx: BlockContext) {
     var bitmap by remember(block) { mutableStateOf<ImageBitmap?>(null) }
     var missing by remember(block) { mutableStateOf(false) }
     LaunchedEffect(block) {
-        val bmp = when (block) {
+        // Pfade prüfen und dekodieren außerhalb des Main-Threads.
+        val bmp = withContext(Dispatchers.IO) { when (block) {
             is Block.Image -> ctx.repo.mediaFile(block.file)?.let { CardImages.load(it, assets) }
             is Block.MaskedImage -> ctx.repo.mediaFile(block.image)?.let { CardImages.loadMasked(it, ctx.repo.mediaFile(block.mask)) }
             is Block.OccludedImage -> ctx.repo.mediaFile(block.image)?.let { CardImages.loadOccluded(it, block) }
             else -> null
-        }
+        } }
         bitmap = bmp?.asImageBitmap()
         missing = bmp == null
     }

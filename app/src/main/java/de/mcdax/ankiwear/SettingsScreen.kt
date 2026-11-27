@@ -293,6 +293,8 @@ private fun AccountScreen(repo: AnkiRepository, onDone: () -> Unit) {
                         when (val r = repo.signIn(server, user.trim(), password)) {
                             SyncResult.Ok -> onDone()
                             is SyncResult.Failed -> error = r.message
+                            // Bei der Anmeldung wird nichts abgeglichen; die Rückfrage kommt beim nächsten Sync.
+                            SyncResult.NeedsFullDownload -> onDone()
                         }
                         password = ""
                         account = repo.account

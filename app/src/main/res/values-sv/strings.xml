@@ -6,7 +6,6 @@
     <string name="synced">✓ Synkad</string>
     <string name="release_to_sync">↓ Släpp för att synka</string>
     <string name="sync_failed">⚠ Synk misslyckades</string>
-    <string name="loading">Läser in…</string>
     <string name="show_hint">Visa tips</string>
     <string name="show_more">Visa extra</string>
     <string name="rating_failed">Betygsättning misslyckades</string>
@@ -70,8 +69,6 @@
     <string name="opt_never">Aldrig</string>
     <string name="opt_bt_only">Endast Bluetooth</string>
     <string name="opt_always">Alltid (högtalare utan Bluetooth)</string>
-    <string name="opt_bluetooth">Bluetooth-hörlurar</string>
-    <string name="opt_speaker">Klockans högtalare</string>
     <string name="opt_four_buttons">4 betyg</string>
     <string name="opt_two_buttons">Igen / Bra</string>
     <string name="opt_all">Allt</string>
@@ -124,4 +121,11 @@
     <string name="set_scrollbar">Rullningslist på långa kort</string>
     <string name="set_button_labels">Ord på knapparna</string>
     <string name="set_legend">Förklaring ovanför lekar</string>
+    <string name="open_failed">Samlingen kunde inte öppnas</string>
+    <string name="load_failed">Kortet kunde inte laddas</string>
+    <string name="retry">Försök igen</string>
+    <string name="full_download_question">Både servern och klockan har ändringar. Ersätta klockans samling med serverns? Repetitioner som inte synkats går förlorade.</string>
+    <string name="full_download_confirm">Ersätt</string>
+    <string name="full_download_cancel">Inte nu</string>
+    <string name="sync_paused">⚠ Synk pausad</string>
 </resources>

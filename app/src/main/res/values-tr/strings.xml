@@ -6,7 +6,6 @@
     <string name="synced">✓ Eşitlendi</string>
     <string name="release_to_sync">↓ Eşitlemek için bırakın</string>
     <string name="sync_failed">⚠ Eşitleme başarısız</string>
-    <string name="loading">Yükleniyor…</string>
     <string name="show_hint">İpucunu göster</string>
     <string name="show_more">Ekstrayı göster</string>
     <string name="rating_failed">Puanlama başarısız</string>
@@ -70,8 +69,6 @@
     <string name="opt_never">Asla</string>
     <string name="opt_bt_only">Yalnızca Bluetooth</string>
     <string name="opt_always">Her zaman (Bluetooth yoksa hoparlör)</string>
-    <string name="opt_bluetooth">Bluetooth kulaklık</string>
-    <string name="opt_speaker">Saat hoparlörü</string>
     <string name="opt_four_buttons">4 puan</string>
     <string name="opt_two_buttons">Tekrar / İyi</string>
     <string name="opt_all">Hepsi</string>
@@ -124,4 +121,11 @@
     <string name="set_scrollbar">Uzun kartlarda kaydırma çubuğu</string>
     <string name="set_button_labels">Düğmelerde kelimeler</string>
     <string name="set_legend">Destelerin üstünde açıklama</string>
+    <string name="open_failed">Koleksiyon açılamadı</string>
+    <string name="load_failed">Kart yüklenemedi</string>
+    <string name="retry">Tekrar dene</string>
+    <string name="full_download_question">Hem sunucuda hem saatte değişiklik var. Saatteki koleksiyon sunucudakiyle değiştirilsin mi? Eşitlenmemiş tekrarlar kaybolur.</string>
+    <string name="full_download_confirm">Değiştir</string>
+    <string name="full_download_cancel">Şimdi değil</string>
+    <string name="sync_paused">⚠ Eşitleme duraklatıldı</string>
 </resources>

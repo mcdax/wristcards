@@ -19,9 +19,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+private val SVG_FILTER = Regex("""<(?:[\w-]+:)?filter\b""", RegexOption.IGNORE_CASE)
+
 /**
  * Lädt Kartenbilder sparsam: Die Uhr läuft mit 32 Bit und wenig RAM, deshalb immer
- * herunterskaliert auf [MAX_PX] und mit kleinem Cache.
+ * höchstens [MAX_PX] groß und mit kleinem Cache.
  */
 object CardImages {
     private const val MAX_PX = 720
@@ -29,22 +31,36 @@ object CardImages {
         override fun sizeOf(key: String, value: Bitmap) = value.allocationByteCount
     }
 
+    /** Bei Speicherdruck (onTrimMemory) den Cache leeren; Bilder lassen sich jederzeit neu laden. */
+    fun trim() = cache.evictAll()
+
+    /** Ändert sich eine Datei unter gleichem Namen (Mediensync), passt der alte Cache-Eintrag nicht mehr. */
+    private fun fingerprint(file: File) = "${file.path}|${file.length()}|${file.lastModified()}"
+
     suspend fun load(file: File, assets: AssetManager): Bitmap? = withContext(Dispatchers.IO) {
-        val key = "${file.path}|${file.length()}|${file.lastModified()}"
+        val key = fingerprint(file)
         cache.get(key) ?: decode(file, assets)?.also { cache.put(key, it) }
     }
 
-    /** Bild mit IOE-Maske (SVG in Bildgröße) darüber. */
+    /**
+     * Bild mit IOE-Maske (SVG in Bildgröße) darüber. Ohne lesbare Maske gibt es kein Bild:
+     * Das unmaskierte Bild würde auf der Frage die Antwort zeigen.
+     */
     suspend fun loadMasked(image: File, mask: File?): Bitmap? = withContext(Dispatchers.IO) {
-        val key = image.path + "|" + mask?.path
+        if (mask == null) return@withContext null
+        val key = fingerprint(image) + "|" + fingerprint(mask)
         cache.get(key)?.let { return@withContext it }
-        val base = decode(image) ?: return@withContext null
-        val out = base.copy(Bitmap.Config.ARGB_8888, true)
-        if (mask != null) runCatching {
-            val svg = SVG.getFromInputStream(mask.inputStream())
+        val out = decode(image, mutable = true) ?: return@withContext null
+        val drawn = runCatching {
+            val svg = mask.inputStream().use { SVG.getFromInputStream(it) }
             svg.setDocumentWidth(out.width.toFloat())
             svg.setDocumentHeight(out.height.toFloat())
             svg.renderToCanvas(Canvas(out))
+        }
+        if (drawn.isFailure) {
+            if (BuildConfig.DEBUG) android.util.Log.w("CardImages", "Maske nicht lesbar", drawn.exceptionOrNull())
+            out.recycle()
+            return@withContext null
         }
         cache.put(key, out)
         out
@@ -52,13 +68,18 @@ object CardImages {
 
     /** Bild mit nativen IO-Formen; Koordinaten sind relativ (0..1) oder Pixel des Originals. */
     suspend fun loadOccluded(image: File, block: Block.OccludedImage): Bitmap? = withContext(Dispatchers.IO) {
+        // Formen und Seite gehören zum Schlüssel: Frage und Antwort zeichnen verschieden.
+        val key = fingerprint(image) + "|" + block.shapes.hashCode() + "|" + block.revealed
+        cache.get(key)?.let { return@withContext it }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(image.path, bounds)
-        val base = decode(image) ?: return@withContext null
-        val out = base.copy(Bitmap.Config.ARGB_8888, true)
+        val out = decode(image, mutable = true) ?: return@withContext null
         val c = Canvas(out)
         // Pixelangaben beziehen sich auf das Originalbild, wir zeichnen ins verkleinerte.
-        val relative = block.shapes.all { it.left <= 1f && it.top <= 1f && it.width <= 1f && it.height <= 1f }
+        // Vielecke haben nur Punkte (left/top/width/height sind 0), deshalb die Punkte mitprüfen.
+        val relative = block.shapes.all { s ->
+            s.left <= 1f && s.top <= 1f && s.width <= 1f && s.height <= 1f && s.points.all { (x, y) -> x <= 1f && y <= 1f }
+        }
         val sx = if (relative) out.width.toFloat() else out.width.toFloat() / bounds.outWidth.coerceAtLeast(1)
         val sy = if (relative) out.height.toFloat() else out.height.toFloat() / bounds.outHeight.coerceAtLeast(1)
         val fill = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -83,6 +104,7 @@ object CardImages {
             stroke.color = 0xFF212121.toInt(); stroke.strokeWidth = 2f
             shape(c, s, rect, sx, sy, stroke)
         }
+        cache.put(key, out)
         out
     }
 
@@ -101,13 +123,26 @@ object CardImages {
         }
     }
 
-    private fun decode(file: File, assets: AssetManager? = null): Bitmap? = runCatching {
+    /**
+     * Dekodiert höchstens [MAX_PX] groß: erst grob per inSampleSize (spart Speicher beim Lesen),
+     * dann exakt herunterskaliert. [mutable], wenn darauf gezeichnet wird (spart eine Kopie).
+     */
+    private fun decode(file: File, assets: AssetManager? = null, mutable: Boolean = false): Bitmap? = runCatching {
         if (file.name.endsWith(".svg", ignoreCase = true)) return@runCatching decodeSvg(file, assets)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         var sample = 1
         while (bounds.outWidth / (sample * 2) >= MAX_PX || bounds.outHeight / (sample * 2) >= MAX_PX) sample *= 2
-        BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+        val raw = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply {
+            inSampleSize = sample
+            inMutable = mutable
+        }) ?: return@runCatching null
+        val scale = MAX_PX.toFloat() / maxOf(raw.width, raw.height)
+        if (scale >= 1f) return@runCatching raw
+        val scaled = Bitmap.createScaledBitmap(raw, (raw.width * scale).toInt().coerceAtLeast(1), (raw.height * scale).toInt().coerceAtLeast(1), true)
+        raw.recycle()
+        // createScaledBitmap liefert ein veränderbares Bitmap, wenn das Ausgangsbild veränderbar war.
+        if (mutable && !scaled.isMutable) scaled.copy(Bitmap.Config.ARGB_8888, true).also { scaled.recycle() } else scaled
     }.onFailure {
         if (BuildConfig.DEBUG) android.util.Log.w("CardImages", "Bild konnte nicht gerendert werden", it)
     }.getOrNull()
@@ -115,7 +150,7 @@ object CardImages {
     private fun decodeSvg(file: File, assets: AssetManager?): Bitmap {
         val source = file.readBytes()
         if (file.name.contains("-blur", ignoreCase = true) &&
-            Regex("""<(?:[\w-]+:)?filter\b""", RegexOption.IGNORE_CASE).containsMatchIn(source.toString(Charsets.UTF_8))) {
+            SVG_FILTER.containsMatchIn(source.toString(Charsets.UTF_8))) {
             // AndroidSVG kann Filter nicht zeichnen. Für die drei bekannten UG-Medien
             // liegt eine filtergetreue Rasterisierung vor; nur exakt gleiche Bytes nutzen.
             val hash = MessageDigest.getInstance("SHA-256").digest(source).joinToString("") { "%02x".format(it) }
@@ -138,12 +173,23 @@ object CardImages {
     }
 }
 
-/** Spielt Kartenaudio nacheinander ab; ein neuer Aufruf bricht das laufende ab. */
+/**
+ * Spielt Kartenaudio nacheinander ab; ein neuer Aufruf bricht das laufende ab.
+ * Alle Aufrufe kommen vom Main-Thread; die Dateien werden asynchron vorbereitet, damit das Aufdecken nicht hakt.
+ */
 class CardAudio(context: Context) {
     private val audioManager = context.getSystemService(AudioManager::class.java)
     private var player: MediaPlayer? = null
     private var queue = ArrayDeque<File>()
     private var output = AudioOutput.BLUETOOTH_ONLY
+
+    // „Nur Bluetooth“: Werden die Kopfhörer getrennt, sofort aufhören statt auf den Lautsprecher zu wechseln.
+    private val deviceCallback = object : android.media.AudioDeviceCallback() {
+        override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) {
+            if (output == AudioOutput.BLUETOOTH_ONLY && player != null && bluetoothDevice() == null) stop()
+        }
+    }
+    private var callbackRegistered = false
 
     fun play(files: List<File>, output: AudioOutput) {
         stop()
@@ -151,45 +197,85 @@ class CardAudio(context: Context) {
         if (output == AudioOutput.NEVER) return
         if (output == AudioOutput.BLUETOOTH_ONLY && bluetoothDevice() == null) return
         this.output = output
+        if (!callbackRegistered) {
+            audioManager?.registerAudioDeviceCallback(deviceCallback, null)
+            callbackRegistered = true
+        }
         queue = ArrayDeque(files)
         next()
     }
 
     /** Kopfhörer bevorzugen, wenn gewünscht und verbunden; sonst Uhr-Lautsprecher. */
     private fun preferredDevice(): AudioDeviceInfo? {
-        val speaker = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty()
-            .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-        return bluetoothDevice() ?: if (output == AudioOutput.ALWAYS) speaker else null
+        val devices = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty()
+        return devices.firstOrNull(::isBluetooth)
+            ?: if (output == AudioOutput.ALWAYS) devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER } else null
     }
 
     fun bluetoothDevice(): AudioDeviceInfo? =
-        audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty().firstOrNull {
-            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
-        }
+        audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty().firstOrNull(::isBluetooth)
+
+    private fun isBluetooth(d: AudioDeviceInfo) =
+        d.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || d.type == AudioDeviceInfo.TYPE_BLE_HEADSET
 
     private fun next() {
         val f = queue.removeFirstOrNull() ?: return
-        player = MediaPlayer().apply {
-            setAudioAttributes(
+        val device = preferredDevice()
+        // Zwischen zwei Titeln können die Kopfhörer weg sein.
+        if (output == AudioOutput.BLUETOOTH_ONLY && device == null) {
+            stop()
+            return
+        }
+        val p = MediaPlayer()
+        player = p
+        try {
+            p.setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
             )
-            runCatching {
-                setDataSource(f.path)
-                preferredDevice()?.let { setPreferredDevice(it) }
-                setOnCompletionListener { release(); player = null; next() }
-                setOnErrorListener { _, _, _ -> release(); player = null; next(); true }
-                prepare()
-                start()
-            }.onFailure { release(); player = null; next() }
+            p.setDataSource(f.path)
+            device?.let { p.setPreferredDevice(it) }
+            // Callbacks eines abgelösten Players (stop/neuer Aufruf) dürfen nichts mehr anstoßen.
+            p.setOnPreparedListener { if (player === p) p.start() }
+            p.setOnCompletionListener { advance(p) }
+            p.setOnErrorListener { _, _, _ -> advance(p); true }
+            p.prepareAsync()
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) android.util.Log.w("CardAudio", "Audio nicht abspielbar: ${f.name}", e)
+            advance(p)
+        }
+    }
+
+    /** Gibt [p] frei und spielt den nächsten Titel, falls [p] noch der aktuelle Player war. */
+    private fun advance(p: MediaPlayer) {
+        p.release()
+        if (player === p) {
+            player = null
+            next()
         }
     }
 
     fun stop() {
         queue.clear()
-        player?.runCatching { stop(); release() }
+        val p = player ?: return
         player = null
+        try {
+            if (p.isPlaying) p.stop()
+        } catch (_: IllegalStateException) {
+            // Noch in der Vorbereitung: stop() ist dann nicht erlaubt, release() reicht.
+        } finally {
+            p.release()
+        }
+    }
+
+    /** Endgültig aufräumen, wenn die Lernansicht verschwindet. */
+    fun release() {
+        stop()
+        if (callbackRegistered) {
+            audioManager?.unregisterAudioDeviceCallback(deviceCallback)
+            callbackRegistered = false
+        }
     }
 }

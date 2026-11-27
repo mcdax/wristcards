@@ -6,7 +6,6 @@
     <string name="synced">✓ Abgeglichen</string>
     <string name="release_to_sync">↓ Loslassen zum Abgleichen</string>
     <string name="sync_failed">⚠ Abgleich fehlgeschlagen</string>
-    <string name="loading">Lädt…</string>
     <string name="show_hint">Hinweis zeigen</string>
     <string name="show_more">Extra zeigen</string>
     <string name="rating_failed">Bewerten fehlgeschlagen</string>
@@ -70,8 +69,6 @@
     <string name="opt_never">Nie</string>
     <string name="opt_bt_only">Nur Kopfhörer (Bluetooth)</string>
     <string name="opt_always">Immer (ohne Kopfhörer über die Uhr)</string>
-    <string name="opt_bluetooth">Bluetooth-Kopfhörer</string>
-    <string name="opt_speaker">Uhr-Lautsprecher</string>
     <string name="opt_four_buttons">4 Knöpfe (Nochmal, Schwer, Gut, Einfach)</string>
     <string name="opt_two_buttons">2 Knöpfe (Nochmal, Gut)</string>
     <string name="opt_all">Alles</string>
@@ -124,4 +121,11 @@
     <string name="set_scrollbar">Scrollbalken bei langen Karten</string>
     <string name="set_button_labels">Wörter auf den Knöpfen</string>
     <string name="set_legend">Legende über den Decks</string>
+    <string name="open_failed">Sammlung konnte nicht geöffnet werden</string>
+    <string name="load_failed">Karte konnte nicht geladen werden</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="full_download_question">Server und Uhr haben beide Änderungen. Sammlung der Uhr durch die vom Server ersetzen? Noch nicht abgeglichene Bewertungen der Uhr gehen verloren.</string>
+    <string name="full_download_confirm">Ersetzen</string>
+    <string name="full_download_cancel">Jetzt nicht</string>
+    <string name="sync_paused">⚠ Abgleich angehalten</string>
 </resources>

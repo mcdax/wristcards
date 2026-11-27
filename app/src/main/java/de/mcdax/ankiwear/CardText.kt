@@ -49,6 +49,8 @@ data class CardSide(
     val hints: List<AnnotatedString>,
     // Dateinamen der Audio-Tags in Reihenfolge ihrer Indizes (TTS-Tags als null).
     val audio: List<String?>,
+    // Dieselben Einträge als Datei im Medienordner; vom Repository auf IO aufgelöst, null = fehlt.
+    val audioFiles: List<java.io.File?> = emptyList(),
 )
 
 // Private-Use-Zeichen markieren Lücken durch Html.fromHtml hindurch.
@@ -81,6 +83,13 @@ private val IO_NATIVE_CONTAINER = Regex(
 private val IO_SHAPE = Regex("""<(?:div|span)\b([^>]*\bdata-shape\s*=[^>]*)>""", RegexOption.IGNORE_CASE)
 private val ATTR = Regex("""([\w-]+)\s*=\s*"([^"]*)"""")
 private val MARKER = Regex("""(\d+)""")
+private val HIDDEN_DIV = Regex("""<div style="display:\s*none">[\s\S]*?</div>""", RegexOption.IGNORE_CASE)
+private val WHITESPACE = Regex("\\s+")
+private val LI_OPEN = Regex("""<li[^>]*>""", RegexOption.IGNORE_CASE)
+private val LIST_TAGS = Regex("""</?(ul|ol|li)[^>]*>""", RegexOption.IGNORE_CASE)
+private val CODE_OPEN = Regex("""<(code|pre)\b[^>]*>""", RegexOption.IGNORE_CASE)
+private val CODE_CLOSE = Regex("""</(code|pre)>""", RegexOption.IGNORE_CASE)
+private val HR_ANY = Regex("""<hr\b[^>]*>""", RegexOption.IGNORE_CASE)
 
 // Ultimate-Geography verwendet diese semantischen Klassen für alle vier Vorlagen.
 // Nur flache divs umformen; unbekannte/verschachtelte Inhalte bleiben unverändert.
@@ -88,11 +97,11 @@ private val GEO_DIV = Regex("""<div\b([^>]*)>((?:(?!<div\b)[\s\S])*?)</div>""", 
 private val GEO_CLASS = Regex("""\bclass\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE)
 private fun isGeography(html: String): Boolean =
     html.contains("value--top") && GEO_DIV.findAll(html).any {
-        "type" in GEO_CLASS.find(it.groupValues[1])?.groupValues?.get(1).orEmpty().split(Regex("\\s+"))
+        "type" in GEO_CLASS.find(it.groupValues[1])?.groupValues?.get(1).orEmpty().split(WHITESPACE)
     }
 
 private fun prepareGeography(html: String): String = GEO_DIV.replace(html) { div ->
-    val classes = GEO_CLASS.find(div.groupValues[1])?.groupValues?.get(1).orEmpty().split(Regex("\\s+"))
+    val classes = GEO_CLASS.find(div.groupValues[1])?.groupValues?.get(1).orEmpty().split(WHITESPACE)
     var content = div.groupValues[2]
     if ("value--front" in classes || "value--back" in classes) {
         val images = IMG.findAll(content).toList()
@@ -153,7 +162,7 @@ fun parseSide(html: String, audio: List<String?>, isAnswer: Boolean): CardSide {
     h = IMG.replace(h) { mark(Block.Image(it.groupValues[1])) }
     h = PLAY_TAG.replace(h) { mark(Block.Audio(it.groupValues[1].toInt())) }
     // Die versteckten Cloze-Daten des nativen IO nicht als Text zeigen.
-    h = h.replace(Regex("""<div style="display:\s*none">[\s\S]*?</div>""", RegexOption.IGNORE_CASE), "")
+    h = h.replace(HIDDEN_DIV, "")
 
     val parts = HR_EXTRA.split(h, limit = 2)
     return CardSide(
@@ -232,12 +241,12 @@ private fun markClozes(html: String): String {
 
 private fun toAnnotated(html: String): AnnotatedString {
     val prepared = markClozes(html)
-        .replace(Regex("""<li[^>]*>""", RegexOption.IGNORE_CASE), "<br>• ")
-        .replace(Regex("""</?(ul|ol|li)[^>]*>""", RegexOption.IGNORE_CASE), "")
+        .replace(LI_OPEN, "<br>• ")
+        .replace(LIST_TAGS, "")
         // Code als Monospace; Html.fromHtml kennt nur <tt>.
-        .replace(Regex("""<(code|pre)\b[^>]*>""", RegexOption.IGNORE_CASE), "<tt>")
-        .replace(Regex("""</(code|pre)>""", RegexOption.IGNORE_CASE), "</tt>")
-        .replace(Regex("""<hr\b[^>]*>""", RegexOption.IGNORE_CASE), "<br>")
+        .replace(CODE_OPEN, "<tt>")
+        .replace(CODE_CLOSE, "</tt>")
+        .replace(HR_ANY, "<br>")
     val spanned = Html.fromHtml(prepared, Html.FROM_HTML_MODE_COMPACT)
 
     // Markierungen entfernen, Positionen umrechnen, Lückenbereiche merken.

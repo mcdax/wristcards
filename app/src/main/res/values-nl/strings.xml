@@ -6,7 +6,6 @@
     <string name="synced">✓ Gesynchroniseerd</string>
     <string name="release_to_sync">↓ Loslaten om te synchroniseren</string>
     <string name="sync_failed">⚠ Sync mislukt</string>
-    <string name="loading">Laden…</string>
     <string name="show_hint">Hint tonen</string>
     <string name="show_more">Extra tonen</string>
     <string name="rating_failed">Beoordelen mislukt</string>
@@ -70,8 +69,6 @@
     <string name="opt_never">Nooit</string>
     <string name="opt_bt_only">Alleen Bluetooth</string>
     <string name="opt_always">Altijd (luidspreker zonder Bluetooth)</string>
-    <string name="opt_bluetooth">Bluetooth-koptelefoon</string>
-    <string name="opt_speaker">Horlogeluidspreker</string>
     <string name="opt_four_buttons">4 niveaus</string>
     <string name="opt_two_buttons">Opnieuw / Goed</string>
     <string name="opt_all">Alles</string>
@@ -124,4 +121,11 @@
     <string name="set_scrollbar">Schuifbalk bij lange kaarten</string>
     <string name="set_button_labels">Woorden op knoppen</string>
     <string name="set_legend">Legenda boven stapels</string>
+    <string name="open_failed">Collectie kon niet worden geopend</string>
+    <string name="load_failed">Kaart kon niet worden geladen</string>
+    <string name="retry">Opnieuw</string>
+    <string name="full_download_question">Server en horloge hebben allebei wijzigingen. Collectie op de horloge vervangen door die van de server? Niet gesynchroniseerde herhalingen gaan verloren.</string>
+    <string name="full_download_confirm">Vervangen</string>
+    <string name="full_download_cancel">Nu niet</string>
+    <string name="sync_paused">⚠ Synchronisatie gepauzeerd</string>
 </resources>
