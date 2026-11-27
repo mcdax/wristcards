@@ -1,4 +1,4 @@
-"""Builds a neutral demo collection (no real cards) for screenshots and the emulator UI tests.
+"""Builds a neutral demo collection (no real cards) for screenshots and the emulator end-to-end tests.
 Usage: python -I make_demo_collection.py <output collection.anki2>"""
 import sys, os
 from anki.collection import Collection

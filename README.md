@@ -46,10 +46,10 @@ The debug build can contain a built-in test account from `local.properties` (`sy
 ## Tests
 
 - `./gradlew testDebugUnitTest` runs the JVM unit tests.
-- The **UI tests** workflow (manual, Actions tab) boots a Wear OS emulator, installs the debug build with a demo
-  collection ([ci/make_demo_collection.py](ci/make_demo_collection.py)) and runs the gesture regression test
-  ([ci/swipe_test.py](ci/swipe_test.py)). It reports the commit status `ui-tests`, which must pass before a pull
-  request can be merged: run it with the pull request's branch as `ref`.
+- The **E2E tests (emulator)** workflow (manual, Actions tab) boots a Wear OS emulator, installs the debug build
+  with a demo collection ([ci/make_demo_collection.py](ci/make_demo_collection.py)) and drives the app from outside
+  via adb with the gesture regression test ([ci/swipe_test.py](ci/swipe_test.py)). It reports the commit status
+  `e2e`, which must pass before a pull request can be merged: run it with the pull request's branch as `ref`.
 
 Architecture notes: [architecture.md](architecture.md).
 

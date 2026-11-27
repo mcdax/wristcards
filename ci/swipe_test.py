@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Swipe/gesture regression test against a running Wear OS emulator (454x454, debug build installed).
+"""End-to-end swipe/gesture regression test against a running Wear OS emulator (454x454, debug build installed).
 
 Usage: swipe_test.py <adb serial> <deck name> [quick]
 Expects the test collection at /data/local/tmp/ci/collection.anki2; every case starts from a fresh copy of it.
