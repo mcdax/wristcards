@@ -35,7 +35,8 @@ data class AppSettings(
     val swipeLeft: SwipeAction = SwipeAction.AGAIN,
     val swipeRight: SwipeAction = SwipeAction.GOOD,
     // Short overlay after every rating, with undo
-    val swipeFeedback: Boolean = true,
+    // Seconds the rating toast with undo stays visible; 0 = off.
+    val ratedNoteSeconds: Int = 3,
     val twoButtons: Boolean = false,
     // Words (Again/Hard/Good/Easy) on the buttons; off = only times or symbols
     val showButtonLabels: Boolean = true,
@@ -105,7 +106,7 @@ class SettingsStore private constructor(context: Context) {
             .putBoolean("vibrateOnDeckDone", s.vibrateOnDeckDone)
             .putString("swipeLeft", s.swipeLeft.name)
             .putString("swipeRight", s.swipeRight.name)
-            .putBoolean("swipeFeedback", s.swipeFeedback)
+            .putInt("ratedNoteSeconds", s.ratedNoteSeconds)
             .putBoolean("twoButtons", s.twoButtons)
             .putBoolean("showButtonLabels", s.showButtonLabels)
             .putBoolean("showIntervals", s.showIntervals)
@@ -153,7 +154,9 @@ private fun read(p: SharedPreferences): AppSettings {
             else enum("swipeLeft", d.swipeLeft, SwipeAction.entries.toTypedArray()),
         swipeRight = if (p.getBoolean("swipeToRate", false) && !p.contains("swipeRight")) SwipeAction.GOOD
             else enum("swipeRight", d.swipeRight, SwipeAction.entries.toTypedArray()),
-        swipeFeedback = p.getBoolean("swipeFeedback", d.swipeFeedback),
+        // Older switch "swipeFeedback" = false meant no toast.
+        ratedNoteSeconds = if (!p.contains("ratedNoteSeconds") && !p.getBoolean("swipeFeedback", true)) 0
+            else p.getInt("ratedNoteSeconds", d.ratedNoteSeconds),
         twoButtons = p.getBoolean("twoButtons", d.twoButtons),
         showButtonLabels = p.getBoolean("showButtonLabels", d.showButtonLabels),
         showIntervals = p.getBoolean("showIntervals", d.showIntervals),

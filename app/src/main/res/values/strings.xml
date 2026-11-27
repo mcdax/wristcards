@@ -134,4 +134,7 @@
     <string name="full_upload_warning">Warning: this overwrites the collection on the server. Changes made on other devices since the last sync will be lost.</string>
     <string name="full_upload_confirm">Really upload</string>
     <string name="welcome_text">Sign in to your Anki sync server to study your cards.</string>
+    <string name="opt_sec_2" translatable="false">2 s</string>
+    <string name="opt_sec_3" translatable="false">3 s</string>
+    <string name="opt_sec_5" translatable="false">5 s</string>
 </resources>

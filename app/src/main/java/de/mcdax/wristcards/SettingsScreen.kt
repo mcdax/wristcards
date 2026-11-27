@@ -122,8 +122,13 @@ private val mediaChoice = Choice(
     listOf(MediaMode.ALL to R.string.opt_all, MediaMode.NONE to R.string.opt_none),
     { it.mediaMode }, { s, v -> s.copy(mediaMode = v) },
 )
+private val ratedNoteChoice = Choice(
+    "rated_note", R.string.set_swipe_feedback,
+    listOf(0 to R.string.opt_off, 2 to R.string.opt_sec_2, 3 to R.string.opt_sec_3, 5 to R.string.opt_sec_5),
+    { it.ratedNoteSeconds }, { s, v -> s.copy(ratedNoteSeconds = v) },
+)
 private val choices: List<Choice<*>> =
-    listOf(fontSizeChoice, extraChoice, audioChoice, audioOutputChoice, swipeLeftChoice, swipeRightChoice, buttonsChoice, mediaChoice)
+    listOf(ratedNoteChoice, fontSizeChoice, extraChoice, audioChoice, audioOutputChoice, swipeLeftChoice, swipeRightChoice, buttonsChoice, mediaChoice)
 
 /** Submenus of the settings; title and short description for the overview. */
 private enum class SettingsPage(@StringRes val title: Int, @StringRes val summary: Int) {
@@ -160,9 +165,7 @@ private fun SettingsScreen(repo: AnkiRepository, page: SettingsPage?, onNavigate
                 item { ChoiceRow(buttonsChoice, s, onNavigate) }
                 item { Toggle(R.string.set_button_labels, s.showButtonLabels) { v -> store.update { it.copy(showButtonLabels = v) } } }
                 item { Toggle(R.string.set_intervals, s.showIntervals) { v -> store.update { it.copy(showIntervals = v) } } }
-                item {
-                    Toggle(R.string.set_swipe_feedback, s.swipeFeedback, R.string.set_swipe_feedback_hint) { v -> store.update { it.copy(swipeFeedback = v) } }
-                }
+                item { ChoiceRow(ratedNoteChoice, s, onNavigate) }
                 item { ChoiceRow(swipeLeftChoice, s, onNavigate) }
                 item { ChoiceRow(swipeRightChoice, s, onNavigate) }
                 if (s.swipeToRate) item { Note(R.string.set_swipe_hint) }

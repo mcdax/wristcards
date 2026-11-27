@@ -85,7 +85,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
     )
     LaunchedEffect(ratedNote) {
         if (ratedNote != null) {
-            kotlinx.coroutines.delay(RATED_NOTE_MS)
+            kotlinx.coroutines.delay(settings.ratedNoteSeconds * 1000L)
             ratedNote = null
         }
     }
@@ -167,7 +167,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
     fun rate(current: ReviewCard, idx: Int) = session.rate(
         current, idx,
         onRated = {
-            if (settings.swipeFeedback) {
+            if (settings.ratedNoteSeconds > 0) {
                 ratedNote = RatedNote(ratedLabels[idx], listOf(c.again, c.hard, c.good, c.easy)[idx], current.queued.card.id)
             }
             if (settings.vibrateOnRate) vibrate(context, android.os.VibrationEffect.EFFECT_TICK)
@@ -395,7 +395,8 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             exit = androidx.compose.animation.fadeOut(),
             // At the bottom: after rating, the next card is hidden, so there are no buttons there.
             // Somewhat higher where the round screen is wide enough.
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = TOAST_BOTTOM),
+            // Low on the screen, below the card text; the stacked toast is narrow enough for the round edge.
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp),
         ) {
             val note = ratedNote
             if (note != null) {
@@ -439,8 +440,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
 /** Overlay after a rating; cardId for undo. */
 private data class RatedNote(val text: String, val color: Color, val cardId: Long)
 
-/** For this long the overlay with undo stays. */
-private const val RATED_NOTE_MS = 3000L
+
 
 
 /** End of a deck: what has been done and a clear way back. */
