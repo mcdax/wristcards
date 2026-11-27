@@ -11,18 +11,18 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/** Was die Kontoseite anzeigt. */
+/** What the account page shows. */
 sealed interface Account {
     data class SignedIn(val user: String, val endpoint: String) : Account
-    // Noch nie angemeldet: die beim Bauen eingetragenen Zugangsdaten gelten weiter.
+    // Never signed in: the credentials entered at build time still apply.
     data object BuiltIn : Account
     data object SignedOut : Account
 }
 
 /**
- * Hält nach der Anmeldung nur den Host-Key (SyncAuth.hkey) und den Endpoint, nie das Passwort.
- * Der Host-Key liegt mit einem Schlüssel aus dem Android Keystore verschlüsselt (AES-GCM) in
- * eigenen SharedPreferences; Benutzername und Endpoint sind nicht geheim und stehen im Klartext.
+ * After sign-in keeps only the host key (SyncAuth.hkey) and the endpoint, never the password.
+ * The host key is stored encrypted (AES-GCM) with a key from the Android Keystore in
+ * its own SharedPreferences; username and endpoint are not secret and are stored in plain text.
  */
 class SyncCredentials(context: Context) {
     private val prefs = context.getSharedPreferences("sync_auth", Context.MODE_PRIVATE)
@@ -31,18 +31,18 @@ class SyncCredentials(context: Context) {
         get() = when {
             prefs.contains("hkey") -> Account.SignedIn(prefs.getString("user", "") ?: "", prefs.getString("endpoint", "") ?: "")
             prefs.getBoolean("signedOut", false) -> Account.SignedOut
-            // Eingebautes Testkonto gibt es nur im Debug-Build (siehe build.gradle.kts).
+            // The built-in test account exists only in the debug build (see build.gradle.kts).
             BuildConfig.SYNC_USER.isEmpty() -> Account.SignedOut
             else -> Account.BuiltIn
         }
 
-    /** Gespeicherter Zugang; null, wenn keiner da ist oder sich nicht mehr entschlüsseln lässt. */
+    /** Stored credentials; null if there are none or they can no longer be decrypted. */
     fun load(): SyncAuth? {
         val stored = prefs.getString("hkey", null) ?: return null
         val hkey = try {
             decrypt(stored)
         } catch (_: Exception) {
-            // Keystore-Schlüssel weg (z. B. nach Zurücksetzen der Displaysperre): neu anmelden.
+            // Keystore key gone (e.g. after resetting the screen lock): sign in again.
             clear()
             return null
         }
@@ -55,18 +55,18 @@ class SyncCredentials(context: Context) {
         prefs.edit()
             .putString("hkey", encrypt(auth.hkey))
             .putString("user", user)
-            // Der Server kann beim Login einen anderen Endpoint zurückgeben; der gilt dann.
+            // The server may return a different endpoint at login; that one then applies.
             .putString("endpoint", if (auth.hasEndpoint() && auth.endpoint.isNotEmpty()) auth.endpoint else endpoint)
             .remove("signedOut")
             .apply()
     }
 
-    /** AnkiWeb weist beim Sync einen festen Sync-Host zu (z. B. sync21); der gilt ab dann für dieses Konto. */
+    /** AnkiWeb assigns a fixed sync host during sync (e.g. sync21); it applies to this account from then on. */
     fun updateEndpoint(endpoint: String) {
         if (prefs.contains("hkey")) prefs.edit().putString("endpoint", endpoint).apply()
     }
 
-    /** Abmelden: ab jetzt auch nicht mehr auf die eingebauten Zugangsdaten zurückfallen. */
+    /** Sign out: from now on don't fall back to the built-in credentials either. */
     fun clear() {
         prefs.edit().clear().putBoolean("signedOut", true).apply()
     }
@@ -105,7 +105,7 @@ class SyncCredentials(context: Context) {
     }
 }
 
-/** „anki.example.org“ → „https://anki.example.org/“; der Kern hängt Pfade an, dafür braucht es den Schrägstrich. */
+/** "anki.example.org" → "https://anki.example.org/"; the core appends paths, which needs the slash. */
 fun normalizeEndpoint(input: String): String {
     val s = input.trim()
     if (s.isEmpty()) return ""

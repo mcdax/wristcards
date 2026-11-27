@@ -77,7 +77,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
     val audio = remember { CardAudio(context) }
     var zoomed by remember { mutableStateOf<ImageBitmap?>(null) }
     var extraOpen by rememberSaveable { mutableStateOf(false) }
-    // Einblendung nach jeder Bewertung, mit Rückgängig, solange sie zu sehen ist.
+    // Overlay after every rating, with undo, for as long as it is visible.
     var ratedNote by remember { mutableStateOf<RatedNote?>(null) }
     val ratedLabels = listOf(
         stringResource(R.string.rated_again), stringResource(R.string.rated_hard),
@@ -100,7 +100,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
         val lifecycle = (context as? ComponentActivity)?.lifecycle
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                // Kein Hintergrund-Audio: Bildschirm aus oder App verlassen beendet den Ton.
+                // No background audio: screen off or leaving the app ends the sound.
                 audio.stop()
                 debugLog("AnkiResume") { "review stopped scroll=${scroll.value} revealed=${session.revealed}" }
             }
@@ -109,7 +109,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
         onDispose { lifecycle?.removeObserver(observer) }
     }
 
-    // Bildschirm nur beim Lernen wach halten, nicht in der Deckliste.
+    // Keep the screen awake only while studying, not in the deck list.
     DisposableEffect(settings.keepScreenOn) {
         val window = (context as? android.app.Activity)?.window
         if (settings.keepScreenOn) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -119,7 +119,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
     LaunchedEffect(session) {
         val loadStart = android.os.SystemClock.uptimeMillis()
         session.load()
-        // Nach einem Neuaufbau: Ist es nicht mehr dieselbe Karte, beginnt sie verdeckt.
+        // After a rebuild: if it is no longer the same card, it starts hidden.
         val loadedCard = session.card?.queued?.card
         if (lastShownCardId != null && (loadedCard?.id != lastShownCardId || loadedCard?.reps != lastShownReps)) {
             session.revealed = false
@@ -128,15 +128,15 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
     }
     LaunchedEffect(session.card?.queued?.card?.id) {
         if (session.card != null && previewCard == null) {
-            // Die sichtbare Karte hat Vorrang vor ihren möglichen Nachfolgern.
+            // The visible card takes priority over its possible successors.
             androidx.compose.runtime.withFrameNanos { }
             kotlinx.coroutines.delay(100)
             try { repo.preloadUpcomingCards() }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Exception) { android.util.Log.w("AnkiPerf", "Optionales Vorladen übersprungen", e) }
+            catch (e: Exception) { android.util.Log.w("AnkiPerf", "Optional preloading skipped", e) }
         }
     }
-    // Neue Karte oder aufgedeckt: oben anfangen, Krone wieder auf den Text lenken.
+    // New card or revealed: start at the top, point the crown at the text again.
     LaunchedEffect(session.revealed, session.card?.queued?.card?.id) {
         val shown = session.card ?: return@LaunchedEffect
         val revealed = session.revealed
@@ -150,8 +150,8 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
         lastShownReps = shown.queued.card.reps
         lastShownAnswer = revealed
         focus.requestFocus()
-        // Wiederherstellen derselben Seite setzt weder Scrollposition zurück
-        // noch startet es deren Audio erneut. Neue Seiten verhalten sich wie bisher.
+        // Restoring the same side neither resets the scroll position
+        // nor restarts its audio. New sides behave as before.
         val side = if (revealed) shown.answer else shown.question
         if (!sameSide && settings.audioMode == AudioMode.AUTO) {
             audio.play(side.audioIndexes().mapNotNull { side.audioFiles.getOrNull(it) }, settings.audioOutput)
@@ -176,7 +176,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
     )
 
     fun rateBySwipe(current: ReviewCard, action: SwipeAction) {
-        // Index wie bei den Knöpfen: Nochmal, Schwer, Gut, Leicht
+        // Index as for the buttons: Again, Hard, Good, Easy
         val idx = when (action) {
             SwipeAction.AGAIN -> 0
             SwipeAction.HARD -> 1
@@ -195,11 +195,11 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
 
     val current = session.card
     val revealed = session.revealed
-    // Das System fängt Rechtswischen ab, bevor die Karte es sieht. Vom linken Rand (BACK_ZONE) = zurück,
-    // sonst aufgedeckt = bewerten, verdeckt = nichts. Die Zurück-Taste liefert keinen Wischfortschritt und führt immer zurück.
+    // The system intercepts right swipes before the card sees them. From the left edge (BACK_ZONE) = back,
+    // otherwise revealed = rate, hidden = nothing. The back button gives no swipe progress and always goes back.
     val screenWidth = context.resources.displayMetrics.widthPixels
     val swipeMin = with(LocalDensity.current) { 50.dp.toPx() }
-    // Karte und System können dieselbe Geste melden; zweimal zurück würde die Deckliste schließen.
+    // Card and system may report the same gesture; going back twice would close the deck list.
     var left by remember { mutableStateOf(false) }
     fun leave() {
         if (left) return
@@ -209,16 +209,16 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
     }
     var handledGesture by remember { mutableLongStateOf(0L) }
     fun swipedRight() {
-        // Je Berührung nur einmal: Nach dem Bewerten wäre die nächste Karte verdeckt und derselbe Wisch ein Zurück.
+        // Once per touch: after rating, the next card would be hidden and the same swipe a back.
         if (handledGesture == lastTouchDownTime) return
         handledGesture = lastTouchDownTime
         val shown = session.card
-        // Ein schneller zweiter Wisch gehört noch zur letzten Bewertung, auch wenn er am Rand ansetzt.
+        // A quick second swipe still belongs to the last rating, even if it starts at the edge.
         if (lastTouchDownTime - session.ratedAt < RATE_LOCK_MS) {
-            debugLog(TAG) { "right down=$lastTouchDownX ignoriert (Sperre)" }
+            debugLog(TAG) { "right down=$lastTouchDownX ignored (lock)" }
             return
         }
-        // Verdeckt: Rand = zurück, weiter innen = aufdecken. Aufgedeckt gilt die Rechts-Aktion.
+        // Hidden: edge = back, further inside = reveal. Revealed, the right action applies.
         val back = shown == null || lastTouchDownX < screenWidth * BACK_ZONE ||
             (session.revealed && settings.swipeRight == SwipeAction.NONE)
         debugLog(TAG) { "right down=$lastTouchDownX revealed=${session.revealed} card=${shown != null} back=$back" }
@@ -231,7 +231,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             }
         }
     }
-    // Lambda statt ::swipedRight: Funktionsreferenzen gelten als gleich, der Stand würde nie aktualisiert.
+    // Lambda instead of ::swipedRight: function references compare equal, so the state would never update.
     val latestSwipe by rememberUpdatedState({ swipedRight() })
     DisposableEffect(zoomed == null) {
         val handler = { latestSwipe() }
@@ -252,24 +252,24 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             if (swiped) swipedRight() else leave()
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             debugLog(TAG) { "cancelled down=$lastTouchDownX last=$lastX max=$maxX" }
-            // Schnelles Wischen bricht das System manchmal ab. Zurückgezogene Finger bleiben ein Abbruch.
+            // The system sometimes cancels fast swipes. Fingers pulled back stay a cancel.
             if (swiped && lastX - lastTouchDownX > swipeMin && maxX - lastX < swipeMin / 4) swipedRight()
             throw e
         }
     }
     Box(Modifier.fillMaxSize().background(c.background)) {
-        // Vorhandene Scrollposition nicht durch eine leere Lade-Column auf 0 klemmen.
+        // Don't clamp an existing scroll position to 0 with an empty loading column.
         if (session.loaded) Column(
             modifier = Modifier
                 .fillMaxSize()
                 .rotaryScrollable(RotaryScrollableDefaults.behavior(scrollableState = scroll), focus)
                 .verticalScroll(scroll)
                 .clickable(enabled = current != null && !revealed) { session.reveal() }
-                // Wisch-Abkürzung (nur aufgedeckt); Rechtswischen kann auch Zurück sein, siehe swipedRight.
+                // Swipe shortcut (revealed only); a right swipe can also be back, see swipedRight.
                 .then(
                     if (current != null) Modifier.pointerInput(current, revealed, settings) {
-                        // Waagerecht erst, wenn die Bewegung klar waagerecht ist (wie rechts: |dy| < |dx|/2).
-                        // Der Daumen läuft auf der runden Uhr im Bogen; schräges Scrollen bleibt so beim Scrollen.
+                        // Horizontal only once the movement is clearly horizontal (as on the right: |dy| < |dx|/2).
+                        // On the round watch the thumb moves in an arc; diagonal scrolling thus stays scrolling.
                         val slop = viewConfiguration.touchSlop
                         awaitEachGesture {
                             awaitFirstDown(requireUnconsumed = false)
@@ -280,7 +280,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                                 val event = awaitPointerEvent()
                                 val change = event.changes.firstOrNull() ?: break
                                 if (!change.pressed) break
-                                // Scrollen hat die Geste übernommen.
+                                // Scrolling has taken over the gesture.
                                 if (!horizontal && change.isConsumed) return@awaitEachGesture
                                 val delta = change.positionChange()
                                 dx += delta.x
@@ -294,8 +294,8 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                             if (!horizontal) return@awaitEachGesture
                             when {
                                 dx < -80.dp.toPx() && session.revealed -> rateBySwipe(current, settings.swipeLeft)
-                                // Verdeckt: Linkswischen deckt auf. Nicht direkt nach einer Bewertung,
-                                // sonst deckt ein Doppelwisch die neue Karte ungelesen auf.
+                                // Hidden: left swipe reveals. Not directly after a rating,
+                                // otherwise a double swipe reveals the new card unread.
                                 dx < -80.dp.toPx() && lastTouchDownTime - session.ratedAt >= RATE_LOCK_MS -> {
                                     debugLog(TAG) { "result reveal" }
                                     session.reveal()
@@ -304,15 +304,15 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                         }
                     } else Modifier,
                 )
-                // Mindestens bildschirmhoch, damit kurze Fragen mittig stehen können; längere scrollen ab oben.
+                // At least screen height so short questions can be centered; longer ones scroll from the top.
                 .heightIn(min = LocalConfiguration.current.screenHeightDp.dp)
-                // Unten Platz für die festen Bewertungsknöpfe lassen.
+                // Leave room at the bottom for the fixed rating buttons.
                 .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) 110.dp else 60.dp),
-            // Frage mittig, Antwort oben (Erklärung und Bewertungsknöpfe gehören zusammen).
+            // Question centered, answer at the top (explanation and rating buttons belong together).
             verticalArrangement = if (revealed) Arrangement.spacedBy(10.dp) else Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         ) {
             when {
-                // Kurze lokale Kartenwechsel ohne aufblitzenden Ladehinweis.
+                // Short local card changes without a flashing loading hint.
                 !session.loaded || session.busy -> Unit
                 current == null -> when (session.error) {
                     is ReviewError.LoadFailed -> ErrorNote(
@@ -326,14 +326,14 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                 else -> {
                     val side = if (revealed) current.answer else current.question
                     val cloze = if (revealed) c.answerBg to c.answerFg else c.hintBg to c.hintFg
-                    // Frage: Tippen aufs Bild deckt auf wie überall. Antwort: Tippen vergrößert.
+                    // Question: tapping the image reveals as everywhere. Answer: tapping enlarges.
                     val ctx = remember(repo, side, cloze, revealed) {
                         BlockContext(repo, side, audio, cloze, zoomable = revealed, onImageTap = { if (revealed) zoomed = it else session.reveal() })
                     }
                     Blocks(side.main, ctx, dim = false)
                     side.hints.forEach { HintChip(it) }
-                    // Wie deckt man auf? Für die ersten Karten unter der Frage, scrollt mit dem Text.
-                    // Nicht gleichzeitig mit der Einblendung der letzten Bewertung, sonst zwei Hinweise auf einmal.
+                    // How do you reveal? For the first cards, below the question, scrolls with the text.
+                    // Not at the same time as the overlay of the last rating, otherwise two hints at once.
                     if (session.showRevealHint && ratedNote == null) {
                         Text(
                             stringResource(R.string.tap_to_reveal),
@@ -365,13 +365,13 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             if (session.error !is ReviewError.LoadFailed) errorText?.let { Text(it, color = c.again, fontSize = 12.sp) }
         }
 
-        // Zeigt an, dass die Karte weitergeht (Text unter den Knöpfen).
-        // Nur wenn wirklich etwas außer Sicht ist; jede Karte ist wegen der Mindesthöhe minimal scrollbar.
+        // Indicates that the card continues (text under the buttons).
+        // Only if something is really out of sight; every card is minimally scrollable because of the minimum height.
         if (settings.showScrollbar && session.loaded && current != null && scroll.maxValue > with(LocalDensity.current) { 60.dp.toPx() }) {
             androidx.wear.compose.material3.ScrollIndicator(scroll, modifier = Modifier.align(Alignment.CenterEnd))
         }
         if (revealed && current != null) {
-            // Text läuft hinter den Knöpfen aus, bleibt aber erkennbar (dann weiß man, dass man scrollen kann).
+            // Text fades out behind the buttons but stays recognizable (so you know you can scroll).
             Box(
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(96.dp)
                     .background(Brush.verticalGradient(0f to Color.Transparent, 0.4f to c.background.copy(alpha = 0.9f), 0.6f to c.background)),
@@ -386,13 +386,13 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             visible = ratedNote != null,
             enter = androidx.compose.animation.fadeIn(),
             exit = androidx.compose.animation.fadeOut(),
-            // Unten: nach dem Bewerten ist die nächste Karte verdeckt, dort sind keine Knöpfe.
-            // Etwas höher, wo der runde Bildschirm breit genug ist.
+            // At the bottom: after rating, the next card is hidden, so there are no buttons there.
+            // Somewhat higher where the round screen is wide enough.
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = TOAST_BOTTOM),
         ) {
             val note = ratedNote
             if (note != null) {
-                // Untereinander statt nebeneinander: Unten auf dem runden Display ist es zu schmal für beides in einer Zeile.
+                // One below the other instead of side by side: at the bottom of the round display it is too narrow for both in one row.
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -429,14 +429,14 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
     }
 }
 
-/** Einblendung nach einer Bewertung; cardId für Rückgängig. */
+/** Overlay after a rating; cardId for undo. */
 private data class RatedNote(val text: String, val color: Color, val cardId: Long)
 
-/** So lange bleibt die Einblendung mit Rückgängig stehen. */
+/** For this long the overlay with undo stays. */
 private const val RATED_NOTE_MS = 3000L
 
 
-/** Ende eines Decks: was geschafft ist und ein klarer Weg zurück. */
+/** End of a deck: what has been done and a clear way back. */
 @Composable
 private fun DoneNote(deckName: String, studied: Int, onBack: () -> Unit) {
     val c = LocalAnkiColors.current
@@ -476,8 +476,8 @@ private fun DoneNote(deckName: String, studied: Int, onBack: () -> Unit) {
 }
 
 /**
- * Bewertungsknöpfe auf dem unteren Bogen: Wort oben, nächste Wiederholung klein darunter.
- * Die äußeren sitzen höher, wie der Rand des Displays. onRate bekommt den Index (Nochmal, Schwer, Gut, Einfach).
+ * Rating buttons on the lower arc: word on top, next review small below.
+ * The outer ones sit higher, like the edge of the display. onRate gets the index (Again, Hard, Good, Easy).
  */
 @Composable
 private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
@@ -495,7 +495,7 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
         stringResource(R.string.opt_good), stringResource(R.string.opt_easy),
     )
     val buttons = if (twoButtons) listOf(0, 2) else listOf(0, 1, 2, 3)
-    // Ohne Wörter und ohne Zeiten bleibt ein Symbol, damit der Knopf nicht leer ist.
+    // Without words and without times a symbol remains, so the button isn't empty.
     val symbols = listOf("✕", "–", "✓", "★")
     val twoLines = showLabels && showIntervals
     Row(
@@ -514,7 +514,7 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
                     .width(if (twoButtons) 70.dp else 44.dp)
                     .height(if (twoLines) 40.dp else 34.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    // Deckend, damit Kartentext dahinter nicht durchscheint.
+                    // Opaque, so card text behind it doesn't show through.
                     .background(c.background)
                     .background(color.copy(alpha = if (enabled) 0.22f else 0.08f))
                     .clickable(enabled = enabled) { onRate(i) },

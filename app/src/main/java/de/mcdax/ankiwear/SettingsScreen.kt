@@ -54,12 +54,12 @@ import anki.decks.DeckTreeNode
 import kotlinx.coroutines.launch
 
 /**
- * Alle Einstellungsseiten als Navigationsziele unter „settings…“.
- * MainActivity hängt sie mit einer Zeile in ihren SwipeDismissableNavHost.
+ * All settings pages as navigation destinations under "settings…".
+ * MainActivity attaches them to its SwipeDismissableNavHost with one line.
  */
 fun NavGraphBuilder.settingsGraph(nav: NavHostController, repo: AnkiRepository, decks: () -> List<DeckTreeNode>) {
     composable("settings") { SettingsScreen(repo, page = null, onNavigate = { nav.navigate(it) }) }
-    // Untermenüs, damit die Liste auf der Uhr kurz bleibt.
+    // Submenus, so the list stays short on the watch.
     composable("settings/page/{page}") { entry ->
         val page = SettingsPage.entries.firstOrNull { it.name == entry.arguments?.getString("page") } ?: return@composable
         SettingsScreen(repo, page, onNavigate = { nav.navigate(it) })
@@ -72,7 +72,7 @@ fun NavGraphBuilder.settingsGraph(nav: NavHostController, repo: AnkiRepository, 
     composable("settings/decks/hidden") { DeckPickScreen(decks = decks()) }
 }
 
-/** Einstellung mit festen Auswahlwerten; der Wert steht als zweite Zeile unter dem Titel. */
+/** Setting with fixed choices; the value is shown as a second line under the title. */
 private class Choice<T>(
     val key: String,
     @StringRes val title: Int,
@@ -125,7 +125,7 @@ private val mediaChoice = Choice(
 private val choices: List<Choice<*>> =
     listOf(fontSizeChoice, extraChoice, audioChoice, audioOutputChoice, swipeLeftChoice, swipeRightChoice, buttonsChoice, mediaChoice)
 
-/** Untermenüs der Einstellungen; Titel und kurze Beschreibung für die Übersicht. */
+/** Submenus of the settings; title and short description for the overview. */
 private enum class SettingsPage(@StringRes val title: Int, @StringRes val summary: Int) {
     CARDS(R.string.page_cards, R.string.page_cards_summary),
     RATING(R.string.page_rating, R.string.page_rating_summary),
@@ -139,7 +139,7 @@ private fun SettingsScreen(repo: AnkiRepository, page: SettingsPage?, onNavigate
     val context = LocalContext.current
     val store = remember { SettingsStore.get(context) }
     val s by store.flow.collectAsState()
-    // Bewusst ohne remember: beim Zurückkehren von der Anmeldeseite frisch lesen.
+    // Deliberately without remember: read fresh when returning from the sign-in page.
     val account = repo.account
 
     SettingsList {
@@ -196,7 +196,7 @@ private fun SettingsScreen(repo: AnkiRepository, page: SettingsPage?, onNavigate
                 item { Toggle(R.string.set_confirm_exit, s.confirmExit, R.string.set_confirm_exit_hint) { v -> store.update { it.copy(confirmExit = v) } } }
                 item { Toggle(R.string.set_hide_empty, s.hideEmptyDecks) { v -> store.update { it.copy(hideEmptyDecks = v) } } }
                 item {
-                    // Neuer Standard: einzeln umgeklappte Decks folgen wieder dem Standard.
+                    // New default: individually toggled decks follow the default again.
                     Toggle(R.string.set_collapse, s.collapseSubdecks) { v -> store.update { it.copy(collapseSubdecks = v, toggledDecks = emptySet()) } }
                 }
                 if (s.hiddenDecks.isNotEmpty()) {
@@ -234,7 +234,7 @@ private fun ChoiceScreen(choice: Choice<*>, onDone: () -> Unit) {
     }
 }
 
-/** Ausgeblendete Decks ein-/ausschalten. */
+/** Toggle hidden decks on/off. */
 @Composable
 private fun DeckPickScreen(decks: List<DeckTreeNode>) {
     val context = LocalContext.current
@@ -263,7 +263,7 @@ private fun AccountScreen(repo: AnkiRepository, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     var account by remember { mutableStateOf(repo.account) }
     val signedIn = account as? Account.SignedIn
-    // Vorbelegung: gespeicherter Server bzw. die eingebauten Werte; das Passwort nie.
+    // Prefill: stored server or the built-in values; never the password.
     var server by remember { mutableStateOf(signedIn?.endpoint ?: BuildConfig.SYNC_ENDPOINT) }
     var user by remember { mutableStateOf(signedIn?.user ?: BuildConfig.SYNC_USER) }
     var password by remember { mutableStateOf("") }
@@ -293,7 +293,7 @@ private fun AccountScreen(repo: AnkiRepository, onDone: () -> Unit) {
                         when (val r = repo.signIn(server, user.trim(), password)) {
                             SyncResult.Ok -> onDone()
                             is SyncResult.Failed -> error = r.message
-                            // Bei der Anmeldung wird nichts abgeglichen; die Rückfrage kommt beim nächsten Sync.
+                            // Nothing is synced at sign-in; the prompt comes at the next sync.
                             SyncResult.NeedsFullDownload -> onDone()
                         }
                         password = ""
@@ -326,9 +326,9 @@ private fun AccountScreen(repo: AnkiRepository, onDone: () -> Unit) {
     }
 }
 
-// --- Bausteine ---
+// --- Building blocks ---
 
-/** Gemeinsamer Rahmen: ScalingLazyColumn mit Krone, Farben aus dem App-Theme. */
+/** Common frame: ScalingLazyColumn with crown, colors from the app theme. */
 @Composable
 private fun SettingsList(content: ScalingLazyListScope.() -> Unit) {
     val c = LocalAnkiColors.current
@@ -382,7 +382,7 @@ private fun Toggle(@StringRes label: Int, checked: Boolean, @StringRes hint: Int
         onCheckedChange = onChange,
         colors = switchColors(),
         modifier = Modifier.fillMaxWidth(),
-        // Hinweise vollständig zeigen statt mit „…“ abzuschneiden.
+        // Show hints completely instead of cutting off with "…".
         secondaryLabel = hint?.let { { Text(stringResource(it), maxLines = 4) } },
         label = { Text(stringResource(label)) },
     )
@@ -416,7 +416,7 @@ private fun Field(
     val c = LocalAnkiColors.current
     androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth()) {
         Text(stringResource(label), color = c.textDim, fontSize = 11.sp, modifier = Modifier.padding(start = 12.dp, bottom = 2.dp))
-        // Tippen öffnet die Tastatur der Uhr.
+        // Tapping opens the watch keyboard.
         BasicTextField(
             value = value,
             onValueChange = onChange,

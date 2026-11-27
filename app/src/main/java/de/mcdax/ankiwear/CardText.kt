@@ -20,15 +20,15 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 
-/** Ein Baustein einer Kartenseite; die Uhr stellt jeden nativ dar (kein WebView). */
+/** A block of a card page; the watch renders each natively (no WebView). */
 sealed interface Block {
     data class Text(val text: AnnotatedString) : Block
     data class Image(val file: String) : Block
-    /** Image Occlusion Enhanced: Bild plus fertige SVG-Maske darüber. */
+    /** Image Occlusion Enhanced: image plus finished SVG mask on top. */
     data class MaskedImage(val image: String, val mask: String) : Block
-    /** Natives Image Occlusion: Bild plus Formen aus den Cloze-Daten. */
+    /** Native Image Occlusion: image plus shapes from the cloze data. */
     data class OccludedImage(val image: String, val shapes: List<OcclusionShape>, val revealed: Boolean) : Block
-    /** Audio aus der Karte; index verweist auf die AV-Tags dieser Seite. */
+    /** Audio from the card; index refers to the AV tags of this page. */
     data class Audio(val index: Int) : Block
 }
 
@@ -40,20 +40,20 @@ data class OcclusionShape(
     val occludeInactive: Boolean,
 )
 
-/** Eine Kartenseite, aufbereitet für die Uhr. */
+/** A card page, prepared for the watch. */
 data class CardSide(
     val main: List<Block>,
-    // Teil nach <hr id=extra>: Erklärung, die man nur bei Bedarf liest.
+    // Part after <hr id=extra>: explanation you only read if needed.
     val extra: List<Block>,
-    // Inhalte von {{hint:Feld}}, werden erst auf Antippen gezeigt.
+    // Contents of {{hint:Field}}, only shown on tap.
     val hints: List<AnnotatedString>,
-    // Dateinamen der Audio-Tags in Reihenfolge ihrer Indizes (TTS-Tags als null).
+    // File names of the audio tags in order of their indices (TTS tags as null).
     val audio: List<String?>,
-    // Dieselben Einträge als Datei im Medienordner; vom Repository auf IO aufgelöst, null = fehlt.
+    // The same entries as files in the media folder; resolved by the repository on IO, null = missing.
     val audioFiles: List<java.io.File?> = emptyList(),
 )
 
-// Private-Use-Zeichen markieren Lücken durch Html.fromHtml hindurch.
+// Private-use characters mark gaps through Html.fromHtml.
 private const val CLOZE_START = ''
 private const val CLOZE_END = ''
 
@@ -70,12 +70,12 @@ private val HINT_FIELD = Regex(
 private val CLOZE_OPEN = Regex("""<span[^>]*class\s*=\s*["']?cloze["'\s>][^>]*>""", RegexOption.IGNORE_CASE)
 private val SPAN_TAG = Regex("""<(/?)span\b[^>]*>""", RegexOption.IGNORE_CASE)
 
-// Image Occlusion Enhanced: <div id="io-overlay"><img mask></div> <div id="io-original"><img bild></div>
+// Image Occlusion Enhanced: <div id="io-overlay"><img mask></div> <div id="io-original"><img image></div>
 private val IOE = Regex(
     """<div id="io-overlay">\s*(?:<img[^>]*src="([^"]+)"[^>]*>)?\s*</div>\s*<div id="io-original">\s*<img[^>]*src="([^"]+)"[^>]*>\s*</div>""",
     RegexOption.IGNORE_CASE,
 )
-// Natives Image Occlusion: Container mit Bild, Formen als Elemente mit data-shape
+// Native Image Occlusion: container with image, shapes as elements with data-shape
 private val IO_NATIVE_CONTAINER = Regex(
     """<div id="image-occlusion-container">([\s\S]*?)<canvas[^>]*>\s*</canvas>\s*</div>""",
     RegexOption.IGNORE_CASE,
@@ -91,8 +91,8 @@ private val CODE_OPEN = Regex("""<(code|pre)\b[^>]*>""", RegexOption.IGNORE_CASE
 private val CODE_CLOSE = Regex("""</(code|pre)>""", RegexOption.IGNORE_CASE)
 private val HR_ANY = Regex("""<hr\b[^>]*>""", RegexOption.IGNORE_CASE)
 
-// Ultimate-Geography verwendet diese semantischen Klassen für alle vier Vorlagen.
-// Nur flache divs umformen; unbekannte/verschachtelte Inhalte bleiben unverändert.
+// Ultimate Geography uses these semantic classes for all four templates.
+// Only reshape flat divs; unknown/nested content stays unchanged.
 private val GEO_DIV = Regex("""<div\b([^>]*)>((?:(?!<div\b)[\s\S])*?)</div>""", RegexOption.IGNORE_CASE)
 private val GEO_CLASS = Regex("""\bclass\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE)
 private fun isGeography(html: String): Boolean =
@@ -107,7 +107,7 @@ private fun prepareGeography(html: String): String = GEO_DIV.replace(html) { div
         val images = IMG.findAll(content).toList()
         val discard = mutableSetOf<Int>()
         images.zipWithNext().forEachIndexed { index, (blur, clear) ->
-            // Entspricht der CSS-Regel: auf der Frage nur unscharf, auf der Antwort nur klar.
+            // Matches the CSS rule: on the question only blurred, on the answer only sharp.
             if ("-blur" in blur.groupValues[1] && "-blur" !in clear.groupValues[1] &&
                 content.substring(blur.range.last + 1, clear.range.first).isBlank()) {
                 discard += if ("value--front" in classes) index + 1 else index
@@ -124,18 +124,18 @@ private fun prepareGeography(html: String): String = GEO_DIV.replace(html) { div
     "<div${div.groupValues[1]}>$content</div>"
 }
 
-/** Antwortseite: nur der Teil nach <hr id=answer>, damit die Antwort oben steht. */
+/** Answer side: only the part after <hr id=answer>, so the answer is at the top. */
 fun answerPart(answerHtml: String): String {
     val m = HR_ANSWER.find(answerHtml) ?: return answerHtml
     val answer = answerHtml.substring(m.range.last + 1)
-    // Hauptstadt-Antwort zuerst, aber das gefragte Land und seine Hinweise nicht verlieren.
+    // Capital answer first, but don't lose the asked country and its hints.
     return if (isGeography(answerHtml)) answer + "<hr>" + answerHtml.substring(0, m.range.first)
         else answer
 }
 
 /**
- * [html] ist die gerenderte Seite, in der Audio schon als [anki:play:q:N] steht (extractAvTags),
- * [isAnswer] steuert, ob native IO-Formen aufgedeckt gezeichnet werden.
+ * [html] is the rendered page, in which audio already appears as [anki:play:q:N] (extractAvTags),
+ * [isAnswer] controls whether native IO shapes are drawn uncovered.
  */
 fun parseSide(html: String, audio: List<String?>, isAnswer: Boolean): CardSide {
     var h = STRIP_BLOCKS.replace(html, "")
@@ -144,7 +144,7 @@ fun parseSide(html: String, audio: List<String?>, isAnswer: Boolean): CardSide {
     val hints = HINT_FIELD.findAll(h).map { toAnnotated(it.groupValues[1]) }.toList()
     h = HINT_FIELD.replace(h, "")
 
-    // Sonderblöcke durch Platzhalter ersetzen, damit Text davor/danach erhalten bleibt.
+    // Replace special blocks with placeholders so text before/after is preserved.
     val special = mutableListOf<Block>()
     fun mark(b: Block): String {
         special += b
@@ -161,7 +161,7 @@ fun parseSide(html: String, audio: List<String?>, isAnswer: Boolean): CardSide {
     }
     h = IMG.replace(h) { mark(Block.Image(it.groupValues[1])) }
     h = PLAY_TAG.replace(h) { mark(Block.Audio(it.groupValues[1].toInt())) }
-    // Die versteckten Cloze-Daten des nativen IO nicht als Text zeigen.
+    // Don't show the hidden cloze data of native IO as text.
     h = h.replace(HIDDEN_DIV, "")
 
     val parts = HR_EXTRA.split(h, limit = 2)
@@ -179,7 +179,7 @@ private fun toBlocks(html: String, special: List<Block>): List<Block> {
     for (m in MARKER.findAll(html)) {
         addText(out, html.substring(pos, m.range.first))
         val block = special[m.groupValues[1].toInt()]
-        // Audio direkt hinter Text: als eigene Zeile, aber mehrere Audios zusammenhängend.
+        // Audio directly after text: its own line, but keep several audios together.
         out += block
         pos = m.range.last + 1
     }
@@ -206,14 +206,14 @@ private fun nativeShapes(html: String): List<OcclusionShape> =
                 val xy = p.split(',')
                 if (xy.size == 2) (xy[0].toFloatOrNull() ?: return@mapNotNull null) to (xy[1].toFloatOrNull() ?: return@mapNotNull null) else null
             },
-            // Vorderseite: class="cloze", Rückseite: class="cloze-highlight"; alle anderen "cloze-inactive".
+            // Front: class="cloze", back: class="cloze-highlight"; all others "cloze-inactive".
             active = cls.split(' ').any { it == "cloze" || it == "cloze-highlight" },
-            // Steht nur an der gefragten Form und bedeutet: alle übrigen Formen ebenfalls verdecken.
+            // Appears only on the asked shape and means: hide all other shapes as well.
             occludeInactive = a["data-occludeinactive"] == "1",
         )
     }.toList()
 
-/** Ersetzt <span class="cloze">…</span> (auch verschachtelt) durch Markierungszeichen. */
+/** Replaces <span class="cloze">…</span> (also nested) with marker characters. */
 private fun markClozes(html: String): String {
     val out = StringBuilder()
     var pos = 0
@@ -243,13 +243,13 @@ private fun toAnnotated(html: String): AnnotatedString {
     val prepared = markClozes(html)
         .replace(LI_OPEN, "<br>• ")
         .replace(LIST_TAGS, "")
-        // Code als Monospace; Html.fromHtml kennt nur <tt>.
+        // Code as monospace; Html.fromHtml only knows <tt>.
         .replace(CODE_OPEN, "<tt>")
         .replace(CODE_CLOSE, "</tt>")
         .replace(HR_ANY, "<br>")
     val spanned = Html.fromHtml(prepared, Html.FROM_HTML_MODE_COMPACT)
 
-    // Markierungen entfernen, Positionen umrechnen, Lückenbereiche merken.
+    // Remove markers, convert positions, remember gap ranges.
     val raw = spanned.toString()
     val bullets = inlineBullets(raw)
     val map = IntArray(raw.length + 1)
@@ -272,13 +272,13 @@ private fun toAnnotated(html: String): AnnotatedString {
                 clozes += clozeStart until text.length
                 clozeStart = -1
             }
-            '￼' -> Unit // Objektzeichen von Html.fromHtml (z. B. übrig gebliebene Bilder)
+            '￼' -> Unit // Object character from Html.fromHtml (e.g. leftover images)
             else -> text.append(raw[i])
         }
     }
     map[raw.length] = text.length
 
-    // Nur am Rand trimmen, damit Positionen stabil bleiben.
+    // Trim only at the edges so positions stay stable.
     val lead = text.indexOfFirst { !it.isWhitespace() }.let { if (it < 0) text.length else it }
     val trail = text.indexOfLast { !it.isWhitespace() } + 1
     if (lead >= trail) return AnnotatedString("")
@@ -298,8 +298,8 @@ private fun toAnnotated(html: String): AnnotatedString {
             span is RelativeSizeSpan -> SpanStyle(fontSize = span.sizeChange.em)
             span is UnderlineSpan -> SpanStyle(textDecoration = TextDecoration.Underline)
             span is TypefaceSpan && span.family == "monospace" -> SpanStyle(fontFamily = FontFamily.Monospace)
-            // Syntaxfarben aus Code-Blöcken behalten; sie sind für dunklen Hintergrund gedacht.
-            // Sehr dunkle Vorlagenfarben (für weißen Hintergrund gedacht) würden auf Schwarz verschwinden.
+            // Keep syntax colors from code blocks; they are meant for a dark background.
+            // Very dark template colors (meant for a white background) would vanish on black.
             span is ForegroundColorSpan && Color(span.foregroundColor).luminance() > 0.2f ->
                 SpanStyle(color = Color(span.foregroundColor))
             else -> null
@@ -315,9 +315,9 @@ private fun toAnnotated(html: String): AnnotatedString {
 }
 
 /**
- * Aufzählungen mit hängendem Einzug: umbrochene Zeilen beginnen unter dem Text, nicht unter dem Punkt.
- * Absatz-Stile in Compose trennen selbst; ein zusätzliches „\n“ ergäbe Leerzeilen. Deshalb wird jede Zeile
- * ein eigener Absatz und die Zeilenumbrüche entfallen.
+ * Bulleted lists with hanging indent: wrapped lines start under the text, not under the bullet.
+ * Paragraph styles in Compose separate on their own; an extra "\n" would yield blank lines. So each line
+ * becomes its own paragraph and the line breaks are dropped.
  */
 private fun AnnotatedString.withHangingBullets(): AnnotatedString {
     if (!text.startsWith("• ") && !text.contains("\n• ")) return this
@@ -326,7 +326,7 @@ private fun AnnotatedString.withHangingBullets(): AnnotatedString {
     while (start <= text.length) {
         val end = text.indexOf('\n', start).let { if (it < 0) text.length else it }
         val from = out.length
-        // Leere Zeile als Leerzeichen, sonst verschwände der leere Absatz.
+        // Empty line as a space, otherwise the empty paragraph would vanish.
         if (end > start) out.append(subSequence(start, end)) else out.append(" ")
         val indent = if (text.startsWith("• ", start)) TextIndent(firstLine = 0.sp, restLine = 0.75.em) else TextIndent.None
         out.addStyle(ParagraphStyle(textIndent = indent), from, out.length)
@@ -337,15 +337,15 @@ private fun AnnotatedString.withHangingBullets(): AnnotatedString {
 
 const val CLOZE_TAG = "cloze"
 
-/** Aufzählungen, die in einer Zeile mit „ · “ getrennt sind, zeigt die Uhr untereinander. */
+/** Lists separated by " · " on one line are shown one below the other on the watch. */
 private const val INLINE_SEPARATOR = " · "
 
 internal enum class Bullet { SEPARATOR, AFTER_COLON, BEFORE }
 
 /**
- * Wo im Text Aufzählungspunkte entstehen: jedes „ · “ wird Zeilenumbruch + „• “.
- * Der erste Eintrag einer solchen Zeile bekommt ebenfalls „• “, entweder nach einem Doppelpunkt
- * („Nenne …: A · B“ → Einleitung, dann Liste) oder am Zeilenanfang.
+ * Where bullets appear in the text: each " · " becomes line break + "• ".
+ * The first entry of such a line also gets "• ", either after a colon
+ * ("Name …: A · B" → intro, then list) or at the start of the line.
  */
 internal fun inlineBullets(raw: String): Map<Int, Bullet> {
     val out = HashMap<Int, Bullet>()
@@ -369,7 +369,7 @@ internal fun inlineBullets(raw: String): Map<Int, Bullet> {
     return out
 }
 
-/** Färbt die markierten Lücken ein; Vorder- und Rückseite verschieden. */
+/** Colors the marked gaps; front and back differ. */
 fun AnnotatedString.withClozeColors(bg: Color, fg: Color): AnnotatedString {
     val marks = getStringAnnotations(CLOZE_TAG, 0, length)
     if (marks.isEmpty()) return this

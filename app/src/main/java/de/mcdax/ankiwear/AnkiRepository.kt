@@ -24,54 +24,54 @@ import net.ankiweb.rsdroid.exceptions.BackendInvalidInputException
 import java.io.File
 import kotlin.coroutines.resume
 
-/** Eine Karte, wie die Uhr sie zeigt. */
+/** A card as the watch shows it. */
 data class ReviewCard(
     val queued: QueuedCards.QueuedCard,
     val question: CardSide,
     val answer: CardSide,
-    // Intervalle für Nochmal/Schwer/Gut/Leicht, z. B. "<1m", "6m", "1d", "4d"
+    // Intervals for Again/Hard/Good/Easy, e.g. "<1m", "6m", "1d", "4d"
     val intervals: List<String>,
     val shownAtMillis: Long,
 )
 
-/** Ergebnis eines Syncs bzw. einer Anmeldung. */
+/** Result of a sync or sign-in. */
 sealed interface SyncResult {
     data object Ok : SyncResult
     data class Failed(val message: String) : SyncResult
     /**
-     * Server und Uhr haben beide unvereinbare Änderungen (z. B. Notiztyp am PC geändert, anderes Konto).
-     * Eine Seite muss gewinnen; deshalb erst nach Rückfrage: sync(resolve = …).
+     * Server and watch both have incompatible changes (e.g. note type changed on the PC, different account).
+     * One side has to win, so only after asking: sync(resolve = …).
      */
     data object NeedsFullDownload : SyncResult
 }
 
-/** Wie ein Konflikt aufgelöst wird, den der Nutzer bestätigt hat. */
+/** How a conflict is resolved once the user has confirmed it. */
 enum class ConflictChoice {
-    /** Sammlung der Uhr durch die vom Server ersetzen; Bewertungen der Uhr seit dem letzten Abgleich gehen verloren. */
+    /** Replace the watch's collection with the server's; ratings made on the watch since the last sync are lost. */
     USE_SERVER,
-    /** Server mit der Sammlung der Uhr überschreiben; Änderungen vom PC seit dem letzten Abgleich gehen verloren. */
+    /** Overwrite the server with the watch's collection; changes made on the PC since the last sync are lost. */
     USE_WATCH,
 }
 
 /**
- * Hält die Anki-Sammlung auf der Uhr und spricht direkt mit dem Sync-Server.
- * Suspendierende Kern-Aufrufe laufen serialisiert auf Dispatchers.IO.
- * Initialisierung erfolgt ebenfalls auf IO (App und Komplikation).
+ * Holds the Anki collection on the watch and talks directly to the sync server.
+ * Suspending core calls run serialized on Dispatchers.IO.
+ * Initialization also happens on IO (app and complication).
  */
 class AnkiRepository private constructor(private val context: Context) {
     companion object {
         @Volatile private var instance: AnkiRepository? = null
 
-        /** Ob in diesem Prozess die Sammlung schon offen ist (dann ist frisches Rechnen billig). */
+        /** Whether the collection is already open in this process (then computing fresh is cheap). */
         val isLoaded: Boolean get() = instance != null
 
-        /** Genau ein Backend pro Prozess, auch wenn die Activity neu erstellt wird. */
+        /** Exactly one backend per process, even when the activity is recreated. */
         fun get(context: Context): AnkiRepository =
             instance ?: synchronized(this) {
                 instance ?: AnkiRepository(context.applicationContext).also { instance = it }
             }
 
-        // Das Backend-Artefakt lädt seine native Bibliothek nicht selbst (AnkiDroid macht das beim App-Start).
+        // The backend artifact does not load its native library itself (AnkiDroid does that at app start).
         init {
             val start = android.os.SystemClock.elapsedRealtime()
             System.loadLibrary("rsdroid")
@@ -79,7 +79,7 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
-    // Sprache der Uhr, damit der Kern Intervalle („2 T“) und Meldungen wie Anki selbst übersetzt.
+    // Watch language, so the core translates intervals ("2 d") and messages like Anki itself.
     private val backend: Backend = BackendFactory.getBackend(
         context.resources.configuration.locales.let { l -> (0 until l.size()).map { l[it].toLanguageTag() } },
     )
@@ -91,30 +91,30 @@ class AnkiRepository private constructor(private val context: Context) {
     private val mediaRoot by lazy { mediaDir.canonicalFile.toPath() }
 
     /**
-     * Datei aus dem Medienordner; null, wenn (noch) nicht synchronisiert oder außerhalb des Ordners.
-     * Macht Dateisystemzugriffe, daher nur auf IO aufrufen.
+     * File from the media folder; null if not (yet) synced or outside the folder.
+     * Touches the file system, so call only on IO.
      */
     fun mediaFile(name: String): File? = runCatching {
         File(mediaDir, android.net.Uri.decode(name)).canonicalFile
-            // Pfad-Komponenten vergleichen, nicht Zeichen: sonst passte auch „collection.media.db“.
+            // Compare path components, not characters: otherwise "collection.media.db" would match too.
             .takeIf { it.toPath().startsWith(mediaRoot) && it.isFile }
     }.getOrNull()
     private var auth: SyncAuth? = null
-    // Gespeicherter Host-Key und Uhr-Einstellungen (WLAN, Medien)
+    // Stored host key and watch settings (Wi-Fi, media)
     private val credentials = SyncCredentials(context)
     private val settings = SettingsStore.get(context)
 
-    // Der Kern verträgt keine gleichzeitigen Aufrufe; während des Vollabgleichs ist die Sammlung zu.
+    // The core cannot handle concurrent calls; during a full sync the collection is closed.
     private val lock = Mutex()
-    // Netzwerkbindung und Anmeldung/Sync laufen nie doppelt; getrennt von [lock], damit das Warten
-    // auf WLAN und der Medienabgleich das Lernen nicht blockieren.
+    // Network binding and sign-in/sync never run twice at once; separate from [lock] so waiting
+    // for Wi-Fi and the media sync do not block studying.
     private val networkLock = Mutex()
 
-    // Undo-Schritt der letzten Bewertung; Rückgängig nimmt nur genau diesen zurück.
+    // Undo step of the last rating; undo reverts exactly that one.
     private var lastAnswerStep = -1
 
-    // Nur vorbereitete Anzeige, niemals gespeicherte Scheduler-Zustände.
-    // Ausschließlich unter lock lesen/schreiben; klein halten für die ARM32-Uhr.
+    // Prepared display only, never stored scheduler states.
+    // Read/write only under lock; keep small for the ARM32 watch.
     private val renderedCards = linkedMapOf<Long, Pair<CardSide, CardSide>>()
     private var renderGeneration = 0L
     private fun invalidateRenderedCards() {
@@ -122,7 +122,7 @@ class AnkiRepository private constructor(private val context: Context) {
         renderGeneration++
     }
 
-    /** Optionales Vorladen: kein Deckwechsel, kein Bewerten, kein Netzwerk. */
+    /** Optional preloading: no deck switch, no rating, no network. */
     suspend fun preloadUpcomingCards() {
         val (generation, ids) = io {
             renderGeneration to backend.getQueuedCards(4, false).cardsList.map { it.card.id }
@@ -152,19 +152,19 @@ class AnkiRepository private constructor(private val context: Context) {
         try {
             openCollection()
         } catch (_: BackendInvalidInputException.BackendCollectionAlreadyOpenException) {
-            // Scheiterte der Vollabgleich vor dem Schließen, ist die Sammlung noch offen.
+            // If the full sync failed before closing, the collection is still open.
         }
     }
 
     /**
-     * Wear OS schickt Verkehr sonst über das Handy (Bluetooth), von dort ist das Heimnetz
-     * nicht unbedingt erreichbar. Deshalb für die Dauer des Syncs ausdrücklich WLAN anfordern.
-     * Das gilt auch für die Sockets des Rust-Kerns, weil die Bindung prozessweit ist.
+     * Wear OS otherwise routes traffic via the phone (Bluetooth), from where the home network
+     * is not necessarily reachable. So explicitly request Wi-Fi for the duration of the sync.
+     * This also applies to the Rust core's sockets, because the binding is process-wide.
      */
     private suspend fun <T> onWifi(block: suspend () -> T): T {
         val cm = context.getSystemService(ConnectivityManager::class.java)
         var callback: ConnectivityManager.NetworkCallback? = null
-        // Alles in try: auch bei Abbruch während des Wartens muss die WLAN-Anforderung zurückgegeben werden.
+        // Everything in try: even if cancelled while waiting, the Wi-Fi request must be released.
         try {
             val network = withTimeoutOrNull(15_000) {
                 suspendCancellableCoroutine<Network> { cont ->
@@ -183,15 +183,15 @@ class AnkiRepository private constructor(private val context: Context) {
                     )
                 }
             }
-            // Kein WLAN in 15 s: Standardnetz nehmen, meist das Handy per Bluetooth.
-            // Ist das das eigene LTE der Uhr, nur mit „Auch über Mobilfunk abgleichen“.
+            // No Wi-Fi within 15 s: use the default network, usually the phone via Bluetooth.
+            // If that is the watch's own LTE, only with "Also sync over cellular".
             val target = network ?: cm.activeNetwork?.also { fallback ->
                 val caps = cm.getNetworkCapabilities(fallback)
                 val cellular = caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) &&
                     !caps.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH)
                 if (cellular && !settings.current.cellularSync) error(context.getString(R.string.no_wifi))
             }
-            // Fest binden, damit der Kern nicht mitten im Sync auf ein anderes Netz (z. B. LTE) wechselt.
+            // Bind firmly so the core does not switch to another network (e.g. LTE) mid-sync.
             if (target != null) cm.bindProcessToNetwork(target)
             return block()
         } finally {
@@ -200,7 +200,7 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
-    // Reihenfolge: gespeicherter Host-Key, sonst (nie angemeldet) die BuildConfig-Werte.
+    // Order: stored host key, otherwise (never signed in) the BuildConfig values.
     private fun login(): SyncAuth = auth ?: credentials.load()?.also { auth = it } ?: run {
         if (credentials.account == Account.SignedOut) error(context.getString(R.string.not_signed_in))
         backend.syncLogin(
@@ -212,7 +212,7 @@ class AnkiRepository private constructor(private val context: Context) {
         ).also { auth = it }
     }
 
-    /** Anmeldung aus den Einstellungen; gespeichert wird nur der Host-Key. */
+    /** Sign-in from the settings; only the host key is stored. */
     suspend fun signIn(endpoint: String, user: String, password: String): SyncResult = withContext(Dispatchers.IO) {
         networkLock.withLock {
             try {
@@ -242,7 +242,7 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
-    /** Abmelden: Host-Key löschen, kein Rückfall auf BuildConfig mehr. */
+    /** Sign out: delete the host key, no fallback to BuildConfig anymore. */
     suspend fun signOut() = io {
         invalidateRenderedCards()
         credentials.clear()
@@ -252,10 +252,10 @@ class AnkiRepository private constructor(private val context: Context) {
     val account: Account get() = credentials.account
 
     /**
-     * Normaler Sync; beim ersten Mal (leere Sammlung auf der Uhr) ein Vollabgleich als Download.
-     * Ein Vollupload von der Uhr wird bewusst nie ausgelöst, er würde den Server überschreiben.
-     * Die Kern-Sperre gilt nur für den Abgleich der Sammlung; Warten auf WLAN und der Medienabgleich
-     * laufen daneben, damit man währenddessen weiterlernen kann.
+     * Normal sync; the first time (empty collection on the watch) a full sync as download.
+     * A full upload from the watch is deliberately never triggered, it would overwrite the server.
+     * The core lock only covers the collection sync; waiting for Wi-Fi and the media sync
+     * run alongside so you can keep studying meanwhile.
      */
     suspend fun sync(resolve: ConflictChoice? = null): SyncResult = withContext(Dispatchers.IO) {
         networkLock.withLock {
@@ -276,12 +276,12 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
-    /** Abgleich der Sammlung unter [lock]; liefert die (ggf. auf den AnkiWeb-Host umgestellte) Anmeldung mit. */
+    /** Collection sync under [lock]; also returns the sign-in (possibly switched to the AnkiWeb host). */
     private fun syncCollectionLocked(resolve: ConflictChoice?): Pair<SyncResult, SyncAuth?> {
         var auth = login()
         val result = backend.syncCollection(auth, false)
-        // AnkiWeb nennt im ersten Abgleich den zuständigen Sync-Host. Vollabgleich und Medien müssen dorthin,
-        // sonst antwortet der Standard-Host mit 400 „missing original size“ (so macht es auch Anki am Desktop).
+        // On the first sync AnkiWeb names the responsible sync host. Full sync and media must go there,
+        // otherwise the default host answers with 400 "missing original size" (desktop Anki does the same).
         if (result.hasNewEndpoint() && result.newEndpoint.isNotEmpty() && result.newEndpoint != auth.endpoint) {
             auth = auth.toBuilder().setEndpoint(result.newEndpoint).build()
             this.auth = auth
@@ -289,16 +289,16 @@ class AnkiRepository private constructor(private val context: Context) {
         }
         when (result.required) {
             ChangesRequired.NO_CHANGES, ChangesRequired.NORMAL_SYNC -> Unit
-            // FULL_DOWNLOAD: Die Uhr hat nichts Eigenes (Erstabgleich), Herunterladen verliert nichts.
-            // FULL_SYNC: Beide Seiten haben Änderungen; eine Seite verliert, also nur nach Rückfrage.
+            // FULL_DOWNLOAD: the watch has nothing of its own (first sync), downloading loses nothing.
+            // FULL_SYNC: both sides have changes; one side loses, so only after asking.
             ChangesRequired.FULL_DOWNLOAD, ChangesRequired.FULL_SYNC -> {
                 if (result.required == ChangesRequired.FULL_SYNC && resolve == null) {
                     return SyncResult.NeedsFullDownload to null
                 }
-                // Hochladen nur, wenn der Nutzer es bei einem Konflikt ausdrücklich bestätigt hat; sonst nie.
+                // Upload only if the user explicitly confirmed it for a conflict; never otherwise.
                 val upload = result.required == ChangesRequired.FULL_SYNC && resolve == ConflictChoice.USE_WATCH
-                // Der Kern schließt die Sammlung für den Vollabgleich selbst (wie Ankis close_for_full_sync);
-                // danach muss sie wieder geöffnet werden.
+                // The core closes the collection itself for the full sync (like Anki's close_for_full_sync);
+                // it has to be reopened afterwards.
                 try {
                     backend.fullUploadOrDownload(
                         FullUploadOrDownloadRequest.newBuilder()
@@ -320,7 +320,7 @@ class AnkiRepository private constructor(private val context: Context) {
         return SyncResult.Ok to auth
     }
 
-    /** Der Kern gleicht Medien in einem eigenen Thread ab; hier nur starten und auf das Ende warten. */
+    /** The core syncs media in its own thread; here only start it and wait for the end. */
     private suspend fun syncMedia(auth: SyncAuth) {
         lock.withLock { backend.syncMedia(auth) }
         try {
@@ -333,7 +333,7 @@ class AnkiRepository private constructor(private val context: Context) {
 
     private val _deckTree = kotlinx.coroutines.flow.MutableStateFlow<List<DeckTreeNode>>(emptyList())
 
-    /** Zuletzt geladene Deckliste; jede Abfrage per [decks] aktualisiert sie, die Oberfläche beobachtet sie. */
+    /** Most recently loaded deck list; every [decks] query updates it, the UI observes it. */
     val deckTree: kotlinx.coroutines.flow.StateFlow<List<DeckTreeNode>> get() = _deckTree
 
     suspend fun decks(): List<DeckTreeNode> = withContext(Dispatchers.IO) {
@@ -360,7 +360,7 @@ class AnkiRepository private constructor(private val context: Context) {
         result.rowsList.firstOrNull()?.getFields(0)?.longValue?.toInt() ?: 0
     }
 
-    /** Einmal bei der Deckwahl; schreibt die Config, daher nicht pro Karte. */
+    /** Once when choosing a deck; writes the config, so not per card. */
     suspend fun selectDeck(deckId: Long) = io { backend.setCurrentDeck(deckId) }
 
     suspend fun nextCard(): ReviewCard? = io {
@@ -368,7 +368,7 @@ class AnkiRepository private constructor(private val context: Context) {
         build(queued)
     }
 
-    /** Nur für Tests im Emulator: eine bestimmte Karte anzeigen (adb ... --el card <id>). */
+    /** Only for emulator tests: show a specific card (adb ... --el card <id>). */
     suspend fun cardById(cardId: Long): ReviewCard = io {
         build(
             QueuedCards.QueuedCard.newBuilder()
@@ -389,7 +389,7 @@ class AnkiRepository private constructor(private val context: Context) {
         val q = backend.extractAvTags(nodes(rendered.questionNodesList), true)
         val a = backend.extractAvTags(nodes(rendered.answerNodesList), false)
         fun files(tags: List<anki.card_rendering.AVTag>) = tags.map { if (it.hasSoundOrVideo()) it.soundOrVideo else null }
-        // Audiodateien gleich hier (IO) auflösen, nicht später in der Oberfläche.
+        // Resolve audio files right here (IO), not later in the UI.
         fun CardSide.withFiles() = copy(audioFiles = audio.map { name -> name?.let(::mediaFile) })
         val sides = parseSide(q.text, files(q.avTagsList), isAnswer = false).withFiles() to
             parseSide(answerPart(a.text), files(a.avTagsList), isAnswer = true).withFiles()
@@ -404,7 +404,7 @@ class AnkiRepository private constructor(private val context: Context) {
             queued = queued,
             question = sides.first,
             answer = sides.second,
-            // Immer frisch: keine geplanten Zustände/Intervalle aus dem Vorladepuffer.
+            // Always fresh: no scheduled states/intervals from the preload buffer.
             intervals = backend.describeNextStates(queued.states),
             shownAtMillis = System.currentTimeMillis(),
         )
@@ -434,11 +434,11 @@ class AnkiRepository private constructor(private val context: Context) {
     }
 
     /**
-     * Letzte Bewertung zurücknehmen (Ankis eigenes Rückgängig); danach die Karte wieder zeigen.
-     * Nur wenn die letzte rückgängig machbare Aktion wirklich diese Bewertung ist.
+     * Undo the last rating (Anki's own undo); then show the card again.
+     * Only if the last undoable action really is this rating.
      */
     suspend fun undoAnswer(cardId: Long): ReviewCard = io {
-        check(lastAnswerStep >= 0 && backend.getUndoStatus().lastStep == lastAnswerStep) { "Nichts zum Rückgängigmachen" }
+        check(lastAnswerStep >= 0 && backend.getUndoStatus().lastStep == lastAnswerStep) { "Nothing to undo" }
         backend.undo()
         lastAnswerStep = -1
         renderedCards.remove(cardId)

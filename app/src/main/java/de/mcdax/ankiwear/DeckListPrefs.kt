@@ -24,10 +24,10 @@ import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.Text
 import anki.decks.DeckTreeNode
 
-/** Eine Zeile der Deckliste, nachdem Einstellungen (leer, angeheftet, ausgeblendet, eingeklappt) angewandt sind. */
+/** One row of the deck list after settings (empty, pinned, hidden, collapsed) have been applied. */
 data class DeckEntry(
     val deck: DeckTreeNode,
-    // Einrückung wie DeckTreeNode.level; angeheftete Decks stehen oben immer auf Ebene 1.
+    // Indentation like DeckTreeNode.level; pinned decks at the top are always at level 1.
     val level: Int,
     val hasChildren: Boolean,
     val collapsed: Boolean,
@@ -37,9 +37,9 @@ data class DeckEntry(
 
 private fun DeckTreeNode.isEmpty() = newCount + learnCount + reviewCount == 0
 
-/** [decks] in Vorordnung, wie AnkiRepository.decks() sie liefert. */
+/** [decks] in pre-order, as AnkiRepository.decks() returns them. */
 fun arrangeDecks(decks: List<DeckTreeNode>, s: AppSettings): List<DeckEntry> {
-    // Ausgeblendete Decks verschwinden samt Unterdecks.
+    // Hidden decks disappear together with their subdecks.
     val visible = mutableListOf<Int>()
     var skipBelow = Int.MAX_VALUE
     decks.forEachIndexed { i, d ->
@@ -48,7 +48,7 @@ fun arrangeDecks(decks: List<DeckTreeNode>, s: AppSettings): List<DeckEntry> {
         if (d.deckId in s.hiddenDecks) skipBelow = d.level else visible += i
     }
     fun hasChildren(i: Int) = decks.getOrNull(i + 1)?.let { it.level > decks[i].level } == true
-    // Leer heißt hier: das Deck und alle Unterdecks haben nichts zu tun.
+    // Empty here means: the deck and all subdecks have nothing to do.
     fun subtreeEmpty(i: Int): Boolean {
         val level = decks[i].level
         var j = i
@@ -81,7 +81,7 @@ fun arrangeDecks(decks: List<DeckTreeNode>, s: AppSettings): List<DeckEntry> {
     return pinned + tree
 }
 
-/** Kleines Menü nach Langdruck auf ein Deck: anheften/lösen oder ausblenden. */
+/** Small menu after a long press on a deck: pin/unpin or hide. */
 @Composable
 fun DeckMenu(
     deck: DeckTreeNode,
@@ -96,7 +96,7 @@ fun DeckMenu(
         Modifier
             .fillMaxSize()
             .background(c.background.copy(alpha = 0.94f))
-            // Tippen daneben schließt das Menü.
+            // Tapping outside closes the menu.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
         contentAlignment = Alignment.Center,
     ) {

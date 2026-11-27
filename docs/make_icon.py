@@ -7,7 +7,7 @@ im=Image.new("RGBA",(S,S),(0,0,0,0)); d=ImageDraw.Draw(im)
 d.ellipse((0,0,S-1,S-1),fill=BLUE)
 def circ(r,fill): d.ellipse((c-r,c-r,c+r,c+r),fill=fill)
 import math
-# Krone rechts und Lünette mit Minutenstrichen, damit der Ring als Uhr erkennbar ist.
+# Crown on the right and bezel with minute marks so the ring reads as a watch.
 d.rounded_rectangle((c+S*0.40,c-S*0.06,c+S*0.475,c+S*0.06),radius=S*0.02,fill=WHITE)
 circ(S*0.43,WHITE); circ(S*0.385,BLUE); circ(S*0.37,WHITE)
 for i in range(60):

@@ -47,8 +47,8 @@ import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Einstellungen für tief verschachtelte Teile der Lernansicht. */
-// compositionLocalOf: Bei einer Änderung zeichnen sich nur die Stellen neu, die Einstellungen lesen.
+/** Settings for deeply nested parts of the study view. */
+// compositionLocalOf: on change only the places that read the settings recompose.
 internal val LocalSettings = androidx.compose.runtime.compositionLocalOf { AppSettings() }
 
 private val AppSettings.textScale: Float
@@ -58,13 +58,13 @@ private val AppSettings.textScale: Float
         FontSize.LARGE -> 1.2f
     }
 
-/** Was die Bausteine einer Seite zum Darstellen brauchen. */
+/** What the blocks of a page need to render. */
 internal class BlockContext(
     val repo: AnkiRepository,
     val side: CardSide,
     val audio: CardAudio,
     val cloze: Pair<Color, Color>,
-    /** Antwortseite: Bilder zeigen ein Lupensymbol und vergrößern beim Antippen. */
+    /** Answer side: images show a magnifier icon and enlarge on tap. */
     val zoomable: Boolean,
     val onImageTap: (ImageBitmap) -> Unit,
 )
@@ -75,7 +75,7 @@ internal fun CardSide.audioIndexes(): List<Int> =
 @Composable
 internal fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
     val c = LocalAnkiColors.current
-    // Mehrere Audio-Knöpfe hintereinander in einer Zeile sammeln.
+    // Collect several consecutive audio buttons into one row.
     var i = 0
     while (i < blocks.size) {
         val b = blocks[i]
@@ -112,7 +112,7 @@ internal fun Blocks(blocks: List<Block>, ctx: BlockContext, dim: Boolean) {
 private fun AudioButton(index: Int, ctx: BlockContext) {
     val c = LocalAnkiColors.current
     val output = LocalSettings.current.audioOutput
-    // Schon im Repository (IO) aufgelöst, keine Dateizugriffe beim Zeichnen.
+    // Already resolved in the repository (IO), no file access while drawing.
     val file = ctx.side.audioFiles.getOrNull(index)
     Box(
         Modifier
@@ -133,7 +133,7 @@ private fun ImageBlock(block: Block, ctx: BlockContext) {
     var bitmap by remember(block) { mutableStateOf<ImageBitmap?>(null) }
     var missing by remember(block) { mutableStateOf(false) }
     LaunchedEffect(block) {
-        // Pfade prüfen und dekodieren außerhalb des Main-Threads.
+        // Check and decode paths off the main thread.
         val bmp = withContext(Dispatchers.IO) { when (block) {
             is Block.Image -> ctx.repo.mediaFile(block.file)?.let { CardImages.load(it, assets) }
             is Block.MaskedImage -> ctx.repo.mediaFile(block.image)?.let { CardImages.loadMasked(it, ctx.repo.mediaFile(block.mask)) }
@@ -152,7 +152,7 @@ private fun ImageBlock(block: Block, ctx: BlockContext) {
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Sehr hohe Bilder begrenzen; auf der Antwort öffnet Antippen die Zoomansicht.
+                    // Limit very tall images; on the answer, tapping opens the zoom view.
                     .heightIn(max = 220.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { ctx.onImageTap(bmp) },
@@ -175,7 +175,7 @@ private fun ImageBlock(block: Block, ctx: BlockContext) {
     }
 }
 
-/** Vollbild-Zoom: Finger oder Krone zoomen, Ziehen verschiebt, Antippen, ✕ oder Zurück schließt. */
+/** Fullscreen zoom: finger or crown zooms, dragging pans, tap, ✕ or back closes. */
 @Composable
 internal fun ZoomOverlay(bitmap: ImageBitmap, onClose: () -> Unit) {
     val c = LocalAnkiColors.current
@@ -183,7 +183,7 @@ internal fun ZoomOverlay(bitmap: ImageBitmap, onClose: () -> Unit) {
     var offset by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
     val focus = remember { FocusRequester() }
-    // Verschieben nur so weit, dass das Bild den Bildschirm nicht verlässt.
+    // Pan only so far that the image doesn't leave the screen.
     fun clamp(o: Offset, s: Float): Offset {
         val maxX = size.width * (s - 1f) / 2f
         val maxY = size.height * (s - 1f) / 2f
@@ -193,7 +193,7 @@ internal fun ZoomOverlay(bitmap: ImageBitmap, onClose: () -> Unit) {
         scale = (scale * zoom).coerceIn(1f, 6f)
         offset = clamp(offset + pan, scale)
     }
-    // Zurück schließt erst die Vergrößerung, nicht gleich die Karte.
+    // Back first closes the zoom, not the card right away.
     androidx.activity.compose.BackHandler(onBack = onClose)
     var hint by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
@@ -255,7 +255,7 @@ internal fun ZoomOverlay(bitmap: ImageBitmap, onClose: () -> Unit) {
 @Composable
 private fun CardBody(text: AnnotatedString) {
     val c = LocalAnkiColors.current
-    // Kurze Karten (Hauptstadt, Vokabel) mittig, längere Texte linksbündig lesen sich besser.
+    // Short cards (capital, vocabulary) centered; longer texts read better left-aligned.
     val short = text.length < 60 && '\n' !in text && text.paragraphStyles.isEmpty()
     val k = LocalSettings.current.textScale
     Text(

@@ -1,9 +1,9 @@
-# Anki-Kern (rsdroid): JNI ruft Klassen und Methoden über ihren Namen auf.
+# Anki core (rsdroid): JNI calls classes and methods by name.
 -keep class net.ankiweb.rsdroid.** { *; }
-# Protobuf-Lite liest die Felder der erzeugten Nachrichten per Reflexion.
+# Protobuf-Lite reads the fields of the generated messages via reflection.
 -keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
 -keep class anki.** { *; }
-# AndroidSVG nutzt optional Klassen, die es auf Android nicht gibt.
+# AndroidSVG optionally uses classes that don't exist on Android.
 -dontwarn com.caverock.androidsvg.**
-# Der Kern bringt slf4j ohne Implementierung mit; die fehlt auf Android bewusst.
+# The core ships slf4j without an implementation; it is deliberately missing on Android.
 -dontwarn org.slf4j.impl.**

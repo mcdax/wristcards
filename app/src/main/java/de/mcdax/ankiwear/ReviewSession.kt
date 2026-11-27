@@ -14,19 +14,19 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Was beim Lernen schiefgehen kann; die Oberfläche wählt den Text dazu. */
+/** What can go wrong while studying; the UI picks the text for it. */
 internal sealed interface ReviewError {
-    /** Bewertung nicht gespeichert: Karte bleibt stehen. */
+    /** Rating not saved: the card stays. */
     data object RateFailed : ReviewError
     data object UndoFailed : ReviewError
-    /** Karte nicht geladen (auch nach gespeicherter Bewertung): „Erneut versuchen“ lädt nur neu. */
+    /** Card not loaded (also after a saved rating): "Try again" only reloads. */
     data class LoadFailed(val message: String?) : ReviewError
 }
 
 /**
- * Lernablauf eines Decks ohne Oberfläche: aktuelle Karte, aufgedeckt, Bewerten, Rückgängig, Fehler.
- * Gesten und Darstellung bleiben in [ReviewScreen]; sie rufen nur [reveal], [rate] und [undo].
- * [revealedState] und [studiedState] kommen aus rememberSaveable, damit sie einen Neuaufbau überstehen.
+ * Study flow of a deck without UI: current card, revealed, rate, undo, errors.
+ * Gestures and rendering stay in [ReviewScreen]; they only call [reveal], [rate] and [undo].
+ * [revealedState] and [studiedState] come from rememberSaveable so they survive a rebuild.
  */
 @Stable
 internal class ReviewSession(
@@ -40,27 +40,27 @@ internal class ReviewSession(
 ) {
     var card by mutableStateOf<ReviewCard?>(null)
         private set
-    /** Erst nach dem ersten Laden; vorher zeigt die Ansicht nichts statt „Fertig“. */
+    /** Only after the first load; before that the view shows nothing instead of "Done". */
     var loaded by mutableStateOf(false)
         private set
     var revealed by revealedState
-    /** Bewerten, Nachladen oder Rückgängig läuft; Knöpfe sind dann gesperrt. */
+    /** Rating, reloading or undo is running; buttons are locked then. */
     var busy by mutableStateOf(false)
         private set
     var error by mutableStateOf<ReviewError?>(null)
         private set
-    /** In dieser Sitzung bewertete Karten, für den Abschluss. */
+    /** Cards rated in this session, for the summary. */
     var studied by studiedState
         private set
-    /** Zeitpunkt der letzten Bewertung (uptimeMillis), für die Sperre gegen Doppelwischen. */
+    /** Time of the last rating (uptimeMillis), for the lock against double swipes. */
     var ratedAt by mutableLongStateOf(0L)
         private set
 
     private var revealsSeen by mutableStateOf(hints.getInt(KEY_REVEALS, 0))
-    /** Hinweis „Tippen für die Antwort“ für die ersten Aufdeckungen überhaupt. */
+    /** Hint "Tap for the answer" for the very first reveals. */
     val showRevealHint get() = !revealed && revealsSeen < REVEAL_HINT_COUNT
 
-    /** Lädt die erste (bzw. nach einem Fehler die nächste) Karte. */
+    /** Loads the first (or after an error the next) card. */
     suspend fun load() {
         error = null
         card = try {
@@ -73,7 +73,7 @@ internal class ReviewSession(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "Karte konnte nicht geladen werden", e)
+            android.util.Log.w(TAG, "Card could not be loaded", e)
             error = ReviewError.LoadFailed(e.message)
             null
         }
@@ -94,20 +94,20 @@ internal class ReviewSession(
     }
 
     /**
-     * Bewertet [current] mit Index [idx] (Nochmal, Schwer, Gut, Einfach). [onRated] kommt nur nach
-     * gespeicherter Bewertung (Einblendung, Vibration), [onDeckDone], wenn danach nichts mehr fällig ist.
+     * Rates [current] with index [idx] (Again, Hard, Good, Easy). [onRated] only comes after the
+     * rating is saved (overlay, vibration), [onDeckDone] when nothing is due afterwards.
      */
     fun rate(current: ReviewCard, idx: Int, onRated: () -> Unit, onDeckDone: () -> Unit) {
         if (busy) return
         busy = true
-        // Vor dem Start setzen: Die Wischsperre muss schon für die Geste gelten, die gerade bewertet.
+        // Set before starting: the swipe lock must already apply to the gesture that is rating right now.
         ratedAt = android.os.SystemClock.uptimeMillis()
         scope.launch {
             try {
-                // Vorschau bewertet nichts.
+                // Preview rates nothing.
                 if (previewCard != null) return@launch
-                // Der native Schreibzugriff ist nicht abbrechbar. Commit und Entfernen
-                // der alten Karte gehören zusammen, auch wenn die Ansicht geschlossen wird.
+                // The native write access is not cancellable. Commit and removal
+                // of the old card belong together, even if the view is closed.
                 try {
                     withContext(NonCancellable) {
                         repo.answer(current, GRADES[idx])
@@ -117,19 +117,19 @@ internal class ReviewSession(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    android.util.Log.w(TAG, "Bewerten fehlgeschlagen", e)
+                    android.util.Log.w(TAG, "Rating failed", e)
                     error = ReviewError.RateFailed
                     return@launch
                 }
                 studied++
                 onRated()
-                // Gespeichert ist die Bewertung jetzt; scheitert nur das Nachladen, wird nur das wiederholt.
+                // The rating is saved now; if only reloading fails, only that is repeated.
                 try {
                     card = repo.nextCard()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    android.util.Log.w(TAG, "Nächste Karte konnte nicht geladen werden", e)
+                    android.util.Log.w(TAG, "Next card could not be loaded", e)
                     error = ReviewError.LoadFailed(e.message)
                     return@launch
                 }
@@ -142,7 +142,7 @@ internal class ReviewSession(
         }
     }
 
-    /** Nimmt die Bewertung von [cardId] zurück und zeigt die Karte wieder mit Antwort. */
+    /** Reverts the rating of [cardId] and shows the card again with the answer. */
     fun undo(cardId: Long) {
         if (busy) return
         busy = true
@@ -155,7 +155,7 @@ internal class ReviewSession(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                android.util.Log.w(TAG, "Rückgängig fehlgeschlagen", e)
+                android.util.Log.w(TAG, "Undo failed", e)
                 error = ReviewError.UndoFailed
             } finally {
                 busy = false
@@ -168,8 +168,8 @@ internal class ReviewSession(
     }
 }
 
-/** Reihenfolge wie die Intervalle des Kerns: Nochmal, Schwer, Gut, Einfach. */
+/** Order like the core's intervals: Again, Hard, Good, Easy. */
 private val GRADES = listOf(CardAnswer.Rating.AGAIN, CardAnswer.Rating.HARD, CardAnswer.Rating.GOOD, CardAnswer.Rating.EASY)
 
-/** Bis zu so vielen Aufdeckungen zeigt die Frage den Hinweis „Tippen zum Aufdecken“. */
+/** For up to this many reveals, the question shows the hint "Tap to reveal". */
 private const val REVEAL_HINT_COUNT = 15

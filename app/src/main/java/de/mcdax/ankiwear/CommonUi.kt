@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.Text
 
-/** Fehler mit kurzer Erklärung und „Erneut versuchen“, optional „Zurück“. */
+/** Error with a short explanation and "Try again", optionally "Back". */
 @Composable
 internal fun ErrorNote(title: String, detail: String?, onRetry: () -> Unit, onBack: (() -> Unit)? = null) {
     val c = LocalAnkiColors.current
@@ -53,11 +53,11 @@ internal fun PillButton(label: String, background: Color, foreground: Color, onC
     )
 }
 
-/** Unten auf dem runden Display ist wenig Platz: Hinweise so hoch und schmal halten, dass sie ganz sichtbar bleiben. */
+/** There is little room at the bottom of the round display: keep hints high and narrow enough to stay fully visible. */
 internal val TOAST_BOTTOM = 36.dp
 internal val TOAST_MAX_WIDTH = 150.dp
 
-/** Kurzer Hinweis unten; bricht bei Bedarf in eine zweite Zeile um, statt am Rand abgeschnitten zu werden. */
+/** Short hint at the bottom; wraps to a second line if needed instead of being cut off at the edge. */
 @Composable
 internal fun Toast(text: String, modifier: Modifier = Modifier) {
     val c = LocalAnkiColors.current

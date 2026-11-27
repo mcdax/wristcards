@@ -4,14 +4,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TextLogicTest {
-    @Test fun `Server-Adresse wird ergänzt`() {
+    @Test fun `server address gets completed`() {
         assertEquals("", normalizeEndpoint("  "))
         assertEquals("https://anki.example.de/", normalizeEndpoint("anki.example.de"))
         assertEquals("http://192.168.1.2:8080/", normalizeEndpoint("http://192.168.1.2:8080"))
         assertEquals("https://x.de/", normalizeEndpoint("https://x.de/"))
     }
 
-    /** Wendet [inlineBullets] an wie toAnnotated, nur als einfacher Text. */
+    /** Applies [inlineBullets] like toAnnotated, only as plain text. */
     private fun bullets(raw: String): String {
         val marks = inlineBullets(raw)
         val out = StringBuilder()
@@ -29,19 +29,19 @@ class TextLogicTest {
         return out.toString()
     }
 
-    @Test fun `Mittelpunkt-Liste nach Doppelpunkt`() {
+    @Test fun `middle-dot list after colon`() {
         assertEquals("Nenne:\n• A\n• B\n• C", bullets("Nenne: A · B · C"))
     }
 
-    @Test fun `Mittelpunkt-Liste ohne Einleitung`() {
+    @Test fun `middle-dot list without intro`() {
         assertEquals("• A\n• B", bullets("A · B"))
     }
 
-    @Test fun `Text ohne Mittelpunkt bleibt`() {
+    @Test fun `text without middle dot stays`() {
         assertEquals("Hallo: Welt", bullets("Hallo: Welt"))
     }
 
-    @Test fun `Antwortseite beginnt nach hr id=answer`() {
+    @Test fun `answer side starts after hr id=answer`() {
         assertEquals("Antwort", answerPart("Frage<hr id=answer>Antwort"))
         assertEquals("ohne", answerPart("ohne"))
     }

@@ -8,19 +8,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-/** Was die Deckliste über den Abgleich anzeigt. */
+/** What the deck list shows about the sync. */
 sealed interface SyncState {
     data object Idle : SyncState
     data object Running : SyncState
     data object Done : SyncState
     data class Failed(val message: String) : SyncState
-    /** Vollabgleich nötig, der die Sammlung der Uhr ersetzen würde: erst nach Bestätigung. */
+    /** Full sync needed that would replace the watch's collection: only after confirmation. */
     data object NeedsConfirmation : SyncState
 }
 
 /**
- * Startet Abgleiche unabhängig von der Oberfläche: Sie laufen im Prozess weiter, auch wenn Wear OS
- * die Activity neu aufbaut, und es läuft nie mehr als einer gleichzeitig.
+ * Starts syncs independently of the UI: they keep running in the process even if Wear OS
+ * rebuilds the activity, and never more than one runs at a time.
  */
 class SyncController private constructor(private val repo: AnkiRepository) {
     companion object {
@@ -36,7 +36,7 @@ class SyncController private constructor(private val repo: AnkiRepository) {
     private val _state = MutableStateFlow<SyncState>(SyncState.Idle)
     val state: StateFlow<SyncState> get() = _state
 
-    /** [resolve]: Bei einem Konflikt die vom Nutzer bestätigte Seite; sonst null. */
+    /** [resolve]: on a conflict the side confirmed by the user; otherwise null. */
     fun sync(resolve: ConflictChoice? = null) {
         synchronized(this) {
             if (_state.value == SyncState.Running) return
@@ -48,12 +48,12 @@ class SyncController private constructor(private val repo: AnkiRepository) {
                 SyncResult.NeedsFullDownload -> SyncState.NeedsConfirmation
                 is SyncResult.Failed -> SyncState.Failed(r.message)
             }
-            // Zahlen nach dem Abgleich; ein Fehler beim Neuladen soll den Abgleich-Status nicht überschreiben.
+            // Numbers after the sync; an error while reloading must not overwrite the sync status.
             runCatching { repo.decks() }
         }
     }
 
-    /** Rückfrage verneint: nichts ersetzen, beim nächsten Abgleich wird erneut gefragt. */
+    /** Prompt declined: replace nothing, the next sync asks again. */
     fun dismissConfirmation() {
         _state.compareAndSet(SyncState.NeedsConfirmation, SyncState.Idle)
     }

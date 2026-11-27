@@ -6,59 +6,59 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// Nur Einstellungen der Uhr; Planung/FSRS bleibt in den Deck-Optionen von Anki.
+// Only watch settings; scheduling/FSRS stays in Anki's deck options.
 
 enum class FontSize { SMALL, NORMAL, LARGE }
 
-/** Erklärung/Extra-Feld auf der Rückseite. */
+/** Explanation/extra field on the back. */
 enum class ExtraMode { SHOW, COLLAPSED, HIDE }
 
 enum class AudioMode { AUTO, ON_TAP }
 
-/** BLUETOOTH heißt: Kopfhörer bevorzugen, ohne verbundene Kopfhörer den Uhr-Lautsprecher nehmen. */
+/** BLUETOOTH means: prefer headphones, use the watch speaker without connected headphones. */
 enum class AudioOutput { NEVER, BLUETOOTH_ONLY, ALWAYS }
 
-/** Was ein Wisch über die aufgedeckte Karte bewirkt. */
+/** What a swipe across the revealed card does. */
 enum class SwipeAction { NONE, AGAIN, HARD, GOOD, EASY }
 
 enum class MediaMode { ALL, NONE }
 
 data class AppSettings(
-    // Lernen
+    // Studying
     val fontSize: FontSize = FontSize.NORMAL,
     val extraMode: ExtraMode = ExtraMode.SHOW,
     val audioMode: AudioMode = AudioMode.AUTO,
     val audioOutput: AudioOutput = AudioOutput.BLUETOOTH_ONLY,
     val vibrateOnRate: Boolean = true,
     val vibrateOnDeckDone: Boolean = true,
-    // Wischen links = Nochmal, rechts = Gut
+    // Swipe left = Again, right = Good
     val swipeLeft: SwipeAction = SwipeAction.NONE,
     val swipeRight: SwipeAction = SwipeAction.NONE,
-    // Kurze Einblendung nach jeder Bewertung, mit Rückgängig
+    // Short overlay after every rating, with undo
     val swipeFeedback: Boolean = true,
     val twoButtons: Boolean = false,
-    // Wörter (Nochmal/Schwer/Gut/Einfach) auf den Knöpfen; aus = nur Zeiten bzw. Symbole
+    // Words (Again/Hard/Good/Easy) on the buttons; off = only times or symbols
     val showButtonLabels: Boolean = true,
     val showIntervals: Boolean = true,
-    // Balken am Rand, wenn die Karte länger als der Bildschirm ist
+    // Bar at the edge when the card is longer than the screen
     val showScrollbar: Boolean = true,
     val keepScreenOn: Boolean = true,
-    // Sync; beide Auslöser aus = nur manuell (Antippen/Herunterziehen)
+    // Sync; both triggers off = manual only (tap/pull down)
     val syncOnOpen: Boolean = true,
     val syncOnDeckExit: Boolean = true,
-    // WLAN und Handy (Bluetooth) gehen immer; eigenes LTE der Uhr nur, wenn erlaubt.
+    // Wi-Fi and phone (Bluetooth) always work; the watch's own LTE only if allowed.
     val cellularSync: Boolean = false,
     val mediaMode: MediaMode = MediaMode.ALL,
-    // Deckliste
-    // Verlassen der App nur mit zweitem Zurück (Taste oder Wischen)
+    // Deck list
+    // Leaving the app only with a second back (button or swipe)
     val confirmExit: Boolean = true,
     val hideEmptyDecks: Boolean = false,
-    // Zeile „Neu · Lernen · Fällig“ über den Decks
+    // "New · Learning · Due" row above the decks
     val showLegend: Boolean = true,
     val pinnedDecks: Set<Long> = emptySet(),
     val hiddenDecks: Set<Long> = emptySet(),
     val collapseSubdecks: Boolean = false,
-    // Decks, deren Klappzustand vom Standard abweicht
+    // Decks whose collapsed state differs from the default
     val toggledDecks: Set<Long> = emptySet(),
 ) {
     val swipeToRate: Boolean get() = swipeLeft != SwipeAction.NONE || swipeRight != SwipeAction.NONE
@@ -67,8 +67,8 @@ data class AppSettings(
 }
 
 /**
- * Speichert [AppSettings] in SharedPreferences und hält den Stand als StateFlow vor,
- * damit Oberfläche und Repository ohne Umweg über die Platte lesen können.
+ * Stores [AppSettings] in SharedPreferences and keeps the current state as a StateFlow,
+ * so UI and repository can read without a detour via disk.
  */
 class SettingsStore private constructor(context: Context) {
     companion object {
@@ -128,7 +128,7 @@ class SettingsStore private constructor(context: Context) {
 
 private fun read(p: SharedPreferences): AppSettings {
     val d = AppSettings()
-    // Unbekannte Werte (z. B. nach Umbenennung) fallen still auf den Standard zurück.
+    // Unknown values (e.g. after a rename) silently fall back to the default.
     fun <E : Enum<E>> enum(key: String, default: E, values: Array<E>) =
         p.getString(key, null)?.let { v -> values.firstOrNull { it.name == v } } ?: default
     fun ids(key: String, default: Set<Long>) =
@@ -137,7 +137,7 @@ private fun read(p: SharedPreferences): AppSettings {
         fontSize = enum("fontSize", d.fontSize, FontSize.entries.toTypedArray()),
         extraMode = enum("extraMode", d.extraMode, ExtraMode.entries.toTypedArray()),
         audioMode = enum("audioMode", d.audioMode, AudioMode.entries.toTypedArray()),
-        // Ältere Werte übernehmen: Audio "OFF" → Never, "BLUETOOTH" → nur Bluetooth, "SPEAKER" → immer.
+        // Migrate older values: audio "OFF" → Never, "BLUETOOTH" → Bluetooth only, "SPEAKER" → always.
         audioOutput = when {
             p.getString("audioMode", null) == "OFF" -> AudioOutput.NEVER
             else -> when (p.getString("audioOutput", null)) {
@@ -148,7 +148,7 @@ private fun read(p: SharedPreferences): AppSettings {
         },
         vibrateOnRate = p.getBoolean("vibrateOnRate", d.vibrateOnRate),
         vibrateOnDeckDone = p.getBoolean("vibrateOnDeckDone", d.vibrateOnDeckDone),
-        // Früherer Schalter "swipeToRate" entsprach links = Nochmal, rechts = Gut.
+        // The earlier switch "swipeToRate" corresponded to left = Again, right = Good.
         swipeLeft = if (p.getBoolean("swipeToRate", false) && !p.contains("swipeLeft")) SwipeAction.AGAIN
             else enum("swipeLeft", d.swipeLeft, SwipeAction.entries.toTypedArray()),
         swipeRight = if (p.getBoolean("swipeToRate", false) && !p.contains("swipeRight")) SwipeAction.GOOD
@@ -162,7 +162,7 @@ private fun read(p: SharedPreferences): AppSettings {
         keepScreenOn = p.getBoolean("keepScreenOn", d.keepScreenOn),
         syncOnOpen = p.getBoolean("syncOnOpen", d.syncOnOpen),
         syncOnDeckExit = p.getBoolean("syncOnDeckExit", d.syncOnDeckExit),
-        // Früherer Schalter "wifiOnly" hat nichts zu übernehmen: LTE ist jetzt standardmäßig aus.
+        // The earlier switch "wifiOnly" has nothing to migrate: LTE is now off by default.
         cellularSync = p.getBoolean("cellularSync", d.cellularSync),
         mediaMode = enum("mediaMode", d.mediaMode, MediaMode.entries.toTypedArray()),
         confirmExit = p.getBoolean("confirmExit", d.confirmExit),
@@ -174,5 +174,5 @@ private fun read(p: SharedPreferences): AppSettings {
     )
 }
 
-/** Fügt [id] hinzu oder entfernt sie. */
+/** Adds [id] or removes it. */
 fun Set<Long>.toggle(id: Long): Set<Long> = if (id in this) this - id else this + id

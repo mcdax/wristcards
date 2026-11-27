@@ -68,31 +68,31 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val nav = rememberSwipeDismissableNavController()
-    // Liegt hier statt in der Deckliste, damit die Scrollposition das Lernen überlebt.
+    // Lives here instead of in the deck list so the scroll position survives studying.
     val listState = rememberScalingLazyListState(initialCenterItemIndex = 0)
-    // Abgleich und Deckliste leben außerhalb der Oberfläche und überstehen einen Neuaufbau der Activity.
+    // Sync and deck list live outside the UI and survive an activity rebuild.
     val syncer = remember { SyncController.get(context) }
     val sync by syncer.state.collectAsState()
     val decks by repo.deckTree.collectAsState()
     var decksLoaded by remember { mutableStateOf(false) }
     var startupDrawn by remember { mutableStateOf(false) }
-    // Uhr-Einstellungen
+    // Watch settings
     val store = remember { SettingsStore.get(context) }
     val settings by store.flow.collectAsState()
-    // Ausgeblendete Decks zählen in der Zifferblatt-Komplikation nicht mit.
+    // Hidden decks do not count in the watch-face complication.
     LaunchedEffect(settings.hiddenDecks) { refreshDueComplication(context) }
 
     fun runSync() = syncer.sync()
 
     LaunchedEffect(Unit) {
         decksLoaded = true
-        // NavController stellt seine Lernansicht selbst wieder her. Weder erneut
-        // navigieren noch Start-Sync davor in die gemeinsame Backend-Warteschlange setzen.
+        // NavController restores its study view itself. Neither navigate again
+        // nor put the startup sync in the shared backend queue before it.
         if (restoring) return@LaunchedEffect
         when {
             previewCard != null -> nav.navigate("preview/$previewCard")
             else -> decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") }
-                ?: run { if (store.current.syncOnOpen) runSync() } // Auto-Sync beim Öffnen
+                ?: run { if (store.current.syncOnOpen) runSync() } // Auto-sync on open
         }
     }
 
@@ -104,18 +104,18 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
     }
 
     LaunchedEffect(decks, startupDrawn) {
-        // Erst die gefüllte Deckliste zeichnen; Vorladen gehört nicht zum Startpfad.
+        // Draw the filled deck list first; preloading is not part of the startup path.
         if (!startupDrawn) return@LaunchedEffect
         kotlinx.coroutines.delay(250)
         try { repo.preloadUpcomingCards() }
         catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Exception) { android.util.Log.w("AnkiPerf", "Optionales Vorladen übersprungen", e) }
+        catch (e: Exception) { android.util.Log.w("AnkiPerf", "Optional preloading skipped", e) }
     }
 
-    // Wischen nach rechts zeigt beim Zurückgehen die Deckliste darunter, statt eines schwarzen Bildschirms.
-    // Wisch-Abkürzungen brauchen das Rechtswischen; dann nur per Zurück-Taste aus dem Deck.
+    // Swiping right shows the deck list underneath when going back, instead of a black screen.
+    // Swipe shortcuts need the right swipe; then leave the deck only via the back button.
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
-    // Verlassen erschweren: erst zweimal Zurück innerhalb von 2 s schließt die App.
+    // Make leaving harder: only pressing back twice within 2 s closes the app.
     var exitArmed by remember { mutableStateOf(false) }
     LaunchedEffect(exitArmed) {
         if (exitArmed) {
@@ -127,8 +127,8 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
     SwipeDismissableNavHost(
         navController = nav,
         startDestination = "decks",
-        // Auf neuen Wear-OS-Versionen kommt das Zurückwischen als System-Geste vom Rand;
-        // Wisch-Bewertung in der Kartenmitte stört das nicht, daher immer an.
+        // On newer Wear OS versions the back swipe arrives as a system edge gesture;
+        // swipe-to-rate in the middle of the card doesn't interfere, so always on.
         userSwipeEnabled = true,
     ) {
         composable("decks") {
@@ -137,7 +137,7 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
                 listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") },
                 onResolveConflict = { syncer.sync(resolve = it) },
                 onDismissFullDownload = syncer::dismissConfirmation,
-                // Filter/Anheften/Einklappen und Zugang zu den Einstellungen
+                // Filter/pin/collapse and access to the settings
                 settings = settings, onSettingsChange = store::update, onSettings = { nav.navigate("settings") },
             )
 
@@ -148,17 +148,17 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
             }
             }
         }
-        // Einstellungsseiten (SettingsScreen.kt)
+        // Settings pages (SettingsScreen.kt)
         settingsGraph(nav, repo) { decks }
         composable("review/{deckId}") { entry ->
             val deckId = entry.arguments?.getString("deckId")?.toLongOrNull()
             val deck = decks.firstOrNull { it.deckId == deckId } ?: return@composable
             ReviewScreen(repo, deck, onBack = {
                 nav.popBackStack()
-                // Zahlen sofort lokal neu laden, nicht erst nach dem Abgleich.
+                // Reload the numbers locally right away, not only after the sync.
                 scope.launch { runCatching { repo.decks() } }
-                // Nur beim tatsächlichen Verlassen des Decks, nicht beim Abbau
-                // der Activity durch Wear OS im Hintergrund.
+                // Only when actually leaving the deck, not when Wear OS tears down
+                // the activity in the background.
                 if (store.current.syncOnDeckExit) runSync()
             })
         }
@@ -167,8 +167,8 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
             ReviewScreen(repo, deck = null, previewCard = cid, onBack = { nav.popBackStack() })
         }
     }
-    // Außerhalb des NavHost: in dessen Startziel kommt Zurück auf der Uhr nicht an.
-    // Zurück-Taste und Zurückwischen landen beide hier.
+    // Outside the NavHost: in its start destination, back doesn't reach us on the watch.
+    // Back button and back swipe both end up here.
     val activity = context as? android.app.Activity
     androidx.activity.compose.BackHandler(enabled = route == "decks" && settings.confirmExit) {
         if (exitArmed) activity?.finish() else exitArmed = true

@@ -18,15 +18,15 @@ import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUp
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 
-/** Offene Karten der sichtbaren Decks (ausgeblendete Decks zählen nicht mit). */
+/** Open cards of the visible decks (hidden decks don't count). */
 data class DueCounts(val new: Int, val learn: Int, val review: Int, val studied: Int = 0) {
     val total get() = new + learn + review
 }
 
 /**
- * Zahlen fürs Zifferblatt. Oberdecks enthalten ihre Unterdecks schon (mit Ankis Limits); ausgeblendete
- * Unterdecks sichtbarer Oberdecks werden abgezogen. Wegen der Limits des Oberdecks ist das eine Näherung,
- * deshalb nie unter 0.
+ * Numbers for the watch face. Parent decks already include their subdecks (with Anki's limits); hidden
+ * subdecks of visible parent decks are subtracted. Because of the parent deck's limits this is an approximation,
+ * hence never below 0.
  */
 fun visibleDueCounts(decks: List<anki.decks.DeckTreeNode>, hidden: Set<Long>): DueCounts {
     var new = 0; var learn = 0; var review = 0
@@ -49,7 +49,7 @@ fun visibleDueCounts(decks: List<anki.decks.DeckTreeNode>, hidden: Set<Long>): D
             continue
         }
         if (topHidden) continue
-        // Unter einem ausgeblendeten Unterdeck ist schon alles in dessen Zahlen enthalten.
+        // Under a hidden subdeck, everything is already included in its numbers.
         if (d.level > hiddenBelow) continue
         hiddenBelow = Int.MAX_VALUE
         if (d.deckId in hidden) {
@@ -62,9 +62,9 @@ fun visibleDueCounts(decks: List<anki.decks.DeckTreeNode>, hidden: Set<Long>): D
 }
 
 /**
- * Läuft die App ohnehin, rechnet der Kern frisch. Sonst gelten die zuletzt gespeicherten Zahlen,
- * solange sie vom selben Tag und höchstens [CACHE_MAX_AGE_MS] alt sind: Für drei Zahlen nicht jedes Mal
- * die native Bibliothek laden und die Sammlung öffnen.
+ * If the app is running anyway, the core computes fresh. Otherwise the last stored numbers apply,
+ * as long as they are from the same day and at most [CACHE_MAX_AGE_MS] old: for three numbers, don't load
+ * the native library and open the collection every time.
  */
 suspend fun dueCounts(context: Context): DueCounts {
     val prefs = context.getSharedPreferences("due_cache", Context.MODE_PRIVATE)
@@ -85,8 +85,8 @@ suspend fun dueCounts(context: Context): DueCounts {
 private const val CACHE_MAX_AGE_MS = 2 * 60 * 60 * 1000L
 
 /**
- * Komplikation fürs Zifferblatt: Zahl offener Karten; Antippen öffnet die App.
- * Aktualisiert sich nach dem Lernen (App verlassen), nach Syncs (siehe [refreshDueComplication]) und sonst alle 30 min.
+ * Watch-face complication: number of open cards; tapping opens the app.
+ * Updates after studying (leaving the app), after syncs (see [refreshDueComplication]) and otherwise every 30 min.
  */
 class DueComplicationService : SuspendingComplicationDataSourceService() {
 
@@ -125,7 +125,7 @@ class DueComplicationService : SuspendingComplicationDataSourceService() {
     }
 }
 
-/** Nach Bewertungen/Syncs: Zifferblatt um neue Zahlen bitten. */
+/** After ratings/syncs: ask the watch face for new numbers. */
 fun refreshDueComplication(context: Context) {
     ComplicationDataSourceUpdateRequester.create(
         context, ComponentName(context, DueComplicationService::class.java),

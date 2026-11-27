@@ -5,14 +5,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// Zugang zum Wegwerf-Sync-Server; steht nur in local.properties, nie im Repo.
+// Credentials for the throwaway sync server; only in local.properties, never in the repo.
 val local = Properties().apply {
     rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
 
 android {
     namespace = "de.mcdax.ankiwear"
-    // Die aktuellen AndroidX-Bibliotheken verlangen mindestens 37.1.
+    // The current AndroidX libraries require at least 37.1.
     compileSdk {
         version = release(37) { minorApiLevel = 1 }
     }
@@ -24,13 +24,13 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1-poc"
-        // Galaxy Watch Ultra 2 läuft mit 32-Bit-Userspace (armeabi-v7a); x86_64 nur für den Emulator
-        // (Debug-Build oder -Pemulator), sonst wäre jede APK unnötig groß.
+        // Galaxy Watch Ultra 2 runs a 32-bit userspace (armeabi-v7a); x86_64 only for the emulator
+        // (debug build or -Pemulator), otherwise every APK would be needlessly large.
         ndk {
             abiFilters += "armeabi-v7a"
             if (project.hasProperty("emulator")) abiFilters += "x86_64"
         }
-        // Eingebautes Testkonto gibt es nur im Debug-Build; Release meldet sich immer über die Einstellungen an.
+        // The built-in test account exists only in the debug build; release always signs in via the settings.
         buildConfigField("String", "SYNC_ENDPOINT", "\"\"")
         buildConfigField("String", "SYNC_USER", "\"\"")
         buildConfigField("String", "SYNC_PASSWORD", "\"\"")
@@ -44,19 +44,19 @@ android {
             buildConfigField("String", "SYNC_PASSWORD", "\"${local.getProperty("sync.password", "")}\"")
         }
         release {
-            // R8 entfernt Ungenutztes und optimiert; auf der schwachen Uhr der größte Hebel für Start und Ruckeln.
-            // Compose und Wear bringen ihre Baseline-Profile mit, der profileinstaller übernimmt sie.
+            // R8 removes unused code and optimizes; on the weak watch the biggest lever for startup and jank.
+            // Compose and Wear ship their baseline profiles, profileinstaller picks them up.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Vorerst mit dem Debug-Schlüssel signiert: So lässt sich die Version auf der Uhr ohne
-            // Neuinstallation (und ohne Verlust von Anmeldung und Sammlung) aktualisieren.
-            // Für eine Veröffentlichung braucht es einen eigenen Schlüssel.
+            // Signed with the debug key for now: this way the version on the watch can be updated without
+            // reinstalling (and without losing sign-in and collection).
+            // A release needs its own key.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 
-    // Sprachliste für die App-Sprachauswahl des Systems (Android 13+) aus den values-*-Ordnern erzeugen.
+    // Generate the language list for the system's per-app language picker (Android 13+) from the values-* folders.
     androidResources {
         generateLocaleConfig = true
     }
@@ -82,6 +82,6 @@ dependencies {
     implementation("com.caverock:androidsvg-aar:1.4")
     implementation("androidx.wear.watchface:watchface-complications-data-source-ktx:1.3.0")
 
-    // Reine JVM-Tests für Logik ohne Android (Deckliste, Zahlen, Textaufbereitung).
+    // Pure JVM tests for logic without Android (deck list, numbers, text processing).
     testImplementation("junit:junit:4.13.2")
 }

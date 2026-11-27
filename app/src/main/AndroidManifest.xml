@@ -29,7 +29,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Komplikation: offene Karten fürs Zifferblatt -->
+        <!-- Complication: open cards for the watch face -->
         <service
             android:name=".DueComplicationService"
             android:exported="true"

@@ -9,15 +9,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 
 class MainActivity : ComponentActivity() {
-    // Wear OS nimmt Rechtswischen von überall als Zurück; der Startpunkt entscheidet, ob es Bewerten ist.
+    // Wear OS treats a right swipe from anywhere as back; the starting point decides whether it is rating.
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
         if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
             lastTouchDownX = ev.x
             lastTouchDownY = ev.y
             lastTouchDownTime = ev.downTime
         }
-        // Hier statt in der Karte: Sehr schnelles Wischen kommt ohne Zwischenpunkte an und sähe dort wie Tippen aus.
-        // Fängt das System die Geste ab, kommt kein ACTION_UP, dann meldet sie der PredictiveBackHandler.
+        // Here instead of in the card: very fast swipes arrive without intermediate points and would look like a tap there.
+        // If the system intercepts the gesture, no ACTION_UP arrives; then the PredictiveBackHandler reports it.
         val handler = onRightSwipe
         val dx = ev.x - lastTouchDownX
         if (ev.actionMasked == android.view.MotionEvent.ACTION_UP && ev.downTime == lastTouchDownTime && handler != null &&
@@ -35,14 +35,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "create restored=${savedInstanceState != null}")
-        // Parallel zur ersten UI-Komposition vorbereiten, nicht erst nach der Loading-Frame.
+        // Prepare in parallel to the first UI composition, not only after the loading frame.
         val startup = lifecycleScope.async(Dispatchers.IO) { openRepository(applicationContext) }
-        // Beim Lernen nicht mitten in der Karte abdunkeln (Wear OS beendet sonst gern den Prozess).
-        // Farbvariante zum Ausprobieren: adb shell am start ... --ei theme 1
-        // Nur im Debug-Build: Die Activity ist exportiert, fremde Intents sollen nichts davon auslösen.
+        // While studying, don't dim mid-card (otherwise Wear OS likes to kill the process).
+        // Color variant to try out: adb shell am start ... --ei theme 1
+        // Debug build only: the activity is exported, foreign intents must not trigger any of this.
         val debugIntent = intent.takeIf { BuildConfig.DEBUG }
         val variant = (debugIntent?.getIntExtra("theme", 0) ?: 0).coerceIn(themeVariants.indices)
-        // Für Screenshots im Emulator: --es deck <Name> öffnet das Deck direkt.
+        // For screenshots in the emulator: --es deck <name> opens the deck directly.
         val openDeck = debugIntent?.getStringExtra("deck")
         val previewCard = debugIntent?.getLongExtra("card", 0L)?.takeIf { it != 0L }
         setContent { AnkiTheme(themeVariants[variant]) { App(startup, openDeck, previewCard, restoring = savedInstanceState != null) } }
@@ -54,39 +54,39 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "stop")
-        // Zifferblatt erst jetzt aktualisieren, nicht nach jeder einzelnen Bewertung.
+        // Update the watch face only now, not after every single rating.
         refreshDueComplication(this)
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        // Hintergrund oder knapper Speicher: Bilder lassen sich jederzeit neu laden.
+        // Background or low memory: images can be reloaded at any time.
         if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) CardImages.trim()
     }
 }
 
-/** Ergebnis des Starts: Sammlung öffnen und Decks laden, oder der Fehler dabei (z. B. beschädigte Datei). */
+/** Result of the start: open the collection and load decks, or the error (e.g. corrupt file). */
 internal suspend fun openRepository(context: android.content.Context): Result<AnkiRepository> = runCatching {
     AnkiRepository.get(context).also { it.decks() }
 }
 
-/** Protokoll nur im Debug-Build; der Text wird im Release gar nicht erst gebaut. */
+/** Logging in the debug build only; in release the text isn't even built. */
 internal inline fun debugLog(tag: String, message: () -> String) {
     if (BuildConfig.DEBUG) android.util.Log.d(tag, message())
 }
 
-/** Startpunkt der letzten Berührung in Pixeln. */
+/** Start point of the last touch in pixels. */
 internal var lastTouchDownX = 0f
 private var lastTouchDownY = 0f
 internal var lastTouchDownTime = 0L
 
-/** Von der Lernansicht gesetzt: Rechtswischen, das die App selbst zu sehen bekommt. */
+/** Set by the study view: right swipe that the app itself gets to see. */
 internal var onRightSwipe: (() -> Unit)? = null
 
-/** Anteil der Breite, ab dem Rechtswischen nicht mehr Zurück ist, sondern bewertet. */
+/** Fraction of the width from which a right swipe is no longer back but rates. */
 internal const val BACK_ZONE = 0.20f
 
 internal const val TAG = "AnkiBack"
 
-/** So lange nach einer Bewertung wird Rechtswischen ignoriert. */
+/** For this long after a rating, right swipes are ignored. */
 internal const val RATE_LOCK_MS = 400L

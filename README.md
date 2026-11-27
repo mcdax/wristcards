@@ -35,7 +35,7 @@ Requires the Android SDK (compileSdk 37.1, build tools 37.0.0) and JDK 17+.
 The debug build can contain a built-in test account from `local.properties` (`sync.endpoint`, `sync.user`,
 `sync.password`); release builds never do.
 
-Architecture notes (German): [ARCHITEKTUR.md](ARCHITEKTUR.md).
+Architecture notes: [architecture.md](architecture.md).
 
 ## License
 

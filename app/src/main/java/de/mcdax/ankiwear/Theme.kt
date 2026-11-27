@@ -7,29 +7,29 @@ import androidx.wear.compose.material3.ColorScheme
 import androidx.wear.compose.material3.MaterialTheme
 
 /**
- * Eigene, ruhige Farben statt der dynamischen Systemfarben (die auf der Uhr pink/grün ausfallen).
- * Grundton Graphit, ein Akzent; Lücken und Hinweise bekommen eigene, gedämpfte Hinterlegungen.
+ * Own calm colors instead of the dynamic system colors (which come out pink/green on the watch).
+ * Graphite base tone, one accent; gaps and hints get their own muted backgrounds.
  */
 data class AnkiColors(
     val name: String,
     val background: Color = Color(0xFF000000),
     val surface: Color = Color(0xFF1E1F22),
-    // Unterdecks eine Spur dunkler als ihr Oberdeck
+    // Subdecks a touch darker than their parent deck
     val subSurface: Color = Color(0xFF151618),
     val text: Color = Color(0xFFE6E6E6),
     val textDim: Color = Color(0xFF9A9DA1),
     val accent: Color,
-    // Lücke auf der Vorderseite ("[...]" bzw. "[Hinweis]") und Hinweisfelder
+    // Gap on the front ("[...]" or "[hint]") and hint fields
     val hintBg: Color,
     val hintFg: Color,
-    // aufgedeckte Lücke auf der Rückseite
+    // revealed gap on the back
     val answerBg: Color,
     val answerFg: Color,
-    // Zähler wie in Anki: neu / lernen / fällig
+    // Counters like in Anki: new / learning / due
     val newCount: Color = Color(0xFF7FA7D9),
     val learnCount: Color = Color(0xFFD98080),
     val reviewCount: Color = Color(0xFF8DBF8B),
-    // Bewertung: Nochmal / Schwer / Gut / Leicht
+    // Rating: Again / Hard / Good / Easy
     val again: Color = Color(0xFFE07A7A),
     val hard: Color = Color(0xFFE0A45E),
     val good: Color = Color(0xFF7DBE82),

@@ -66,11 +66,11 @@ internal fun DeckList(
 ) {
     val c = LocalAnkiColors.current
     val focus = remember { FocusRequester() }
-    // Deck, für das gerade das Langdruck-Menü offen ist
+    // Deck for which the long-press menu is currently open
     var menuFor by remember { mutableStateOf<DeckEntry?>(null) }
     LaunchedEffect(Unit) { focus.requestFocus() }
 
-    // Ziehen nach unten am Listenanfang löst einen Sync aus.
+    // Pulling down at the top of the list triggers a sync.
     val density = LocalDensity.current
     val threshold = with(density) { 56.dp.toPx() }
     var pull by remember { mutableFloatStateOf(0f) }
@@ -90,13 +90,13 @@ internal fun DeckList(
         }
     }
 
-    // Zweite Stufe der Konflikt-Rückfrage: Hochladen überschreibt den Server.
+    // Second stage of the conflict prompt: uploading overwrites the server.
     var confirmUpload by remember { mutableStateOf(false) }
-    // Die Warnung ersetzt die Frage; nach oben holen, damit sie ganz zu lesen ist.
+    // The warning replaces the question; bring it to the top so it can be read completely.
     LaunchedEffect(confirmUpload, sync) {
         if (sync == SyncState.NeedsConfirmation) listState.animateScrollToItem(0)
     }
-    // Nur neu ordnen, wenn sich Decks oder Einstellungen ändern, nicht bei jedem Sync-Status oder Herunterziehen.
+    // Only re-sort when decks or settings change, not on every sync status or pull-down.
     val entries = remember(decks, settings) { arrangeDecks(decks, settings) }
     Box(Modifier.fillMaxSize()) {
     ScalingLazyColumn(
@@ -126,7 +126,7 @@ internal fun DeckList(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Normal,
                 modifier = Modifier
-                    // Zieht beim Herunterziehen sichtbar mit.
+                    // Moves along visibly when pulling down.
                     .padding(top = with(density) { pull.coerceAtMost(threshold * 1.2f).toDp() } / 2)
                     .clip(RoundedCornerShape(50))
                     .clickable(enabled = sync != SyncState.Running, onClick = onSync)
@@ -138,7 +138,7 @@ internal fun DeckList(
                 Text(sync.message, color = c.textDim, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 3)
             }
         }
-        // Konflikt: Eine Seite muss gewinnen, nur auf ausdrücklichen Wunsch. Hochladen braucht eine zweite Bestätigung.
+        // Conflict: one side has to win, only on explicit request. Uploading needs a second confirmation.
         if (sync == SyncState.NeedsConfirmation) {
             item {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -158,7 +158,7 @@ internal fun DeckList(
                 }
             }
         }
-        // Legende für die drei Zahlen rechts an jedem Deck.
+        // Legend for the three numbers on the right of each deck.
         if (settings.showLegend) item {
             Text(
                 buildAnnotatedString {
@@ -173,7 +173,7 @@ internal fun DeckList(
                 textAlign = TextAlign.Center,
             )
         }
-        // arrangeDecks (DeckListPrefs.kt) wendet Ausblenden/Anheften/Einklappen an.
+        // arrangeDecks (DeckListPrefs.kt) applies hiding/pinning/collapsing.
         items(entries, key = { it.key }) { entry ->
             DeckRow(
                 entry, onOpen,
@@ -181,7 +181,7 @@ internal fun DeckList(
                 onToggleCollapse = { onSettingsChange { it.copy(toggledDecks = it.toggledDecks.toggle(entry.deck.deckId)) } },
             )
         }
-        // Zugang zu den Einstellungen am Listenende
+        // Access to the settings at the end of the list
         item {
             Text(
                 stringResource(R.string.open_settings),
@@ -195,7 +195,7 @@ internal fun DeckList(
             )
         }
     }
-    // Langdruck-Menü: anheften/lösen, ausblenden
+    // Long-press menu: pin/unpin, hide
     menuFor?.let { entry ->
         val id = entry.deck.deckId
         DeckMenu(
@@ -223,11 +223,11 @@ private fun DeckRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            // Unterdecks: eingerückt, etwas dunkler und mit Akzentstrich links, damit die Zugehörigkeit klar ist.
+            // Subdecks: indented, slightly darker and with an accent bar on the left so the hierarchy is clear.
             .padding(start = 10.dp * (entry.level - 1))
             .clip(RoundedCornerShape(15.dp))
             .background(if (sub) c.subSurface else c.surface)
-            .combinedClickable(onLongClick = onLongPress) { onOpen(deck) }, // Langdruck öffnet DeckMenu
+            .combinedClickable(onLongClick = onLongPress) { onOpen(deck) }, // long press opens DeckMenu
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (sub) {
@@ -248,7 +248,7 @@ private fun DeckRow(
             fontWeight = FontWeight.Normal,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            // Lange Wörter nach Silben trennen statt „Allgemeinwisse/n“.
+            // Hyphenate long words by syllable instead of "Allgemeinwisse/n".
             style = androidx.compose.ui.text.TextStyle(
                 hyphens = androidx.compose.ui.text.style.Hyphens.Auto,
                 lineBreak = androidx.compose.ui.text.style.LineBreak.Paragraph,
@@ -263,10 +263,10 @@ private fun DeckRow(
                 count(deck.reviewCount, c.reviewCount)
             },
             fontSize = 13.sp,
-            // Rechts genug Abstand, damit der runde Rand die letzte Zahl nicht abschneidet.
+            // Enough space on the right so the round edge doesn't cut off the last number.
             modifier = Modifier.padding(start = 6.dp, end = if (entry.hasChildren) 0.dp else 18.dp),
         )
-        // Pfeil zum Auf-/Zuklappen an Oberdecks; rechts, damit der Name die volle Breite hat
+        // Arrow to expand/collapse on parent decks; on the right so the name has the full width
         if (entry.hasChildren) {
             Text(
                 if (entry.collapsed) "▸" else "▾",

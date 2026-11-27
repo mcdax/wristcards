@@ -15,7 +15,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      # Plattform und Build-Tools zwischenspeichern; setup-android lädt sonst bei jedem Lauf neu.
+      # Cache platform and build tools; setup-android would otherwise download them on every run.
       - uses: actions/cache@v4
         with:
           path: |
