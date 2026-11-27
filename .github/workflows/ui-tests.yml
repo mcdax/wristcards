@@ -1,0 +1,126 @@
+name: UI tests
+
+# Manual only (Actions tab or `gh workflow run ui-tests.yml -f ref=<branch>`).
+# Boots a Wear OS emulator, installs the debug build with the demo collection and runs the
+# swipe/gesture regression test. The result is posted as commit status "ui-tests" on the tested
+# commit, which branch protection requires before a pull request can be merged.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to test (for a pull request: its head branch)
+        required: true
+        default: main
+      mode:
+        description: full (all gesture cases) or quick (core cases only)
+        type: choice
+        options: [full, quick]
+        default: full
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: ui-tests-${{ inputs.ref }}
+  cancel-in-progress: true
+
+env:
+  SYSTEM_IMAGE: "system-images;android-37.0;android-wear-signed;x86_64"
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Mark commit status pending
+        run: |
+          echo "SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          gh api "repos/${{ github.repository }}/statuses/$(git rev-parse HEAD)" -f state=pending -f context=ui-tests \
+            -f description="Emulator UI tests (${{ inputs.mode }}) running" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/platforms/android-37.1
+            /usr/local/lib/android/sdk/build-tools/37.0.0
+          key: android-sdk-37.1-bt37.0.0
+      - uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android/sdk/system-images/android-37.0
+          key: wear-image-37.0-signed-x86_64
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37.1 build-tools;37.0.0 emulator platform-tools ${{ env.SYSTEM_IMAGE }}"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Start emulator
+        run: |
+          echo no | avdmanager create avd -n wear -k "$SYSTEM_IMAGE" -d wearos_large_round --force
+          nohup emulator -avd wear -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect \
+            -camera-back none > emulator.log 2>&1 &
+      # The sync account is a placeholder: the test only needs the app to count as signed in.
+      # Sync on open / on deck exit is switched off by the test, so nothing is ever contacted.
+      - name: Build debug APK
+        run: |
+          printf 'sync.endpoint=http://127.0.0.1:9/\nsync.user=ci\nsync.password=ci\n' > local.properties
+          ./gradlew --console=plain assembleDebug
+      - name: Build demo collection
+        run: |
+          python3 -m venv /tmp/anki && /tmp/anki/bin/pip install --quiet anki
+          /tmp/anki/bin/python -I ci/make_demo_collection.py /tmp/collection.anki2
+      - name: Wait for boot
+        timeout-minutes: 15
+        run: |
+          adb wait-for-device
+          until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 5; done
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb shell wm size
+      - name: Install app and test data
+        run: |
+          adb install -r app/build/outputs/apk/debug/app-debug.apk
+          adb shell mkdir -p /data/local/tmp/ci
+          adb push /tmp/collection.anki2 /data/local/tmp/ci/collection.anki2
+          adb shell chmod -R 755 /data/local/tmp/ci
+          adb shell cmd locale set-app-locales de.mcdax.wristcards --locales en-US
+      - name: Swipe test (${{ inputs.mode }})
+        shell: bash
+        run: python3 ci/swipe_test.py emulator-5554 Spanish ${{ inputs.mode == 'quick' && 'quick' || '' }} | tee swipe-test.log
+      - name: Collect logs
+        if: always()
+        run: |
+          adb logcat -d > logcat.txt 2>/dev/null || true
+          adb exec-out screencap -p > last-screen.png 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-test-logs
+          path: |
+            swipe-test.log
+            emulator.log
+            logcat.txt
+            last-screen.png
+          retention-days: 7
+      - name: Report commit status
+        if: always() && env.SHA != ''
+        run: |
+          state=${{ job.status == 'success' && 'success' || 'failure' }}
+          summary=$(grep '^SUMMARY' swipe-test.log 2>/dev/null | cut -c9- || true)
+          gh api "repos/${{ github.repository }}/statuses/$SHA" -f state="$state" -f context=ui-tests \
+            -f description="${summary:-Emulator UI tests ${state}} (${{ inputs.mode }})" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
