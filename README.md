@@ -12,7 +12,13 @@ keeps the collection on the watch and syncs directly with a self-hosted Anki syn
 
 Not affiliated with Ankitects or AnkiDroid. "Anki" is a trademark of Ankitects Pty Ltd.
 
-![Screenshots](docs/screenshots/overview.png)
+## Screenshots
+
+<table>
+<tr><td align="center"><img src="docs/screenshots/01-decks.png" width="170" alt="Deck list"><br><sub>Deck list</sub></td><td align="center"><img src="docs/screenshots/02-question.png" width="170" alt="Question"><br><sub>Question</sub></td><td align="center"><img src="docs/screenshots/03-answer.png" width="170" alt="Answer with grade buttons"><br><sub>Answer with grade buttons</sub></td><td align="center"><img src="docs/screenshots/04-undo.png" width="170" alt="After grading, with undo"><br><sub>After grading, with undo</sub></td></tr>
+<tr><td align="center"><img src="docs/screenshots/05-cloze-q.png" width="170" alt="Cloze"><br><sub>Cloze</sub></td><td align="center"><img src="docs/screenshots/06-cloze-a.png" width="170" alt="Cloze answer"><br><sub>Cloze answer</sub></td><td align="center"><img src="docs/screenshots/07-list-q.png" width="170" alt="Lists"><br><sub>Lists</sub></td><td align="center"><img src="docs/screenshots/08-list-a.png" width="170" alt="List answer"><br><sub>List answer</sub></td></tr>
+<tr><td align="center"><img src="docs/screenshots/09-done.png" width="170" alt="Deck finished"><br><sub>Deck finished</sub></td><td align="center"><img src="docs/screenshots/10-settings.png" width="170" alt="Settings"><br><sub>Settings</sub></td><td align="center"><img src="docs/screenshots/11-complication.png" width="170" alt="Watch face complication"><br><sub>Watch face complication</sub></td></tr>
+</table>
 
 ## Features
 
@@ -21,14 +27,6 @@ Not affiliated with Ankitects or AnkiDroid. "Anki" is a trademark of Ankitects P
 - Sync in the background while you study; asks before a full sync could lose data
 - Watch face complication with due cards
 - 16 languages
-
-## Screenshots
-
-<table>
-<tr><td align="center"><img src="docs/screenshots/01-decks.png" width="170" alt="Deck list"><br><sub>Deck list</sub></td><td align="center"><img src="docs/screenshots/02-question.png" width="170" alt="Question"><br><sub>Question</sub></td><td align="center"><img src="docs/screenshots/03-answer.png" width="170" alt="Answer with grade buttons"><br><sub>Answer with grade buttons</sub></td><td align="center"><img src="docs/screenshots/04-undo.png" width="170" alt="After grading, with undo"><br><sub>After grading, with undo</sub></td></tr>
-<tr><td align="center"><img src="docs/screenshots/05-cloze-q.png" width="170" alt="Cloze"><br><sub>Cloze</sub></td><td align="center"><img src="docs/screenshots/06-cloze-a.png" width="170" alt="Cloze answer"><br><sub>Cloze answer</sub></td><td align="center"><img src="docs/screenshots/07-list-q.png" width="170" alt="Lists"><br><sub>Lists</sub></td><td align="center"><img src="docs/screenshots/08-list-a.png" width="170" alt="List answer"><br><sub>List answer</sub></td></tr>
-<tr><td align="center"><img src="docs/screenshots/09-done.png" width="170" alt="Deck finished"><br><sub>Deck finished</sub></td><td align="center"><img src="docs/screenshots/10-settings.png" width="170" alt="Settings"><br><sub>Settings</sub></td><td align="center"><img src="docs/screenshots/11-complication.png" width="170" alt="Watch face complication"><br><sub>Watch face complication</sub></td></tr>
-</table>
 
 ## Build
 
