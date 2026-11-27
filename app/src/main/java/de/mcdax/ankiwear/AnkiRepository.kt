@@ -351,6 +351,15 @@ class AnkiRepository private constructor(private val context: Context) {
         }
     }
 
+    /** Cards reviewed since the start of today's Anki day (manual rescheduling excluded). */
+    suspend fun studiedToday(): Int = io {
+        val dayStartMs = (backend.schedTimingToday().nextDayAt - 86_400) * 1000
+        val result = backend.fullQueryProto(
+            "select count(distinct cid) from revlog where id > ? and type in (0, 1, 2, 3)", arrayOf(dayStartMs),
+        ).result
+        result.rowsList.firstOrNull()?.getFields(0)?.longValue?.toInt() ?: 0
+    }
+
     /** Einmal bei der Deckwahl; schreibt die Config, daher nicht pro Karte. */
     suspend fun selectDeck(deckId: Long) = io { backend.setCurrentDeck(deckId) }
 

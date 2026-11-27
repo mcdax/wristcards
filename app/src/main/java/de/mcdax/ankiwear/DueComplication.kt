@@ -12,13 +12,14 @@ import androidx.wear.watchface.complications.data.ComplicationType
 import androidx.wear.watchface.complications.data.LongTextComplicationData
 import androidx.wear.watchface.complications.data.MonochromaticImage
 import androidx.wear.watchface.complications.data.PlainComplicationText
+import androidx.wear.watchface.complications.data.RangedValueComplicationData
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 
 /** Offene Karten der sichtbaren Decks (ausgeblendete Decks zählen nicht mit). */
-data class DueCounts(val new: Int, val learn: Int, val review: Int) {
+data class DueCounts(val new: Int, val learn: Int, val review: Int, val studied: Int = 0) {
     val total get() = new + learn + review
 }
 
@@ -70,13 +71,14 @@ suspend fun dueCounts(context: Context): DueCounts {
     val now = System.currentTimeMillis()
     val today = java.time.LocalDate.now().toEpochDay()
     if (!AnkiRepository.isLoaded && prefs.getLong("day", -1) == today && now - prefs.getLong("at", 0) < CACHE_MAX_AGE_MS) {
-        return DueCounts(prefs.getInt("new", 0), prefs.getInt("learn", 0), prefs.getInt("review", 0))
+        return DueCounts(prefs.getInt("new", 0), prefs.getInt("learn", 0), prefs.getInt("review", 0), prefs.getInt("studied", 0))
     }
     val hidden = SettingsStore.get(context).current.hiddenDecks
     val repo = withContext(Dispatchers.IO) { AnkiRepository.get(context) }
-    val counts = visibleDueCounts(repo.decks(), hidden)
+    val counts = visibleDueCounts(repo.decks(), hidden).copy(studied = repo.studiedToday())
     prefs.edit().putLong("day", today).putLong("at", now)
-        .putInt("new", counts.new).putInt("learn", counts.learn).putInt("review", counts.review).apply()
+        .putInt("new", counts.new).putInt("learn", counts.learn).putInt("review", counts.review)
+        .putInt("studied", counts.studied).apply()
     return counts
 }
 
@@ -89,7 +91,7 @@ private const val CACHE_MAX_AGE_MS = 2 * 60 * 60 * 1000L
 class DueComplicationService : SuspendingComplicationDataSourceService() {
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? =
-        build(type, DueCounts(5, 1, 12))
+        build(type, DueCounts(5, 1, 12, studied = 18))
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
         val counts = runCatching { dueCounts(this) }.getOrNull() ?: return null
@@ -112,6 +114,11 @@ class DueComplicationService : SuspendingComplicationDataSourceService() {
             ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
                 PlainComplicationText.Builder(getString(R.string.complication_long, c.new, c.learn, c.review)).build(), desc,
             ).setTitle(PlainComplicationText.Builder(getString(R.string.app_name)).build())
+                .setMonochromaticImage(icon).setTapAction(tap).build()
+            // Today's progress: full once nothing is left for today (studied / (studied + still due)).
+            ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(
+                value = c.studied.toFloat(), min = 0f, max = (c.studied + c.total).coerceAtLeast(1).toFloat(), contentDescription = desc,
+            ).setText(PlainComplicationText.Builder(total).build())
                 .setMonochromaticImage(icon).setTapAction(tap).build()
             else -> null
         }
