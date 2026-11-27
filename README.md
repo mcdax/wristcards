@@ -6,6 +6,8 @@ keeps the collection on the watch and syncs directly with a self-hosted Anki syn
 
 Not affiliated with Ankitects or AnkiDroid. "Anki" is a trademark of Ankitects Pty Ltd.
 
+![Screenshots](docs/screenshots/overview.png)
+
 ## Features
 
 - Native card rendering (no WebView): cloze, images, audio, Image Occlusion (native and Enhanced), Ultimate Geography
