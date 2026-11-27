@@ -128,4 +128,5 @@
     <string name="full_upload_offer">上传手表版本</string>
     <string name="full_upload_warning">注意：这会覆盖服务器上的收藏。自上次同步以来其他设备上的更改将丢失。</string>
     <string name="full_upload_confirm">仍要上传</string>
+    <string name="welcome_text">登录你的 Anki 同步服务器以学习卡片。</string>
 </resources>

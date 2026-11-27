@@ -131,4 +131,5 @@
     <string name="full_upload_offer">Uhr-Version hochladen</string>
     <string name="full_upload_warning">Achtung: Das überschreibt die Sammlung auf dem Server. Änderungen von anderen Geräten seit dem letzten Abgleich gehen verloren.</string>
     <string name="full_upload_confirm">Wirklich hochladen</string>
+    <string name="welcome_text">Melde dich bei deinem Anki-Sync-Server an, um deine Karten zu lernen.</string>
 </resources>

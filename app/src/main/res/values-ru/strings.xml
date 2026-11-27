@@ -137,4 +137,5 @@
     <string name="full_upload_offer">Загрузить версию часов</string>
     <string name="full_upload_warning">Внимание: коллекция на сервере будет перезаписана. Изменения с других устройств после последней синхронизации пропадут.</string>
     <string name="full_upload_confirm">Всё равно загрузить</string>
+    <string name="welcome_text">Войдите на сервер синхронизации Anki, чтобы учить карточки.</string>
 </resources>

@@ -74,6 +74,8 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
     val syncer = remember { SyncController.get(context) }
     val sync by syncer.state.collectAsState()
     val decks by repo.deckTree.collectAsState()
+    val account by repo.accountState.collectAsState()
+    val signedOut = account == Account.SignedOut
     var decksLoaded by remember { mutableStateOf(false) }
     var startupDrawn by remember { mutableStateOf(false) }
     // Watch settings
@@ -92,8 +94,15 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
         when {
             previewCard != null -> nav.navigate("preview/$previewCard")
             else -> decks.firstOrNull { it.name == openDeck }?.let { nav.navigate("review/${it.deckId}") }
-                ?: run { if (store.current.syncOnOpen) runSync() } // Auto-sync on open
+                ?: run { if (store.current.syncOnOpen && !signedOut) runSync() } // Auto-sync on open
         }
+    }
+
+    // Right after signing in: fetch the collection without waiting for a manual sync.
+    var wasSignedOut by remember { mutableStateOf(signedOut) }
+    LaunchedEffect(signedOut) {
+        if (wasSignedOut && !signedOut) runSync()
+        wasSignedOut = signedOut
     }
 
     if (decksLoaded) LaunchedEffect(Unit) {
@@ -133,6 +142,8 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
     ) {
         composable("decks") {
             Box(Modifier.fillMaxSize()) {
+            // Nothing to study without an account: show only the sign-in prompt.
+            if (signedOut) WelcomeScreen(onSignIn = { nav.navigate("settings/account") }) else
             DeckList(
                 listState, sync, decks, onSync = ::runSync, onOpen = { nav.navigate("review/${it.deckId}") },
                 onResolveConflict = { syncer.sync(resolve = it) },

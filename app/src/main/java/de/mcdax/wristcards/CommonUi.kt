@@ -1,5 +1,7 @@
 package de.mcdax.wristcards
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -75,4 +77,35 @@ internal fun Toast(text: String, modifier: Modifier = Modifier) {
             .background(c.surface.copy(alpha = 0.95f))
             .padding(horizontal = 12.dp, vertical = 6.dp),
     )
+}
+
+/** Shown instead of the deck list while signed out: app icon, one sentence, a large sign-in button. */
+@Composable
+internal fun WelcomeScreen(onSignIn: () -> Unit) {
+    val c = LocalAnkiColors.current
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
+        modifier = Modifier.fillMaxSize().background(c.background).padding(horizontal = 30.dp),
+    ) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher),
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+        )
+        Text(stringResource(R.string.welcome_text), color = c.text, fontSize = 13.sp, textAlign = TextAlign.Center)
+        Text(
+            stringResource(R.string.sign_in),
+            color = c.background,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(50))
+                .background(c.accent)
+                .clickable(onClick = onSignIn)
+                .padding(vertical = 14.dp),
+        )
+    }
 }

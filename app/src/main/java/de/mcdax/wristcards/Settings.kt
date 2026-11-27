@@ -32,8 +32,8 @@ data class AppSettings(
     val vibrateOnRate: Boolean = true,
     val vibrateOnDeckDone: Boolean = true,
     // Swipe left = Again, right = Good
-    val swipeLeft: SwipeAction = SwipeAction.NONE,
-    val swipeRight: SwipeAction = SwipeAction.NONE,
+    val swipeLeft: SwipeAction = SwipeAction.AGAIN,
+    val swipeRight: SwipeAction = SwipeAction.GOOD,
     // Short overlay after every rating, with undo
     val swipeFeedback: Boolean = true,
     val twoButtons: Boolean = false,

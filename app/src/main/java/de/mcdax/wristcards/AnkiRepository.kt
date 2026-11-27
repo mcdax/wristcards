@@ -231,6 +231,7 @@ class AnkiRepository private constructor(private val context: Context) {
                 lock.withLock {
                     invalidateRenderedCards()
                     credentials.save(result, user, url)
+                    _accountState.value = credentials.account
                     auth = credentials.load() ?: result
                 }
                 SyncResult.Ok
@@ -246,10 +247,16 @@ class AnkiRepository private constructor(private val context: Context) {
     suspend fun signOut() = io {
         invalidateRenderedCards()
         credentials.clear()
+        _accountState.value = credentials.account
         auth = null
     }
 
     val account: Account get() = credentials.account
+
+    private val _accountState = kotlinx.coroutines.flow.MutableStateFlow(credentials.account)
+
+    /** Current sign-in state; the UI shows only the welcome screen while signed out. */
+    val accountState: kotlinx.coroutines.flow.StateFlow<Account> get() = _accountState
 
     /**
      * Normal sync; the first time (empty collection on the watch) a full sync as download.
