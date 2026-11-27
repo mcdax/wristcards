@@ -7,15 +7,9 @@ im=Image.new("RGBA",(S,S),(0,0,0,0)); d=ImageDraw.Draw(im)
 d.ellipse((0,0,S-1,S-1),fill=BLUE)
 def circ(r,fill): d.ellipse((c-r,c-r,c+r,c+r),fill=fill)
 import math
-# Crown on the right and bezel with minute marks so the ring reads as a watch.
+# Crown on the right so the ring reads as a watch.
 d.rounded_rectangle((c+S*0.40,c-S*0.06,c+S*0.475,c+S*0.06),radius=S*0.02,fill=WHITE)
 circ(S*0.43,WHITE); circ(S*0.385,BLUE); circ(S*0.37,WHITE)
-for i in range(60):
-    a=math.radians(i*6); big=i%15==0; mid=i%5==0
-    if not mid: continue
-    r1=S*0.40; r2=S*(0.425 if big else 0.418)
-    wdt=int(S*(0.018 if big else 0.011))
-    d.line((c+r1*math.sin(a),c-r1*math.cos(a),c+r2*math.sin(a),c-r2*math.cos(a)),fill=BLUE,width=wdt)
 def card(cx,cy,w,h,ang,fill,r):
     layer=Image.new("RGBA",(S,S),(0,0,0,0)); ImageDraw.Draw(layer).rounded_rectangle((cx-w/2,cy-h/2,cx+w/2,cy+h/2),radius=r,fill=fill)
     return layer.rotate(ang,center=(cx,cy),resample=Image.BICUBIC)
