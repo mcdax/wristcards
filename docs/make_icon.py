@@ -10,6 +10,10 @@ import math
 # Crown on the right so the ring reads as a watch.
 d.rounded_rectangle((c+S*0.40,c-S*0.06,c+S*0.475,c+S*0.06),radius=S*0.02,fill=WHITE)
 circ(S*0.43,WHITE); circ(S*0.385,BLUE); circ(S*0.37,WHITE)
+# Only the four main marks (12, 3, 6, 9) on the bezel.
+for i in range(4):
+    a=math.radians(i*90); r1=S*0.395; r2=S*0.425
+    d.line((c+r1*math.sin(a),c-r1*math.cos(a),c+r2*math.sin(a),c-r2*math.cos(a)),fill=BLUE,width=int(S*0.018))
 def card(cx,cy,w,h,ang,fill,r):
     layer=Image.new("RGBA",(S,S),(0,0,0,0)); ImageDraw.Draw(layer).rounded_rectangle((cx-w/2,cy-h/2,cx+w/2,cy+h/2),radius=r,fill=fill)
     return layer.rotate(ang,center=(cx,cy),resample=Image.BICUBIC)
