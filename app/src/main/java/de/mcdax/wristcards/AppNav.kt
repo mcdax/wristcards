@@ -46,7 +46,7 @@ internal fun App(startup: Deferred<Result<AnkiRepository>>, openDeck: String? = 
     when {
         r == null -> Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_cards),
+                painter = androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher),
                 contentDescription = stringResource(R.string.app_name),
                 modifier = Modifier.size(64.dp),
             )

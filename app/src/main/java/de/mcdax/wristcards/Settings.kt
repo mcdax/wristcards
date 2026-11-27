@@ -27,8 +27,8 @@ data class AppSettings(
     // Studying
     val fontSize: FontSize = FontSize.NORMAL,
     val extraMode: ExtraMode = ExtraMode.SHOW,
-    val audioMode: AudioMode = AudioMode.AUTO,
-    val audioOutput: AudioOutput = AudioOutput.BLUETOOTH_ONLY,
+    val audioMode: AudioMode = AudioMode.ON_TAP,
+    val audioOutput: AudioOutput = AudioOutput.ALWAYS,
     val vibrateOnRate: Boolean = true,
     val vibrateOnDeckDone: Boolean = true,
     // Swipe left = Again, right = Good
