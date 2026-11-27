@@ -57,7 +57,8 @@ def run(group, name, revealed, cmd, want):
     log = re.findall(r"AnkiBack: (.*)", sh("logcat -d -s AnkiBack:D"))
     got = "+".join(line[7:] for line in log if line.startswith("result ")) or "none"
     ok = got == EXPECTED[want]
-    print("OK  " if ok else "FAIL", group, name, "| want", want, "| got", got, flush=True)
+    detail = "" if ok else " | " + " | ".join(line for line in log if not line.startswith("result "))
+    print("OK  " if ok else "FAIL", group, name, "| want", want, "| got", got + detail, flush=True)
     results[group, ok] += 1
 
 

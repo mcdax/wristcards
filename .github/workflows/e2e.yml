@@ -116,8 +116,7 @@ jobs:
             adb push /tmp/collection.anki2 /data/local/tmp/ci/collection.anki2
             adb shell chmod -R 755 /data/local/tmp/ci
             adb shell cmd locale set-app-locales de.mcdax.wristcards --locales en-US || true
-            bash -o pipefail -c "python3 ci/swipe_test.py emulator-5554 Spanish ${{ inputs.mode == 'quick' && 'quick' || '' }} | tee swipe-test.log"
-            adb logcat -d > logcat.txt 2>/dev/null || true
+            bash -o pipefail -c "python3 ci/swipe_test.py emulator-5554 Spanish ${{ inputs.mode == 'quick' && 'quick' || '' }} | tee swipe-test.log; rc=\$?; adb logcat -d > logcat.txt; exit \$rc"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
