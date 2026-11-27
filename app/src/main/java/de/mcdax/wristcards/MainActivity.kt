@@ -3,6 +3,7 @@ package de.mcdax.wristcards
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.Dispatchers
@@ -33,10 +34,14 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         if (BuildConfig.DEBUG) android.util.Log.d("AnkiResume", "create restored=${savedInstanceState != null}")
         // Prepare in parallel to the first UI composition, not only after the loading frame.
         val startup = lifecycleScope.async(Dispatchers.IO) { openRepository(applicationContext) }
+        // Keep the splash until the first real screen is composed, so no empty frame shows in between.
+        var contentReady = false
+        splash.setKeepOnScreenCondition { !contentReady }
         // While studying, don't dim mid-card (otherwise Wear OS likes to kill the process).
         // Color variant to try out: adb shell am start ... --ei theme 1
         // Debug build only: the activity is exported, foreign intents must not trigger any of this.
@@ -45,7 +50,7 @@ class MainActivity : ComponentActivity() {
         // For screenshots in the emulator: --es deck <name> opens the deck directly.
         val openDeck = debugIntent?.getStringExtra("deck")
         val previewCard = debugIntent?.getLongExtra("card", 0L)?.takeIf { it != 0L }
-        setContent { AnkiTheme(themeVariants[variant]) { App(startup, openDeck, previewCard, restoring = savedInstanceState != null) } }
+        setContent { AnkiTheme(themeVariants[variant]) { App(startup, openDeck, previewCard, restoring = savedInstanceState != null, onReady = { contentReady = true }) } }
     }
     override fun onResume() {
         super.onResume()

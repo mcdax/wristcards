@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,21 +37,23 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun App(startup: Deferred<Result<AnkiRepository>>, openDeck: String? = null, previewCard: Long? = null, restoring: Boolean = false) {
+internal fun App(
+    startup: Deferred<Result<AnkiRepository>>,
+    openDeck: String? = null,
+    previewCard: Long? = null,
+    restoring: Boolean = false,
+    onReady: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf(startup) }
     var result by remember { mutableStateOf<Result<AnkiRepository>?>(null) }
     LaunchedEffect(pending) { result = pending.await() }
     val r = result
+    if (r != null) SideEffect(onReady)
     when {
-        r == null -> Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher),
-                contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.size(64.dp),
-            )
-        }
+        // The system splash covers loading (MainActivity); only a retry after an error lands here.
+        r == null -> Box(Modifier.fillMaxSize().background(Color.Black))
         r.isFailure -> ErrorNote(
             stringResource(R.string.open_failed),
             r.exceptionOrNull()?.message,

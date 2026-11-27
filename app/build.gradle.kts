@@ -76,6 +76,7 @@ dependencies {
     implementation("io.github.david-allison:anki-backend-android:0.1.77-anki26.09.4")
     implementation(platform("androidx.compose:compose-bom:2026.11.01"))
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.wear.compose:compose-material3:1.7.2")
     implementation("androidx.wear.compose:compose-foundation:1.7.2")
     implementation("androidx.wear.compose:compose-navigation:1.7.2")
