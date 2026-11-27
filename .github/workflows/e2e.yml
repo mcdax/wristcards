@@ -25,13 +25,11 @@ concurrency:
   group: e2e-${{ inputs.ref }}
   cancel-in-progress: true
 
-# Unsigned Wear OS 5 image: boots much faster than the signed Wear OS 6/7 images and allows snapshots.
+# Wear OS 7 like on the target watch: there, swiping back is a system gesture (Wear OS 5 still uses
+# the old window swipe-to-dismiss, which behaves differently). Only signed images exist for Wear OS 6+.
 env:
-  API_LEVEL: 34
-  TARGET: android-wear
-  ARCH: x86_64
-  PROFILE: wearos_large_round
-  EMULATOR_OPTIONS: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+  SYSTEM_IMAGE: "system-images;android-37.0;android-wear-signed;x86_64"
+  EMULATOR_OPTIONS: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 2048 -camera-back none
 
 jobs:
   emulator:
@@ -78,45 +76,60 @@ jobs:
         run: |
           python3 -m venv /tmp/anki && /tmp/anki/bin/pip install --quiet anki
           /tmp/anki/bin/python -I ci/make_demo_collection.py /tmp/collection.anki2
-      # Cold boot only once: later runs resume from the cached AVD snapshot.
+      # avdmanager before cmdline-tools 22.0 writes "target=android-0" for API 37.0, and the guest
+      # graphics driver then crashes in a loop, so the AVD is created with 22.0 and its target checked.
+      - name: Install emulator and system image
+        run: |
+          yes | sdkmanager --install "cmdline-tools;22.0" emulator "$SYSTEM_IMAGE" > /dev/null
+          echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+      # Cold boot only once: later runs resume from the cached quick-boot snapshot.
       - name: AVD cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         id: avd-cache
         with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{ env.API_LEVEL }}-${{ env.TARGET }}-${{ env.ARCH }}-${{ env.PROFILE }}
-      - name: Create AVD snapshot
+          path: ~/.android/avd
+          key: avd-wear37-2048-v1
+      - name: Create AVD and snapshot
         if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 20
+        run: |
+          echo no | "$ANDROID_HOME/cmdline-tools/22.0/bin/avdmanager" create avd -n wear -k "$SYSTEM_IMAGE" -d wearos_large_round --force
+          grep -q "^target=android-37.0" ~/.android/avd/wear.ini
+          emulator -avd wear $EMULATOR_OPTIONS > emulator-cold.log 2>&1 &
+          adb wait-for-device
+          until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 5; done
+          sleep 20
+          adb emu kill
+          while pgrep -f qemu-system > /dev/null; do sleep 2; done
+      - name: Save AVD cache
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
         with:
-          api-level: ${{ env.API_LEVEL }}
-          target: ${{ env.TARGET }}
-          arch: ${{ env.ARCH }}
-          profile: ${{ env.PROFILE }}
-          force-avd-creation: false
-          emulator-options: ${{ env.EMULATOR_OPTIONS }}
-          disable-animations: false
-          script: echo "AVD snapshot created"
+          path: ~/.android/avd
+          key: avd-wear37-2048-v1
+      - name: Boot emulator
+        timeout-minutes: 10
+        run: |
+          emulator -avd wear $EMULATOR_OPTIONS -no-snapshot-save > emulator.log 2>&1 &
+          adb wait-for-device
+          until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 3; done
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb shell wm size
+      - name: Install app and test data
+        run: |
+          adb install -r app/build/outputs/apk/debug/app-debug.apk
+          adb shell mkdir -p /data/local/tmp/ci
+          adb push /tmp/collection.anki2 /data/local/tmp/ci/collection.anki2
+          adb shell chmod -R 755 /data/local/tmp/ci
+          adb shell cmd locale set-app-locales de.mcdax.wristcards --locales en-US
       - name: Swipe test (${{ inputs.mode }})
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ env.API_LEVEL }}
-          target: ${{ env.TARGET }}
-          arch: ${{ env.ARCH }}
-          profile: ${{ env.PROFILE }}
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save ${{ env.EMULATOR_OPTIONS }}
-          disable-animations: true
-          script: |
-            adb shell wm size
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-            adb shell mkdir -p /data/local/tmp/ci
-            adb push /tmp/collection.anki2 /data/local/tmp/ci/collection.anki2
-            adb shell chmod -R 755 /data/local/tmp/ci
-            adb shell cmd locale set-app-locales de.mcdax.wristcards --locales en-US || true
-            bash -o pipefail -c "python3 ci/swipe_test.py emulator-5554 Spanish ${{ inputs.mode == 'quick' && 'quick' || '' }} | tee swipe-test.log; rc=\$?; adb logcat -d > logcat.txt; exit \$rc"
+        shell: bash
+        run: python3 ci/swipe_test.py emulator-5554 Spanish ${{ inputs.mode == 'quick' && 'quick' || '' }} | tee swipe-test.log
+      - name: Collect logs
+        if: always()
+        run: adb logcat -d > logcat.txt 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -124,6 +137,7 @@ jobs:
           path: |
             swipe-test.log
             logcat.txt
+            emulator*.log
           retention-days: 7
           if-no-files-found: ignore
       - name: Report commit status
