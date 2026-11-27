@@ -124,7 +124,7 @@ private val mediaChoice = Choice(
 )
 private val ratedNoteChoice = Choice(
     "rated_note", R.string.set_swipe_feedback,
-    listOf(0 to R.string.opt_off, 2 to R.string.opt_sec_2, 3 to R.string.opt_sec_3, 5 to R.string.opt_sec_5),
+    listOf(0 to R.string.opt_off, 1 to R.string.opt_sec_1, 2 to R.string.opt_sec_2, 3 to R.string.opt_sec_3, 5 to R.string.opt_sec_5),
     { it.ratedNoteSeconds }, { s, v -> s.copy(ratedNoteSeconds = v) },
 )
 private val choices: List<Choice<*>> =
