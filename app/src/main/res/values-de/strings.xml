@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">Zum Beenden nochmal zurück</string>
     <string name="set_confirm_exit">Versehentliches Beenden verhindern</string>
     <string name="set_confirm_exit_hint">Zum Beenden zweimal zurück</string>
-    <string name="rated_again">✕ Nochmal</string>
-    <string name="rated_hard">– Schwer</string>
-    <string name="rated_good">✓ Gut</string>
-    <string name="rated_easy">★ Einfach</string>
+    <string name="rated_again">Nochmal</string>
+    <string name="rated_hard">Schwer</string>
+    <string name="rated_good">Gut</string>
+    <string name="rated_easy">Einfach</string>
     <string name="set_buttons">Antwortknöpfe</string>
     <string name="set_intervals">Nächste Wiederholung auf Knöpfen</string>
     <string name="set_keep_screen_on">Bildschirm anlassen</string>

@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">Çıkmak için bir kez daha</string>
     <string name="set_confirm_exit">Çıkışı onayla</string>
     <string name="set_confirm_exit_hint">Uygulamadan çıkmak için iki kez geri gidin veya kaydırın</string>
-    <string name="rated_again">✕ Tekrar</string>
-    <string name="rated_hard">– Zor</string>
-    <string name="rated_good">✓ İyi</string>
-    <string name="rated_easy">★ Kolay</string>
+    <string name="rated_again">Tekrar</string>
+    <string name="rated_hard">Zor</string>
+    <string name="rated_good">İyi</string>
+    <string name="rated_easy">Kolay</string>
     <string name="set_buttons">Cevap düğmeleri</string>
     <string name="set_intervals">Aralıkları göster</string>
     <string name="set_keep_screen_on">Ekranı açık tut</string>

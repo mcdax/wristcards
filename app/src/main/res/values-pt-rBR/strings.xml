@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">Mais uma vez para sair</string>
     <string name="set_confirm_exit">Confirmar saída</string>
     <string name="set_confirm_exit_hint">Voltar ou deslizar duas vezes para sair do app</string>
-    <string name="rated_again">✕ Novamente</string>
-    <string name="rated_hard">– Difícil</string>
-    <string name="rated_good">✓ Bom</string>
-    <string name="rated_easy">★ Fácil</string>
+    <string name="rated_again">Novamente</string>
+    <string name="rated_hard">Difícil</string>
+    <string name="rated_good">Bom</string>
+    <string name="rated_easy">Fácil</string>
     <string name="set_buttons">Botões de resposta</string>
     <string name="set_intervals">Mostrar intervalos</string>
     <string name="set_keep_screen_on">Manter tela ligada</string>

@@ -36,10 +36,10 @@
     <string name="back_again_to_exit">Go back once more to exit</string>
     <string name="set_confirm_exit">Prevent accidental exit</string>
     <string name="set_confirm_exit_hint">Go back twice to exit</string>
-    <string name="rated_again">✕ Again</string>
-    <string name="rated_hard">– Hard</string>
-    <string name="rated_good">✓ Good</string>
-    <string name="rated_easy">★ Easy</string>
+    <string name="rated_again">Again</string>
+    <string name="rated_hard">Hard</string>
+    <string name="rated_good">Good</string>
+    <string name="rated_easy">Easy</string>
     <string name="set_buttons">Answer buttons</string>
     <string name="set_intervals">Show next review on buttons</string>
     <string name="set_keep_screen_on">Keep screen on</string>

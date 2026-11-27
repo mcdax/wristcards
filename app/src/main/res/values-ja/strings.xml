@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">もう一度で終了</string>
     <string name="set_confirm_exit">終了を確認</string>
     <string name="set_confirm_exit_hint">戻る操作かスワイプを2回でアプリを終了</string>
-    <string name="rated_again">✕ もう一度</string>
-    <string name="rated_hard">– 難しい</string>
-    <string name="rated_good">✓ 普通</string>
-    <string name="rated_easy">★ 簡単</string>
+    <string name="rated_again">もう一度</string>
+    <string name="rated_hard">難しい</string>
+    <string name="rated_good">普通</string>
+    <string name="rated_easy">簡単</string>
     <string name="set_buttons">回答ボタン</string>
     <string name="set_intervals">間隔を表示</string>
     <string name="set_keep_screen_on">画面を点灯したままにする</string>

@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">Ще раз, щоб вийти</string>
     <string name="set_confirm_exit">Підтверджувати вихід</string>
     <string name="set_confirm_exit_hint">Назад або свайп двічі — вихід із застосунку</string>
-    <string name="rated_again">✕ Знову</string>
-    <string name="rated_hard">– Важко</string>
-    <string name="rated_good">✓ Добре</string>
-    <string name="rated_easy">★ Легко</string>
+    <string name="rated_again">Знову</string>
+    <string name="rated_hard">Важко</string>
+    <string name="rated_good">Добре</string>
+    <string name="rated_easy">Легко</string>
     <string name="set_buttons">Кнопки відповіді</string>
     <string name="set_intervals">Показувати інтервали</string>
     <string name="set_keep_screen_on">Не гасити екран</string>

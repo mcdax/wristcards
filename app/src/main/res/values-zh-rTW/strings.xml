@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">再按一次即可退出</string>
     <string name="set_confirm_exit">確認退出</string>
     <string name="set_confirm_exit_hint">連按兩次返回或滑動即可離開應用程式</string>
-    <string name="rated_again">✕ 重來</string>
-    <string name="rated_hard">– 困難</string>
-    <string name="rated_good">✓ 良好</string>
-    <string name="rated_easy">★ 簡單</string>
+    <string name="rated_again">重來</string>
+    <string name="rated_hard">困難</string>
+    <string name="rated_good">良好</string>
+    <string name="rated_easy">簡單</string>
     <string name="set_buttons">答案按鈕</string>
     <string name="set_intervals">顯示間隔</string>
     <string name="set_keep_screen_on">保持螢幕常亮</string>

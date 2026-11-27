@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">한 번 더 누르면 종료</string>
     <string name="set_confirm_exit">종료 확인</string>
     <string name="set_confirm_exit_hint">뒤로 가기나 스와이프를 두 번 하면 앱을 종료합니다</string>
-    <string name="rated_again">✕ 다시</string>
-    <string name="rated_hard">– 어려움</string>
-    <string name="rated_good">✓ 좋음</string>
-    <string name="rated_easy">★ 쉬움</string>
+    <string name="rated_again">다시</string>
+    <string name="rated_hard">어려움</string>
+    <string name="rated_good">좋음</string>
+    <string name="rated_easy">쉬움</string>
     <string name="set_buttons">답변 버튼</string>
     <string name="set_intervals">간격 표시</string>
     <string name="set_keep_screen_on">화면 켜 두기</string>

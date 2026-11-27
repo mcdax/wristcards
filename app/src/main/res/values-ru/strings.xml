@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">Ещё раз, чтобы выйти</string>
     <string name="set_confirm_exit">Подтверждать выход</string>
     <string name="set_confirm_exit_hint">Назад или свайп дважды — выход из приложения</string>
-    <string name="rated_again">✕ Снова</string>
-    <string name="rated_hard">– Трудно</string>
-    <string name="rated_good">✓ Хорошо</string>
-    <string name="rated_easy">★ Легко</string>
+    <string name="rated_again">Снова</string>
+    <string name="rated_hard">Трудно</string>
+    <string name="rated_good">Хорошо</string>
+    <string name="rated_easy">Легко</string>
     <string name="set_buttons">Кнопки ответа</string>
     <string name="set_intervals">Показывать интервалы</string>
     <string name="set_keep_screen_on">Не гасить экран</string>

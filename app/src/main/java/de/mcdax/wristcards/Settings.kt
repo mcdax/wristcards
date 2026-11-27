@@ -52,7 +52,7 @@ data class AppSettings(
     val mediaMode: MediaMode = MediaMode.ALL,
     // Deck list
     // Leaving the app only with a second back (button or swipe)
-    val confirmExit: Boolean = true,
+    val confirmExit: Boolean = false,
     val hideEmptyDecks: Boolean = false,
     // "New · Learning · Due" row above the decks
     val showLegend: Boolean = true,

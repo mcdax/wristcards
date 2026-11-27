@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">En gång till för att avsluta</string>
     <string name="set_confirm_exit">Bekräfta avslut</string>
     <string name="set_confirm_exit_hint">Bakåt eller svep två gånger för att lämna appen</string>
-    <string name="rated_again">✕ Igen</string>
-    <string name="rated_hard">– Svårt</string>
-    <string name="rated_good">✓ Bra</string>
-    <string name="rated_easy">★ Lätt</string>
+    <string name="rated_again">Igen</string>
+    <string name="rated_hard">Svårt</string>
+    <string name="rated_good">Bra</string>
+    <string name="rated_easy">Lätt</string>
     <string name="set_buttons">Svarsknappar</string>
     <string name="set_intervals">Visa intervall</string>
     <string name="set_keep_screen_on">Behåll skärmen tänd</string>

@@ -34,10 +34,10 @@
     <string name="back_again_to_exit">Nog eens om af te sluiten</string>
     <string name="set_confirm_exit">Afsluiten bevestigen</string>
     <string name="set_confirm_exit_hint">Twee keer terug of vegen om de app te verlaten</string>
-    <string name="rated_again">✕ Opnieuw</string>
-    <string name="rated_hard">– Moeilijk</string>
-    <string name="rated_good">✓ Goed</string>
-    <string name="rated_easy">★ Makkelijk</string>
+    <string name="rated_again">Opnieuw</string>
+    <string name="rated_hard">Moeilijk</string>
+    <string name="rated_good">Goed</string>
+    <string name="rated_easy">Makkelijk</string>
     <string name="set_buttons">Antwoordknoppen</string>
     <string name="set_intervals">Intervallen tonen</string>
     <string name="set_keep_screen_on">Scherm aanhouden</string>

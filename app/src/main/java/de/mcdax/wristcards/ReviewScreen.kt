@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -43,6 +45,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
 import androidx.wear.compose.foundation.rotary.rotaryScrollable
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.Text
 import anki.decks.DeckTreeNode
 import anki.scheduler.CardAnswer
@@ -393,44 +397,47 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             visible = ratedNote != null,
             enter = androidx.compose.animation.fadeIn(),
             exit = androidx.compose.animation.fadeOut(),
-            // At the bottom: after rating, the next card is hidden, so there are no buttons there.
-            // Somewhat higher where the round screen is wide enough.
-            // Low on the screen, below the card text; the stacked toast is narrow enough for the round edge.
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp),
+            // Low on the screen, below the card text: after rating, the next card is hidden, so there are no
+            // buttons there. The single-row pill is narrow enough for the round edge.
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
         ) {
             val note = ratedNote
             if (note != null) {
-                // One below the other instead of side by side: at the bottom of the round display it is too narrow for both in one row.
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                // One row: rating word, divider, undo arrow. The word alone would not fit next to
+                // "Undo" spelled out at the bottom of the round display, so the arrow carries the action.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .widthIn(max = TOAST_MAX_WIDTH)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(c.surface.copy(alpha = 0.97f))
-                        .padding(top = 6.dp, bottom = 2.dp),
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(c.surface.copy(alpha = 0.97f)),
                 ) {
                     Text(
                         note.text,
                         color = note.color,
-                        fontSize = 12.sp,
-                        lineHeight = 15.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 12.dp),
+                        modifier = Modifier.weight(1f, fill = false).padding(start = 14.dp, end = 8.dp),
                     )
-                    Text(
-                        stringResource(R.string.undo),
-                        color = c.accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
+                    Box(Modifier.width(1.dp).height(16.dp).background(c.textDim.copy(alpha = 0.4f)))
+                    val undoLabel = stringResource(R.string.undo)
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .clickable { undo(note) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
+                            .fillMaxHeight()
+                            .clickable(onClickLabel = undoLabel) { undo(note) }
+                            .padding(start = 8.dp, end = 12.dp),
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_undo),
+                            contentDescription = undoLabel,
+                            tint = c.accent,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
         }
