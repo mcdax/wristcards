@@ -1,5 +1,5 @@
 {
-  "_comment": "Screens for the /screens PR collages. Each screen starts the app fresh (optionally in a deck) and runs its steps. Coordinates are fractions of the display; tap_text taps the first node whose text matches the regex (scrolling if needed). signed_out shows the app as after signing out; extras are added to the am start command (debug-build hooks, e.g. --ez conflict true). Vertical swipes are slow (1.5 s) so lists stop exactly where the finger does, without fling; that keeps scrolled screens identical between runs. Groups run in parallel; '/screens study cards' or '/screens answer' takes only those groups or screens.",
+  "_comment": "Screens for the /screens PR collages. Each screen starts the app fresh (optionally in a deck) and runs its steps. Coordinates are fractions of the display; tap_text taps the first node whose text matches the regex (scrolling if needed). signed_out shows the app as after signing out; hints_seen hides the \"Tap to show answer\" hint of the first cards; extras are added to the am start command (debug-build hooks, e.g. --ez conflict true). Vertical swipes are slow (1.5 s) so lists stop exactly where the finger does, without fling; that keeps scrolled screens identical between runs. Groups run in parallel; '/screens study cards' or '/screens answer' takes only those groups or screens.",
   "displays": [
     {
       "name": "454 px",
@@ -327,6 +327,33 @@
           1500
         ]
       ]
+    },
+    {
+      "name": "question short",
+      "group": "study",
+      "deck": "Capitals",
+      "hints_seen": true,
+      "steps": []
+    },
+    {
+      "name": "answer short",
+      "group": "study",
+      "deck": "Capitals",
+      "hints_seen": true,
+      "steps": [
+        [
+          "tap",
+          0.5,
+          0.4
+        ]
+      ]
+    },
+    {
+      "name": "question long",
+      "group": "study",
+      "deck": "Physics",
+      "hints_seen": true,
+      "steps": []
     },
     {
       "name": "after rating",

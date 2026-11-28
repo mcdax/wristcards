@@ -21,6 +21,8 @@ PREFS = ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map>"
          "<boolean name=\"syncOnOpen\" value=\"false\" /><boolean name=\"syncOnDeckExit\" value=\"false\" /></map>")
 # State after "Sign out" (SyncCredentials.clear): the debug build's built-in account is not used either.
 SIGNED_OUT = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><boolean name=\"signedOut\" value=\"true\" /></map>"
+# A user past the first cards: the "Tap to show answer" hint is no longer shown.
+HINTS_SEEN = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><int name=\"revealsSeen\" value=\"99\" /></map>"
 
 
 def adb(*args, binary=False, input_text=None):
@@ -83,7 +85,9 @@ adb("install", "-r", APK)
 adb("push", DEMO, "/data/local/tmp/screens.anki2")
 adb("shell", "cat > /data/local/tmp/screens-prefs.xml", input_text=PREFS)
 adb("shell", "cat > /data/local/tmp/screens-signed-out.xml", input_text=SIGNED_OUT)
-sh("chmod 644 /data/local/tmp/screens.anki2 /data/local/tmp/screens-prefs.xml /data/local/tmp/screens-signed-out.xml")
+adb("shell", "cat > /data/local/tmp/screens-hints-seen.xml", input_text=HINTS_SEEN)
+sh("chmod 644 /data/local/tmp/screens.anki2 /data/local/tmp/screens-prefs.xml /data/local/tmp/screens-signed-out.xml"
+   " /data/local/tmp/screens-hints-seen.xml")
 sh(f"cmd locale set-app-locales {PKG} --locales en-US")
 sh(f"run-as {PKG} sh -c 'mkdir -p files shared_prefs && cp /data/local/tmp/screens-prefs.xml shared_prefs/settings.xml'")
 media = DEMO.replace(".anki2", ".media")
@@ -103,10 +107,13 @@ try:
         for screen in CONFIG["screens"]:
             if ONLY and screen["name"] not in ONLY:
                 continue
+            # Hint counters are reset too, so a screen does not depend on the ones taken before it.
             sh(f"am force-stop {PKG}; run-as {PKG} sh -c 'rm -f files/collection.anki2-wal files/collection.anki2-shm"
-               f" shared_prefs/sync_auth.xml; cp /data/local/tmp/screens.anki2 files/collection.anki2'")
+               f" shared_prefs/sync_auth.xml shared_prefs/ui_hints.xml; cp /data/local/tmp/screens.anki2 files/collection.anki2'")
             if screen.get("signed_out"):
                 sh(f"run-as {PKG} sh -c 'cp /data/local/tmp/screens-signed-out.xml shared_prefs/sync_auth.xml'")
+            if screen.get("hints_seen"):
+                sh(f"run-as {PKG} sh -c 'cp /data/local/tmp/screens-hints-seen.xml shared_prefs/ui_hints.xml'")
             extras = (f" --es deck '{screen['deck']}'" if "deck" in screen else "") + " " + screen.get("extras", "")
             sh(f"input keyevent WAKEUP; am start -W -n {PKG}/.MainActivity{extras} >/dev/null")
             time.sleep(3.5)
