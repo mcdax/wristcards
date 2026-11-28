@@ -56,7 +56,7 @@ jobs:
             echo "Pull request from a fork; not building it." >&2; exit 1
           fi
           echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
-          gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null
+          gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null || echo "Could not react to the comment" >&2
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr.outputs.head || inputs.ref }}
