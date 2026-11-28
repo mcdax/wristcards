@@ -26,7 +26,7 @@ permissions:
 
 concurrency:
   # Every PR comment starts this workflow; only real "/screens" runs share a group, so other comments
-  # (e.g. "/e2e") cannot cancel a running screenshot run.
+  # (e.g. "/test") cannot cancel a running screenshot run.
   group: screens-${{ github.event.issue.number || inputs.pr }}-${{ github.event_name != 'issue_comment' || startsWith(github.event.comment.body, '/screens') }}
   cancel-in-progress: true
 
@@ -157,7 +157,7 @@ jobs:
         run: |
           python3 -m venv /tmp/py && /tmp/py/bin/pip install --quiet anki
           mkdir -p /tmp/demo && /tmp/py/bin/python -I ci/make_demo_collection.py /tmp/demo/collection.anki2
-      # Same emulator and snapshot cache as the e2e workflow (see there for why cmdline-tools 22.0).
+      # Same emulator and snapshot cache as the tests workflow (see there for why cmdline-tools 22.0).
       - name: Install emulator and system image
         run: |
           yes | sdkmanager --install "cmdline-tools;22.0" > /dev/null
