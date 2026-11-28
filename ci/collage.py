@@ -18,6 +18,8 @@ SIZE, LABEL, PAD = 300, 190, 14
 # A pixel counts as changed if a colour channel differs by more than this; a size counts as changed if more
 # than this share of the round display changed. Both keep anti-aliasing noise out.
 PIXEL_THRESHOLD, AREA_THRESHOLD = 40, 0.0015
+# Largest vertical offset (px) between before and after that still counts as the same picture.
+MAX_SHIFT = 8
 
 
 def slug(name):
@@ -48,15 +50,33 @@ def round_watch(image):
 
 
 def changes(before, after):
-    """(changed?, mask of changed pixels) for two screenshots, only inside the round display."""
+    """(changed?, mask of changed pixels) for two screenshots, only inside the round display.
+
+    Scrolled screens can end a few pixels apart from run to run; the comparison therefore tries small
+    vertical shifts and keeps the best match, so only content that really differs counts.
+    """
     if before is None or after is None:
         return before is not after, None
     if before.size != after.size:
         after = after.resize(before.size)
-    diff = ImageChops.difference(before, after).convert("L").point(lambda v: 255 if v > PIXEL_THRESHOLD else 0)
-    diff = ImageChops.multiply(diff, disc_mask(before.size[0]).point(lambda v: 255 if v > 128 else 0))
-    share = sum(diff.histogram()[255:]) / (before.size[0] * before.size[1] * 0.785)
-    return share > AREA_THRESHOLD, diff
+    w, h = before.size
+    disc = disc_mask(w).point(lambda v: 255 if v > 128 else 0)
+    best = None
+    for dy in range(-MAX_SHIFT, MAX_SHIFT + 1):
+        shifted = ImageChops.offset(after, 0, dy)
+        diff = ImageChops.difference(before, shifted).convert("L").point(lambda v: 255 if v > PIXEL_THRESHOLD else 0)
+        diff = ImageChops.multiply(diff, disc)
+        # Ignore the rows that the shift wrapped around.
+        if dy > 0:
+            diff.paste(0, (0, 0, w, dy))
+        elif dy < 0:
+            diff.paste(0, (0, h + dy, w, h))
+        count = diff.histogram()[255]
+        if best is None or count < best[0]:
+            best = (count, diff, dy)
+    count, diff, dy = best
+    share = count / (w * h * 0.785)
+    return share > AREA_THRESHOLD, ImageChops.offset(diff, 0, -dy)
 
 
 def highlight(after, mask):
