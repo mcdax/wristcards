@@ -347,6 +347,17 @@ internal enum class Bullet { SEPARATOR, AFTER_COLON, BEFORE }
  * The first entry of such a line also gets "• ", either after a colon
  * ("Name …: A · B" → intro, then list) or at the start of the line.
  */
+/**
+ * " · " is also a multiplication dot ("F = m · a"). A line is only split if it is not already a list item
+ * itself and does not look like a formula: no "=" and no single-character entries.
+ */
+private fun looksLikeList(line: String): Boolean {
+    val trimmed = line.trimStart()
+    if (trimmed.startsWith("•") || trimmed.startsWith("- ") || trimmed.startsWith("* ")) return false
+    if ('=' in line) return false
+    return line.substringAfterLast(": ").split(INLINE_SEPARATOR).none { it.trim().length < 2 }
+}
+
 internal fun inlineBullets(raw: String): Map<Int, Bullet> {
     val out = HashMap<Int, Bullet>()
     var lineStart = 0
@@ -354,7 +365,7 @@ internal fun inlineBullets(raw: String): Map<Int, Bullet> {
         val lineEnd = raw.indexOf('\n', lineStart).let { if (it < 0) raw.length else it }
         val line = raw.substring(lineStart, lineEnd)
         val first = line.indexOf(INLINE_SEPARATOR)
-        if (first >= 0) {
+        if (first >= 0 && looksLikeList(line)) {
             var at = first
             while (at >= 0) {
                 out[lineStart + at] = Bullet.SEPARATOR
