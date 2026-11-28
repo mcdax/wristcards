@@ -318,7 +318,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                 .heightIn(min = LocalConfiguration.current.screenHeightDp.dp)
                 // With the answer shown, the text runs faded behind the rating buttons (so you see that it
                 // continues) and can be scrolled until its last line is fully above them.
-                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) GRADE_BAR_CLEARANCE + 14.dp else 60.dp),
+                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) gradeBarClearance() + 14.dp else 60.dp),
             // Question centered, answer at the top (explanation and rating buttons belong together).
             verticalArrangement = if (revealed) Arrangement.spacedBy(10.dp) else Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         ) {
@@ -384,7 +384,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
         if (revealed && current != null) {
             // Text behind the buttons stays faintly visible.
             Box(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(GRADE_BAR_CLEARANCE + 20.dp)
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(gradeBarClearance() + 20.dp)
                     .background(Brush.verticalGradient(0f to Color.Transparent, 0.25f to c.background.copy(alpha = 0.75f), 1f to c.background.copy(alpha = 0.92f))),
             )
             GradeBar(
@@ -512,7 +512,8 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
     val screen = LocalConfiguration.current.screenWidthDp
     val gap = if (twoButtons) 12f else 2f
     // Four buttons on a flat arc must fit the round display; two wide ones sit in the middle.
-    val width = if (twoButtons) 70f else gradeButtonWidth(screen, buttons.size, gap, maxWidth = 44f, raisedBottom = 24f)
+    val raise = gradeBarRaise(screen)
+    val width = if (twoButtons) 70f else gradeButtonWidth(screen, buttons.size, gap, maxWidth = 44f, raisedBottom = 14f + raise)
     // Without words and without times a symbol remains, so the button isn't empty.
     val symbols = listOf("✕", "–", "✓", "★")
     val twoLines = showLabels && showIntervals
@@ -528,7 +529,7 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .padding(bottom = if (outer) 10.dp else 0.dp)
+                    .padding(bottom = if (outer) raise.dp else 0.dp)
                     .width(width.dp)
                     .height(if (twoLines) 40.dp else 34.dp)
                     .clip(RoundedCornerShape(14.dp))
@@ -571,8 +572,15 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
     }
 }
 
-/** Space at the bottom kept free for the rating buttons (bottom padding plus button height plus a gap). */
-private val GRADE_BAR_CLEARANCE = 66.dp
+/**
+ * How far the outer rating buttons are raised: a flat arc on small watches (10 dp at 192 dp and below),
+ * rising to 18 dp at 227 dp and above, where the extra room makes all four buttons wider.
+ */
+internal fun gradeBarRaise(screenDp: Int): Float = 10f + 8f * ((screenDp - 192) / 35f).coerceIn(0f, 1f)
+
+/** Height of the rating row from the bottom edge (padding, raised outer buttons, button height, gap). */
+@Composable
+private fun gradeBarClearance() = (14f + gradeBarRaise(LocalConfiguration.current.screenWidthDp) + 40f + 2f).dp
 
 /**
  * Width of one rating button so that the row, with its outer buttons raised to [raisedBottom] dp above the
