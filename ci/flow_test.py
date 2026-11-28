@@ -183,6 +183,11 @@ def image():
     wait_for(r"^Image$", timeout=60, desc=True)
 
 
+def sync_outcome(timeout=90):
+    """Waits until the deck list's sync has finished; True if it succeeded."""
+    return wait_for(r"^✓ Synced|^⚠ Sync failed", timeout=timeout)[0].startswith("✓")
+
+
 def rate_and_sync():
     start("Spanish")
     wait_for(r".")
@@ -191,6 +196,15 @@ def rate_and_sync():
     time.sleep(1.5)
     sh("input keyevent BACK")  # back to the deck list syncs
     wait_for(r"Languages")
+    # Let the app's sync finish before this test reads the server: both at once is refused by the server
+    # ("Only one copy of Anki can sync"). If it still clashed with an earlier client, sync once more.
+    if not sync_outcome():
+        start("Spanish")
+        wait_for(r".")
+        sh("input keyevent BACK")
+        wait_for(r"Languages")
+        if not sync_outcome():
+            raise Failure(f"sync failed twice; visible: {[n[0] for n in ui() if n[0]]}")
     # Wait for the sync to reach the server before stopping the app (slow emulators take a while).
     end = time.time() + 90
     while (server := server_revlog_count()) != 1:
