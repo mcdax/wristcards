@@ -45,9 +45,13 @@ def tap_text(pattern, size):
         sh("uiautomator dump /sdcard/screens.xml >/dev/null")
         for n in ET.fromstring(sh("cat /sdcard/screens.xml")).iter("node"):
             x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
-            # Only nodes well inside the round display, so the tap does not land on the edge.
-            if re.search(pattern, n.get("text", "")) and size * 0.15 < (y1 + y2) // 2 < size * 0.85:
-                sh(f"input tap {(x1 + x2) // 2} {(y1 + y2) // 2}")
+            if not re.search(pattern, n.get("text", "")):
+                continue
+            # Tap the part of the node that lies well inside the round display (a button at the bottom edge
+            # may be half outside); if none of it does, scroll and look again.
+            top, bottom = max(y1, int(size * 0.15)), min(y2, int(size * 0.85))
+            if top < bottom:
+                sh(f"input tap {(x1 + x2) // 2} {(top + bottom) // 2}")
                 return
         sh(f"input swipe {size // 2} {int(size * 0.7)} {size // 2} {int(size * 0.4)} 300")
         time.sleep(0.8)

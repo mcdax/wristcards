@@ -62,7 +62,7 @@ jobs:
           echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
           echo "base=$(jq -r .base.sha pr.json)" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = issue_comment ]; then
-            gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null
+            gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null || echo "Could not react to the comment" >&2
           fi
       - name: Plan
         id: plan
