@@ -1,0 +1,161 @@
+name: Screenshots (before/after)
+
+# Comment "/screens" on a pull request (needs write access) or run it from the Actions tab with the PR number.
+# Builds the base branch and the pull request, takes the screens from ci/screens.json on several watch
+# sizes in the emulator and posts before/after collages as a single, updated PR comment. Not a merge gate.
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+
+permissions:
+  contents: write        # collages are stored on the pr-screenshots branch
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: screens-${{ github.event.issue.number || inputs.pr }}
+  cancel-in-progress: true
+
+env:
+  SYSTEM_IMAGE: "system-images;android-37.0;android-wear-signed;x86_64"
+  EMULATOR_OPTIONS: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 2048 -camera-back none
+  ANDROID_AVD_HOME: /home/runner/.android/avd
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  screens:
+    # Only for "/screens" comments on pull requests by people with write access (the PR code is built and run).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/screens') &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Pull request
+        id: pr
+        run: |
+          pr=${{ github.event.issue.number || inputs.pr }}
+          gh api "repos/${{ github.repository }}/pulls/$pr" > pr.json
+          # Code from forks is never built here.
+          if [ "$(jq -r .head.repo.full_name pr.json)" != "${{ github.repository }}" ]; then
+            echo "Pull request from a fork; not building it." >&2; exit 1
+          fi
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+          echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
+          echo "base=$(jq -r .base.sha pr.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head }}
+          path: after
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.base }}
+          path: before
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/platforms/android-37.1
+            /usr/local/lib/android/sdk/build-tools/37.0.0
+          key: android-sdk-37.1-bt37.0.0
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37.1 build-tools;37.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Build both versions
+        run: |
+          for side in before after; do
+            # Neutral built-in account: it prefills the sign-in form in the screenshots; nothing is contacted.
+            printf 'sync.endpoint=https://sync.example.org/\nsync.user=demo\nsync.password=demo\n' > $side/local.properties
+            (cd $side && ./gradlew --console=plain -q assembleDebug)
+          done
+      - name: Demo collection and tools
+        run: |
+          python3 -m venv /tmp/py && /tmp/py/bin/pip install --quiet anki pillow
+          mkdir -p /tmp/demo && /tmp/py/bin/python -I after/ci/make_demo_collection.py /tmp/demo/collection.anki2
+      # Same emulator and snapshot cache as the e2e workflow (see there for why cmdline-tools 22.0).
+      - name: Install emulator and system image
+        run: |
+          yes | sdkmanager --install "cmdline-tools;22.0" > /dev/null
+          yes | "$ANDROID_HOME/cmdline-tools/22.0/bin/sdkmanager" --install emulator "$SYSTEM_IMAGE" > /dev/null
+          echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+      - name: AVD cache
+        uses: actions/cache/restore@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd
+            ~/.android/adbkey
+            ~/.android/adbkey.pub
+          key: avd-37.0-android-wear-signed-2048-v2
+      - name: Create AVD
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$ANDROID_HOME/cmdline-tools/22.0/bin/avdmanager" create avd -n wear -k "$SYSTEM_IMAGE" -d wearos_large_round --force
+      - name: Boot emulator
+        timeout-minutes: 15
+        run: |
+          emulator -avd wear $EMULATOR_OPTIONS -no-snapshot-save > emulator.log 2>&1 &
+          adb wait-for-device
+          until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 3; done
+          adb shell settings put global auto_time 0
+          adb shell cmd alarm set-time "$(date +%s%3N)"
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+      - name: Screenshots
+        run: |
+          python3 after/ci/screens.py emulator-5554 before/app/build/outputs/apk/debug/app-debug.apk /tmp/demo/collection.anki2 shots/before
+          python3 after/ci/screens.py emulator-5554 after/app/build/outputs/apk/debug/app-debug.apk /tmp/demo/collection.anki2 shots/after
+          /tmp/py/bin/python after/ci/collage.py shots/before shots/after collages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screens-pr-${{ steps.pr.outputs.number }}
+          path: |
+            collages
+            shots
+          retention-days: 14
+      - name: Post collages
+        run: |
+          pr=${{ steps.pr.outputs.number }}; head=${{ steps.pr.outputs.head }}; dir="pr-$pr/${head:0:7}"
+          git clone --quiet --depth 1 --branch pr-screenshots "https://x-access-token:$GH_TOKEN@github.com/${{ github.repository }}" store \
+            || { git init --quiet store && git -C store checkout --quiet --orphan pr-screenshots \
+                 && git -C store remote add origin "https://x-access-token:$GH_TOKEN@github.com/${{ github.repository }}"; }
+          mkdir -p "store/$dir" && cp collages/*.jpg "store/$dir/"
+          git -C store add -A
+          git -C store -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet -m "Screenshots for #$pr at ${head:0:7}"
+          git -C store push --quiet origin HEAD:pr-screenshots
+          base="https://raw.githubusercontent.com/${{ github.repository }}/pr-screenshots/$dir"
+          {
+            echo "<!-- wristcards-screens -->"
+            echo "### Screenshots before / after (${head:0:7})"
+            echo "Watch sizes 454 / 396 / 384 / 320 px and 384 px with 130 % font. Comment \`/screens\` to refresh."
+            echo
+            for f in collages/*.jpg; do
+              name=$(basename "$f" .jpg)
+              echo "<details><summary>${name//-/ }</summary>"; echo; echo "![${name}]($base/$name.jpg)"; echo; echo "</details>"
+            done
+          } > comment.md
+          existing=$(gh api "repos/${{ github.repository }}/issues/$pr/comments" --paginate \
+            --jq '.[] | select(.body | startswith("<!-- wristcards-screens -->")) | .id' | tail -1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -F body=@comment.md > /dev/null
+          else
+            gh api "repos/${{ github.repository }}/issues/$pr/comments" -F body=@comment.md > /dev/null
+          fi

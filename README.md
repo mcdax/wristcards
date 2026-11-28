@@ -51,6 +51,10 @@ The debug build can contain a built-in test account from `local.properties` (`sy
   Anki sync server: download, cloze/list/image rendering, rating and undo in the collection and on the server, and
   the full-sync conflict prompt. It reports the commit status
   `e2e`, which must pass before a pull request can be merged: run it with the pull request's branch as `ref`.
+- **Screenshots before/after:** comment `/screens` on a pull request (write access needed). The
+  [screens workflow](.github/workflows/screens.yml) builds the base branch and the pull request, takes the screens listed in
+  [ci/screens.json](ci/screens.json) on several watch sizes and posts before/after collages as one PR comment (refreshed on
+  every run). Adding a screen is one entry in that file.
 
 Architecture notes: [architecture.md](architecture.md).
 
