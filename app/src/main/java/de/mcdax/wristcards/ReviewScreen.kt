@@ -272,8 +272,6 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
         if (session.loaded) Column(
             modifier = Modifier
                 .fillMaxSize()
-                // With the answer shown, the text ends above the rating buttons instead of running under them.
-                .padding(bottom = if (revealed && current != null) GRADE_BAR_CLEARANCE else 0.dp)
                 .rotaryScrollable(RotaryScrollableDefaults.behavior(scrollableState = scroll), focus)
                 .verticalScroll(scroll)
                 .clickable(enabled = current != null && !revealed) { session.reveal() }
@@ -318,7 +316,9 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                 )
                 // At least screen height so short questions can be centered; longer ones scroll from the top.
                 .heightIn(min = LocalConfiguration.current.screenHeightDp.dp)
-                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) 24.dp else 60.dp),
+                // With the answer shown, the text runs faded behind the rating buttons (so you see that it
+                // continues) and can be scrolled until its last line is fully above them.
+                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) GRADE_BAR_CLEARANCE + 14.dp else 60.dp),
             // Question centered, answer at the top (explanation and rating buttons belong together).
             verticalArrangement = if (revealed) Arrangement.spacedBy(10.dp) else Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         ) {
@@ -382,10 +382,10 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             androidx.wear.compose.material3.ScrollIndicator(scroll, modifier = Modifier.align(Alignment.CenterEnd))
         }
         if (revealed && current != null) {
-            // Text fades out just above the buttons (so you know you can scroll).
+            // Text behind the buttons stays faintly visible.
             Box(
-                Modifier.align(Alignment.BottomCenter).padding(bottom = GRADE_BAR_CLEARANCE).fillMaxWidth().height(20.dp)
-                    .background(Brush.verticalGradient(0f to Color.Transparent, 1f to c.background)),
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(GRADE_BAR_CLEARANCE + 20.dp)
+                    .background(Brush.verticalGradient(0f to Color.Transparent, 0.25f to c.background.copy(alpha = 0.75f), 1f to c.background.copy(alpha = 0.92f))),
             )
             GradeBar(
                 current.intervals, enabled = !session.busy, twoButtons = settings.twoButtons,
