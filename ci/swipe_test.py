@@ -67,7 +67,8 @@ def setup(revealed):
     sh(f"am force-stop {PKG}; {RUN_AS} 'rm -f files/collection.anki2-wal files/collection.anki2-shm;"
        f" cp /data/local/tmp/ci/collection.anki2 files/'; input keyevent WAKEUP;"
        f" am start -W -n {PKG}/.MainActivity --es deck '{DECK}' >/dev/null")
-    if not wait_log(r"side ready .*revealed=false"):
+    # Generous: the very first start after installing (dex optimization) can take a while on slow emulators.
+    if not wait_log(r"side ready .*revealed=false", timeout=30):
         raise AdbError("question side did not appear")
     time.sleep(0.5)
     if revealed:
