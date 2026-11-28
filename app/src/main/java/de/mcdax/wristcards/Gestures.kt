@@ -32,6 +32,9 @@ internal object Gestures {
      */
     fun isRightSwipe(dx: Float, dy: Float, minDistance: Float) = dx > minDistance && abs(dy) < dx / 2
 
+    /** Mirror of [isRightSwipe] for swipes to the left. */
+    fun isLeftSwipe(dx: Float, dy: Float, minDistance: Float) = dx < -minDistance && abs(dy) < -dx / 2
+
     /**
      * What a right swipe does. Within [RATE_LOCK_MS] after a rating it still belongs to that rating.
      * Hidden answer: edge = back to the deck list, further inside = reveal. Revealed: from the center the

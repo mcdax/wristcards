@@ -241,12 +241,38 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             }
         }
     }
-    // Lambda instead of ::swipedRight: function references compare equal, so the state would never update.
+    val leftMin = with(LocalDensity.current) { 80.dp.toPx() }
+    // Left swipe, from the card (with intermediate points) or the activity (very fast, without); once per touch.
+    fun swipedLeft(dx: Float) {
+        val shown = session.card ?: return
+        if (handledGesture == lastTouchDownTime) return
+        when (Gestures.leftSwipe(dx, leftMin, session.revealed, lastTouchDownTime - session.ratedAt)) {
+            Gestures.Left.RATE -> {
+                handledGesture = lastTouchDownTime
+                rateBySwipe(shown, settings.swipeLeft)
+            }
+            Gestures.Left.REVEAL -> {
+                handledGesture = lastTouchDownTime
+                debugLog(TAG) { "result reveal" }
+                session.reveal()
+            }
+            Gestures.Left.NONE -> Unit
+        }
+    }
+    // Lambdas instead of function references: those compare equal, so the state would never update.
     val latestSwipe by rememberUpdatedState({ swipedRight() })
+    val latestLeftSwipe by rememberUpdatedState({ dx: Float -> swipedLeft(dx) })
     DisposableEffect(zoomed == null) {
         val handler = { latestSwipe() }
-        if (zoomed == null) onRightSwipe = handler
-        onDispose { if (onRightSwipe === handler) onRightSwipe = null }
+        val leftHandler = { dx: Float -> latestLeftSwipe(dx) }
+        if (zoomed == null) {
+            onRightSwipe = handler
+            onLeftSwipe = leftHandler
+        }
+        onDispose {
+            if (onRightSwipe === handler) onRightSwipe = null
+            if (onLeftSwipe === leftHandler) onLeftSwipe = null
+        }
     }
     androidx.activity.compose.PredictiveBackHandler(enabled = zoomed == null) { progress ->
         var swiped = false
@@ -303,14 +329,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                                 if (horizontal) change.consume()
                             }
                             if (!horizontal) return@awaitEachGesture
-                            when (Gestures.leftSwipe(dx, 80.dp.toPx(), session.revealed, lastTouchDownTime - session.ratedAt)) {
-                                Gestures.Left.RATE -> rateBySwipe(current, settings.swipeLeft)
-                                Gestures.Left.REVEAL -> {
-                                    debugLog(TAG) { "result reveal" }
-                                    session.reveal()
-                                }
-                                Gestures.Left.NONE -> Unit
-                            }
+                            swipedLeft(dx)
                         }
                     } else Modifier,
                 )
