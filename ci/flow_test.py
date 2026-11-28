@@ -33,9 +33,9 @@ class Failure(Exception):
     pass
 
 
-def adb(*args, timeout=60, binary=False):
-    r = subprocess.run(["adb", "-s", SERIAL, *args], stdin=subprocess.DEVNULL, capture_output=True,
-                       text=not binary, timeout=timeout)
+def adb(*args, timeout=60, binary=False, input_text=None):
+    r = subprocess.run(["adb", "-s", SERIAL, *args], capture_output=True, text=not binary, timeout=timeout,
+                       **({"input": input_text} if input_text is not None else {"stdin": subprocess.DEVNULL}))
     if r.returncode != 0:
         raise Failure(f"adb {' '.join(args)!r} failed: {r.stderr!r}")
     return r.stdout
@@ -153,6 +153,11 @@ def upload_demo():
 def first_sync():
     sh(f"pm clear {PKG} >/dev/null")
     sh(f"cmd locale set-app-locales {PKG} --locales en-US")
+    # Some emulator images have no Wi-Fi network, only a cellular-like one; the app syncs there only if allowed.
+    adb("shell", "cat > /data/local/tmp/flow-settings.xml; chmod 644 /data/local/tmp/flow-settings.xml",
+        input_text="<?xml version='1.0' encoding='utf-8' standalone='yes' ?>"
+                   "<map><boolean name=\"cellularSync\" value=\"true\" /></map>")
+    sh(f"run-as {PKG} sh -c 'mkdir -p shared_prefs && cp /data/local/tmp/flow-settings.xml shared_prefs/settings.xml'")
     start()
     wait_for(r"Languages", timeout=120)
     wait_for(r"Synced", timeout=60)
