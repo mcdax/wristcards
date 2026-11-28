@@ -47,7 +47,9 @@ The debug build can contain a built-in test account from `local.properties` (`sy
 - The **E2E tests (emulator)** workflow (manual, Actions tab) boots Wear OS 7 and Wear OS 5 emulators, installs
   the debug build with a demo collection ([ci/make_demo_collection.py](ci/make_demo_collection.py)) and drives the
   app from outside via adb ([ci/swipe_test.py](ci/swipe_test.py), 25 cases for what needs the real system; the full
-  gesture grid is a unit test, `GesturesTest`). It reports the commit status
+  gesture grid is a unit test, `GesturesTest`) plus a flow test ([ci/flow_test.py](ci/flow_test.py)) against a real
+  Anki sync server: download, cloze/list/image rendering, rating and undo in the collection and on the server, and
+  the full-sync conflict prompt. It reports the commit status
   `e2e`, which must pass before a pull request can be merged: run it with the pull request's branch as `ref`.
 
 Architecture notes: [architecture.md](architecture.md).

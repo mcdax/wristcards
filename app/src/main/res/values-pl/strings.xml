@@ -138,4 +138,5 @@
     <string name="full_upload_warning">Uwaga: to nadpisze kolekcję na serwerze. Zmiany z innych urządzeń od ostatniej synchronizacji zostaną utracone.</string>
     <string name="full_upload_confirm">Wyślij mimo to</string>
     <string name="welcome_text">Zaloguj się do serwera synchronizacji Anki, aby uczyć się kart.</string>
+    <string name="card_image">Obraz</string>
 </resources>

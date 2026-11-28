@@ -134,4 +134,5 @@
     <string name="full_upload_warning">Attention : cela écrase la collection du serveur. Les modifications des autres appareils depuis la dernière synchro seront perdues.</string>
     <string name="full_upload_confirm">Envoyer quand même</string>
     <string name="welcome_text">Connectez-vous à votre serveur de synchro Anki pour réviser vos cartes.</string>
+    <string name="card_image">Image</string>
 </resources>

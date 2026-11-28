@@ -138,4 +138,5 @@
     <string name="full_upload_warning">Увага: колекцію на сервері буде перезаписано. Зміни з інших пристроїв після останньої синхронізації зникнуть.</string>
     <string name="full_upload_confirm">Усе одно завантажити</string>
     <string name="welcome_text">Увійдіть на сервер синхронізації Anki, щоб вчити картки.</string>
+    <string name="card_image">Зображення</string>
 </resources>

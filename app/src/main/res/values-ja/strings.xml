@@ -129,4 +129,5 @@
     <string name="full_upload_warning">注意：サーバーのコレクションを上書きします。前回の同期以降の他の端末での変更は失われます。</string>
     <string name="full_upload_confirm">アップロードする</string>
     <string name="welcome_text">カードを学習するには Anki 同期サーバーにログインしてください。</string>
+    <string name="card_image">画像</string>
 </resources>

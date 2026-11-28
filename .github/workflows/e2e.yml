@@ -2,7 +2,8 @@ name: E2E tests (emulator)
 
 # End-to-end test, manual only (Actions tab or `gh workflow run e2e.yml -f ref=<branch>`).
 # Boots a Wear OS emulator, installs the debug build with the demo collection and drives the app
-# from outside via adb (gesture test, 25 cases; the full gesture grid is covered by the JVM GesturesTest).
+# from outside via adb: gesture test (25 cases; the full grid is the JVM GesturesTest) and flow test
+# (sync with a real Anki sync server, rendering, rating, undo, conflict).
 # Runs on Wear OS 7 (like the target watch) and Wear OS 5 (older generation still in wide use).
 # The combined result is posted as commit status "e2e" on the tested commit, which branch protection
 # requires before a pull request can be merged.
@@ -89,16 +90,18 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      # The sync account is a placeholder: the test only needs the app to count as signed in.
-      # Sync on open / on deck exit is switched off by the test, so nothing is ever contacted.
+      # Built-in debug account for the local sync server; the emulator reaches the runner as 10.0.2.2.
       - name: Build debug APK
         run: |
-          printf 'sync.endpoint=http://127.0.0.1:9/\nsync.user=ci\nsync.password=ci\n' > local.properties
+          printf 'sync.endpoint=http://10.0.2.2:27701/\nsync.user=ci\nsync.password=ci\n' > local.properties
           ./gradlew --console=plain assembleDebug
-      - name: Build demo collection
+      - name: Demo collection and sync server
         run: |
           python3 -m venv /tmp/anki && /tmp/anki/bin/pip install --quiet anki
-          /tmp/anki/bin/python -I ci/make_demo_collection.py /tmp/collection.anki2
+          mkdir -p /tmp/demo /tmp/syncserver
+          /tmp/anki/bin/python -I ci/make_demo_collection.py /tmp/demo/collection.anki2
+          SYNC_USER1=ci:ci SYNC_BASE=/tmp/syncserver SYNC_HOST=0.0.0.0 SYNC_PORT=27701 \
+            nohup /tmp/anki/bin/python -m anki.syncserver > syncserver.log 2>&1 &
       # sdkmanager/avdmanager before cmdline-tools 22.0 install the API 37.0 image incompletely and write
       # "target=android-0"; the guest graphics driver then crashes in a loop. So both come from 22.0
       # and the AVD target is checked.
@@ -160,12 +163,16 @@ jobs:
         run: |
           adb install -r app/build/outputs/apk/debug/app-debug.apk
           adb shell mkdir -p /data/local/tmp/ci
-          adb push /tmp/collection.anki2 /data/local/tmp/ci/collection.anki2
+          adb push /tmp/demo/collection.anki2 /data/local/tmp/ci/collection.anki2
           adb shell chmod -R 755 /data/local/tmp/ci
           adb shell cmd locale set-app-locales de.mcdax.wristcards --locales en-US
       - name: Gesture test
         shell: bash
         run: python3 ci/swipe_test.py emulator-5554 Spanish | tee swipe-test.log
+      - name: Flow test
+        if: success() || failure()
+        shell: bash
+        run: /tmp/anki/bin/python -u ci/flow_test.py emulator-5554 http://127.0.0.1:27701/ ci:ci /tmp/demo/collection.anki2 | tee flow-test.log
       - name: Collect logs
         if: always()
         run: timeout 30 adb logcat -d > logcat.txt 2>/dev/null || true
@@ -175,6 +182,9 @@ jobs:
           name: e2e-logs-${{ matrix.name }}
           path: |
             swipe-test.log
+            flow-test.log
+            flow-fail-*.png
+            syncserver.log
             logcat.txt
             emulator*.log
           retention-days: 7
@@ -188,7 +198,7 @@ jobs:
       - name: Report commit status
         run: |
           if [ "${{ needs.emulator.result }}" = success ]; then
-            state=success; text="Gesture tests passed on Wear OS 7 and Wear OS 5"
+            state=success; text="Gesture and flow tests passed on Wear OS 7 and Wear OS 5"
           else
             state=failure; text="E2E tests failed, see run"
           fi

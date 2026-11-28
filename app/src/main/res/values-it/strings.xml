@@ -134,4 +134,5 @@
     <string name="full_upload_warning">Attenzione: sovrascrive la raccolta sul server. Le modifiche di altri dispositivi dall\'ultima sincronizzazione andranno perse.</string>
     <string name="full_upload_confirm">Carica comunque</string>
     <string name="welcome_text">Accedi al tuo server di sincronizzazione Anki per studiare le tue carte.</string>
+    <string name="card_image">Immagine</string>
 </resources>

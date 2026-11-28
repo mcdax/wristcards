@@ -148,7 +148,8 @@ private fun ImageBlock(block: Block, ctx: BlockContext) {
         bmp != null -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.Image(
                 bitmap = bmp,
-                contentDescription = null,
+                // Screen readers announce it; the end-to-end test also finds the image by it.
+                contentDescription = stringResource(R.string.card_image),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxWidth()

@@ -129,4 +129,5 @@
     <string name="full_upload_warning">注意：這會覆寫伺服器上的收藏。自上次同步以來其他裝置上的變更將遺失。</string>
     <string name="full_upload_confirm">仍要上傳</string>
     <string name="welcome_text">登入你的 Anki 同步伺服器以學習卡片。</string>
+    <string name="card_image">圖片</string>
 </resources>

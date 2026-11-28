@@ -1,6 +1,6 @@
 """Builds a neutral demo collection (no real cards) for screenshots and the emulator end-to-end tests.
 Usage: python -I make_demo_collection.py <output collection.anki2>"""
-import sys, os
+import os, struct, sys, zlib
 from anki.collection import Collection
 
 path = sys.argv[1]
@@ -45,6 +45,18 @@ sci = deck("Science::Physics")
 add(basic, sci, ["Name the three laws of motion: inertia · acceleration · action and reaction.",
                  "Isaac Newton, <i>Principia</i> (1687)<hr id=extra>• An object stays at rest unless a force acts on it<br>• F = m · a<br>• Every action has an equal and opposite reaction"])
 add(basic, sci, ["Speed of light in vacuum?", "≈ 300,000 km/s"])
+
+
+def png(width, height, pixel):
+    """Minimal RGB PNG without extra dependencies; pixel(x, y) returns an (r, g, b) tuple."""
+    raw = b"".join(b"\0" + b"".join(bytes(pixel(x, y)) for x in range(width)) for y in range(height))
+    chunk = lambda kind, data: struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+# One card with an image, synced as media (used by the end-to-end test).
+flag = col.media.write_data("flag-japan.png", png(120, 80, lambda x, y: (188, 0, 45) if (x - 60) ** 2 + (y - 40) ** 2 < 24 ** 2 else (255, 255, 255)))
+add(basic, deck("Geography::Flags"), [f'Which country? <img src="{flag}">', "Japan"])
 
 # Make a few cards due already so the numbers look mixed.
 for cid in list(col.find_cards("deck:Languages::Spanish"))[:3] + list(col.find_cards("deck:Geography::Capitals"))[:4]:
