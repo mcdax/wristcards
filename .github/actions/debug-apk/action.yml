@@ -1,0 +1,62 @@
+name: Debug APK (cached per commit)
+description: >-
+  Returns the debug APK for a checked-out commit. It is built only if no APK for the same app sources and
+  build settings is in the Actions cache yet; a fresh build is stored there for later runs.
+  Java, Android SDK and Gradle must already be set up when a build is needed.
+
+inputs:
+  dir:
+    description: Directory of the checked-out repository
+    required: true
+  sync-endpoint:
+    description: Built-in debug account (local.properties) baked into the APK
+    required: true
+  sync-user:
+    required: true
+  sync-password:
+    required: true
+
+outputs:
+  apk:
+    description: Path of the debug APK
+    value: ${{ steps.paths.outputs.apk }}
+  built:
+    description: "true if the APK had to be built in this run"
+    value: ${{ steps.cache.outputs.cache-hit != 'true' }}
+
+runs:
+  using: composite
+  steps:
+    - name: Cache key
+      id: paths
+      shell: bash
+      run: |
+        # Content of everything that goes into the APK (not the commit): commits that only touch CI, docs
+        # or tests reuse the APK of the previous commit.
+        content=$(git -C "${{ inputs.dir }}" ls-tree HEAD app gradle build.gradle.kts settings.gradle.kts gradle.properties gradlew \
+          | sha256sum | cut -c1-16)
+        settings=$(printf '%s|%s|%s' "${{ inputs.sync-endpoint }}" "${{ inputs.sync-user }}" "${{ inputs.sync-password }}" | sha256sum | cut -c1-12)
+        echo "key=debug-apk-$content-$settings" >> "$GITHUB_OUTPUT"
+        echo "apk=$RUNNER_TEMP/apk-$content-$settings/app-debug.apk" >> "$GITHUB_OUTPUT"
+    - name: Restore
+      id: cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ steps.paths.outputs.apk }}
+        key: ${{ steps.paths.outputs.key }}
+    - name: Build
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ inputs.dir }}
+      run: |
+        printf 'sync.endpoint=%s\nsync.user=%s\nsync.password=%s\n' \
+          "${{ inputs.sync-endpoint }}" "${{ inputs.sync-user }}" "${{ inputs.sync-password }}" > local.properties
+        ./gradlew --console=plain -q assembleDebug
+        mkdir -p "$(dirname "${{ steps.paths.outputs.apk }}")"
+        cp app/build/outputs/apk/debug/app-debug.apk "${{ steps.paths.outputs.apk }}"
+    - name: Save
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.paths.outputs.apk }}
+        key: ${{ steps.paths.outputs.key }}
