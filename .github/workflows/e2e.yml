@@ -21,7 +21,7 @@ on:
 permissions:
   contents: read
   statuses: write
-  pull-requests: read
+  pull-requests: write   # reaction on the /e2e comment (comments on PRs need this, not just issues)
   issues: write          # reaction on the /e2e comment
 
 concurrency:
