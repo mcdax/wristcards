@@ -604,7 +604,6 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
 internal fun gradeBarRaise(screenDp: Int): Float = 10f + 8f * ((screenDp - 192) / 35f).coerceIn(0f, 1f)
 
 /** Height of the rating row from the bottom edge (padding, raised outer buttons, button height, gap). */
-@Composable
 /**
  * Places the content in the middle of a [screen]-high area. Growing content moves up just enough to keep
  * [bottom] free; once it no longer fits, it starts at [top] and the height covers both margins (scrolling).
@@ -621,6 +620,7 @@ internal fun centeredContent(content: Float, screen: Float, top: Float, bottom: 
     return y to maxOf(screen, y + content + bottom)
 }
 
+@Composable
 private fun gradeBarClearance() = (14f + gradeBarRaise(LocalConfiguration.current.screenWidthDp) + 40f + 2f).dp
 
 /**
