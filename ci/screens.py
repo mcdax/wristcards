@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Screenshots of the screens in ci/screens.json on every display configuration, for the /screens PR collage.
 
-Usage: screens.py <adb serial> <apk> <demo collection.anki2> <output dir>
+Usage: screens.py <adb serial> <apk> <demo collection.anki2> <output dir> [screen names, comma-separated]
 Installs the APK fresh, loads the demo collection (sync off) and stores <output>/<display>/<screen>.png.
+Without names all screens are taken.
 """
 import json
 import os
@@ -13,6 +14,7 @@ import time
 import xml.etree.ElementTree as ET
 
 SERIAL, APK, DEMO, OUT = sys.argv[1:5]
+ONLY = set(filter(None, sys.argv[5].split(","))) if len(sys.argv) > 5 else set()
 PKG = "de.mcdax.wristcards"
 CONFIG = json.load(open(os.path.join(os.path.dirname(__file__), "screens.json")))
 PREFS = ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map>"
@@ -84,6 +86,9 @@ media = DEMO.replace(".anki2", ".media")
 if os.path.isdir(media):
     adb("push", media + "/.", "/data/local/tmp/screens-media/")
     sh(f"chmod -R 755 /data/local/tmp/screens-media; run-as {PKG} sh -c 'mkdir -p files/collection.media && cp /data/local/tmp/screens-media/* files/collection.media/'")
+# Keep the display fully on: otherwise it dims after a few seconds and the screenshots come out grey,
+# and the first tap would only wake it instead of reaching the app.
+sh("svc power stayon true; settings put system screen_off_timeout 1800000; input keyevent WAKEUP")
 try:
     for display in CONFIG["displays"]:
         size = display["size"]
@@ -92,12 +97,14 @@ try:
         folder = os.path.join(OUT, slug(display["name"]))
         os.makedirs(folder, exist_ok=True)
         for screen in CONFIG["screens"]:
+            if ONLY and screen["name"] not in ONLY:
+                continue
             sh(f"am force-stop {PKG}; run-as {PKG} sh -c 'rm -f files/collection.anki2-wal files/collection.anki2-shm"
                f" shared_prefs/sync_auth.xml; cp /data/local/tmp/screens.anki2 files/collection.anki2'")
             if screen.get("signed_out"):
                 sh(f"run-as {PKG} sh -c 'cp /data/local/tmp/screens-signed-out.xml shared_prefs/sync_auth.xml'")
             extras = (f" --es deck '{screen['deck']}'" if "deck" in screen else "") + " " + screen.get("extras", "")
-            sh(f"am start -W -n {PKG}/.MainActivity{extras} >/dev/null")
+            sh(f"input keyevent WAKEUP; am start -W -n {PKG}/.MainActivity{extras} >/dev/null")
             time.sleep(3.5)
             try:
                 for step in screen["steps"]:

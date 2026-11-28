@@ -38,7 +38,12 @@ def round_watch(path):
 
 os.makedirs(OUT, exist_ok=True)
 displays = CONFIG["displays"]
+made = 0
 for screen in CONFIG["screens"]:
+    # Only screens taken in this run (a /screens run may cover just some groups).
+    if not any(os.path.exists(os.path.join(AFTER, slug(d["name"]), slug(screen["name"]) + ".png")) for d in CONFIG["displays"]):
+        continue
+    made += 1
     width = LABEL + 2 * (SIZE + PAD) + PAD
     height = 64 + len(displays) * (SIZE + PAD) + PAD
     sheet = Image.new("RGB", (width, height), (30, 30, 30))
@@ -53,4 +58,4 @@ for screen in CONFIG["screens"]:
             sheet.paste(round_watch(os.path.join(base, slug(display["name"]), slug(screen["name"]) + ".png")),
                         (LABEL + PAD + col * (SIZE + PAD), y))
     sheet.save(os.path.join(OUT, slug(screen["name"]) + ".jpg"), quality=85)
-print("collages:", len(CONFIG["screens"]))
+print("collages:", made)
