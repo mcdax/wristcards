@@ -93,11 +93,15 @@ jobs:
         if: steps.avd-cache.outputs.cache-hit != 'true'
         timeout-minutes: 20
         run: |
+          set -x
           echo no | "$ANDROID_HOME/cmdline-tools/22.0/bin/avdmanager" create avd -n wear -k "$SYSTEM_IMAGE" -d wearos_large_round --force
+          cat ~/.android/avd/wear.ini
           grep -q "^target=android-37.0" ~/.android/avd/wear.ini
           emulator -avd wear $EMULATOR_OPTIONS > emulator-cold.log 2>&1 &
           adb wait-for-device
-          until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 5; done
+          until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do
+            sleep 10; tail -n 2 emulator-cold.log
+          done
           sleep 20
           adb emu kill
           while pgrep -f qemu-system > /dev/null; do sleep 2; done
@@ -129,7 +133,7 @@ jobs:
         run: python3 ci/swipe_test.py emulator-5554 Spanish ${{ inputs.mode == 'quick' && 'quick' || '' }} | tee swipe-test.log
       - name: Collect logs
         if: always()
-        run: adb logcat -d > logcat.txt 2>/dev/null || true
+        run: timeout 30 adb logcat -d > logcat.txt 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
