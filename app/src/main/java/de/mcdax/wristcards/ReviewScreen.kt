@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +49,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
@@ -60,6 +62,7 @@ import anki.decks.DeckTreeNode
 import anki.scheduler.CardAnswer
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 @Composable
 internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard: Long? = null, onBack: () -> Unit = {}) {
@@ -333,14 +336,16 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                         }
                     } else Modifier,
                 )
-                // At least screen height so short questions can be centered; longer ones scroll from the top.
-                .heightIn(min = LocalConfiguration.current.screenHeightDp.dp)
+                .padding(start = 30.dp, end = 26.dp)
+                // Short question and answer in the middle of the screen, longer ones start at the top and scroll.
                 // With the answer shown, the text runs faded behind the rating buttons (so you see that it
                 // continues) and can be scrolled until its last line is fully above them.
-                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) gradeBarClearance() + 14.dp else 60.dp),
-            // Short question and answer centered (the answer in the space above the rating buttons);
-            // longer ones start at the top and scroll.
-            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
+                .centeredOnScreen(
+                    screen = LocalConfiguration.current.screenHeightDp.dp,
+                    top = 36.dp,
+                    bottom = if (revealed) gradeBarClearance() + 14.dp else 60.dp,
+                ),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             when {
                 // Short local card changes without a flashing loading hint.
@@ -600,6 +605,22 @@ internal fun gradeBarRaise(screenDp: Int): Float = 10f + 8f * ((screenDp - 192) 
 
 /** Height of the rating row from the bottom edge (padding, raised outer buttons, button height, gap). */
 @Composable
+/**
+ * Places the content in the middle of a [screen]-high area. Growing content moves up just enough to keep
+ * [bottom] free; once it no longer fits, it starts at [top] and the height covers both margins (scrolling).
+ */
+private fun Modifier.centeredOnScreen(screen: Dp, top: Dp, bottom: Dp) = layout { measurable, constraints ->
+    val content = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+    val (y, height) = centeredContent(content.height.toFloat(), screen.toPx(), top.toPx(), bottom.toPx())
+    layout(content.width, height.roundToInt()) { content.place(0, y.roundToInt()) }
+}
+
+/** Top offset and total height for content of height [content], see [centeredOnScreen]. */
+internal fun centeredContent(content: Float, screen: Float, top: Float, bottom: Float): Pair<Float, Float> {
+    val y = maxOf(top, minOf((screen - content) / 2, screen - bottom - content))
+    return y to maxOf(screen, y + content + bottom)
+}
+
 private fun gradeBarClearance() = (14f + gradeBarRaise(LocalConfiguration.current.screenWidthDp) + 40f + 2f).dp
 
 /**
