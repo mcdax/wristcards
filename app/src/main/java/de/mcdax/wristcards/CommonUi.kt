@@ -11,6 +11,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.wear.compose.foundation.rotary.RotaryScrollableDefaults
+import androidx.wear.compose.foundation.rotary.rotaryScrollable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,29 +96,46 @@ internal fun Toast(text: String, modifier: Modifier = Modifier) {
 @Composable
 internal fun WelcomeScreen(onSignIn: () -> Unit) {
     val c = LocalAnkiColors.current
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
-        modifier = Modifier.fillMaxSize().background(c.background).padding(horizontal = 30.dp),
-    ) {
-        androidx.compose.foundation.Image(
-            painter = androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher),
-            contentDescription = null,
-            modifier = Modifier.size(56.dp),
-        )
-        Text(stringResource(R.string.welcome_text), color = c.text, fontSize = 13.sp, textAlign = TextAlign.Center)
-        Text(
-            stringResource(R.string.sign_in),
-            color = c.background,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center,
+    // Scrollable: on small watches or with a large system font the sign-in button would otherwise be cut off.
+    val scroll = rememberScrollState()
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val screenDp = LocalConfiguration.current.screenHeightDp
+    Box(Modifier.fillMaxSize().background(c.background)) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(50))
-                .background(c.accent)
-                .clickable(onClick = onSignIn)
-                .padding(vertical = 14.dp),
-        )
+                .fillMaxSize()
+                .rotaryScrollable(RotaryScrollableDefaults.behavior(scrollableState = scroll), focus)
+                .verticalScroll(scroll)
+                // At least screen height so short content stays centered; longer content scrolls.
+                .heightIn(min = screenDp.dp)
+                .padding(horizontal = 30.dp, vertical = 28.dp),
+        ) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(R.mipmap.ic_launcher),
+                contentDescription = null,
+                modifier = Modifier.size(if (screenDp < 200) 44.dp else 56.dp),
+            )
+            Text(
+                stringResource(R.string.sign_in),
+                color = c.background,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(50))
+                    .background(c.accent)
+                    .clickable(onClick = onSignIn)
+                    .padding(vertical = 14.dp),
+            )
+            // Below the button: the action stays visible without scrolling, the explanation may need a scroll.
+            Text(stringResource(R.string.welcome_text), color = c.text, fontSize = 13.sp, textAlign = TextAlign.Center)
+        }
+        // Only when something is really out of sight (the minimum height leaves a few pixels of play).
+        val minScroll = with(LocalDensity.current) { 24.dp.toPx() }
+        if (scroll.maxValue > minScroll) androidx.wear.compose.material3.ScrollIndicator(scroll, modifier = Modifier.align(Alignment.CenterEnd))
     }
 }
