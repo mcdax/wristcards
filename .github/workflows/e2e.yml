@@ -92,8 +92,12 @@ jobs:
         uses: actions/cache/restore@v4
         id: avd-cache
         with:
-          path: ~/.android/avd
-          key: avd-wear37-2048-v1
+          # The snapshot only trusts the adb key it was created with, so the key is cached alongside.
+          path: |
+            ~/.android/avd
+            ~/.android/adbkey
+            ~/.android/adbkey.pub
+          key: avd-wear37-2048-v2
       - name: Create AVD and snapshot
         if: steps.avd-cache.outputs.cache-hit != 'true'
         timeout-minutes: 20
@@ -103,6 +107,7 @@ jobs:
           echo no | "$ANDROID_HOME/cmdline-tools/22.0/bin/avdmanager" create avd -n wear -k "$SYSTEM_IMAGE" -d wearos_large_round --force
           cat "$ANDROID_AVD_HOME/wear.ini"
           grep -q "^target=android-37.0" "$ANDROID_AVD_HOME/wear.ini"
+          adb start-server
           emulator -avd wear $EMULATOR_OPTIONS > emulator-cold.log 2>&1 &
           adb wait-for-device
           until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do
@@ -115,8 +120,11 @@ jobs:
         if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ~/.android/avd
-          key: avd-wear37-2048-v1
+          path: |
+            ~/.android/avd
+            ~/.android/adbkey
+            ~/.android/adbkey.pub
+          key: avd-wear37-2048-v2
       - name: Boot emulator
         timeout-minutes: 10
         run: |
