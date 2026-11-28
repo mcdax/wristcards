@@ -338,8 +338,9 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                 // With the answer shown, the text runs faded behind the rating buttons (so you see that it
                 // continues) and can be scrolled until its last line is fully above them.
                 .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) gradeBarClearance() + 14.dp else 60.dp),
-            // Question centered, answer at the top (explanation and rating buttons belong together).
-            verticalArrangement = if (revealed) Arrangement.spacedBy(10.dp) else Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
+            // Short question and answer centered (the answer in the space above the rating buttons);
+            // longer ones start at the top and scroll.
+            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         ) {
             when {
                 // Short local card changes without a flashing loading hint.

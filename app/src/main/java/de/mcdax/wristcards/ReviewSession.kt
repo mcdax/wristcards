@@ -177,4 +177,4 @@ internal class ReviewSession(
 private val GRADES = listOf(CardAnswer.Rating.AGAIN, CardAnswer.Rating.HARD, CardAnswer.Rating.GOOD, CardAnswer.Rating.EASY)
 
 /** For up to this many reveals, the question shows the hint "Tap to reveal". */
-private const val REVEAL_HINT_COUNT = 15
+private const val REVEAL_HINT_COUNT = 3
