@@ -57,7 +57,7 @@ jobs:
           fi
           echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
           gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null || echo "Could not react to the comment" >&2
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.pr.outputs.head || inputs.ref }}
       - name: Mark commit status pending
@@ -73,23 +73,23 @@ jobs:
     needs: start
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.start.outputs.sha }}
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             /usr/local/lib/android/sdk/platforms/android-37.1
             /usr/local/lib/android/sdk/build-tools/37.0.0
           key: android-sdk-37.1-bt37.0.0
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           packages: "platforms;android-37.1 build-tools;37.0.0"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       # Built-in debug account for the local sync server; the emulator reaches the runner as 10.0.2.2.
       - name: Debug APK
         id: apk
@@ -99,7 +99,7 @@ jobs:
           sync-endpoint: http://10.0.2.2:27701/
           sync-user: ci
           sync-password: ci
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: debug-apk
           path: ${{ steps.apk.outputs.apk }}
@@ -126,14 +126,14 @@ jobs:
     env:
       SYSTEM_IMAGE: system-images;android-${{ matrix.api }};${{ matrix.tag }};x86_64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.start.outputs.sha }}
       # Only sdkmanager is needed here (emulator and system image); the APK comes from the build job.
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: debug-apk
           path: /tmp/apk
@@ -160,7 +160,7 @@ jobs:
           echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
       # Cold boot only once: later runs resume from the cached quick-boot snapshot.
       - name: AVD cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         id: avd-cache
         with:
           # The snapshot only trusts the adb key it was created with, so the key is cached alongside.
@@ -189,7 +189,7 @@ jobs:
           while pgrep -f qemu-system > /dev/null; do sleep 2; done
       - name: Save AVD cache
         if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.android/avd
@@ -234,7 +234,7 @@ jobs:
       - name: Collect logs
         if: always()
         run: timeout 30 adb logcat -d > logcat.txt 2>/dev/null || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: e2e-logs-${{ matrix.name }}

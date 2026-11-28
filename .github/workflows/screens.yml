@@ -48,7 +48,7 @@ jobs:
       base: ${{ steps.pr.outputs.base }}
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Pull request
         id: pr
         run: |
@@ -74,31 +74,31 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: tools
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.head }}
           path: after
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.base }}
           path: before
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             /usr/local/lib/android/sdk/platforms/android-37.1
             /usr/local/lib/android/sdk/build-tools/37.0.0
           key: android-sdk-37.1-bt37.0.0
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           packages: "platforms;android-37.1 build-tools;37.0.0"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       # Built only if no APK of the same sources is cached; the base side is usually cached after the first run.
       # Neutral built-in account: it prefills the sign-in form in the screenshots; nothing is contacted.
       - name: APK before
@@ -119,7 +119,7 @@ jobs:
           sync-password: demo
       - name: Collect
         run: mkdir -p apks && cp "${{ steps.before.outputs.apk }}" apks/before.apk && cp "${{ steps.after.outputs.apk }}" apks/after.apk
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: screens-apks
           path: apks
@@ -135,11 +135,11 @@ jobs:
         include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     name: shots (${{ matrix.group }})
     steps:
-      - uses: actions/checkout@v4
-      - uses: android-actions/setup-android@v3
+      - uses: actions/checkout@v7
+      - uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: screens-apks
           path: apks
@@ -159,7 +159,7 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/22.0/bin/sdkmanager" --install emulator "$SYSTEM_IMAGE" > /dev/null
           echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
       - name: AVD cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         id: avd-cache
         with:
           path: |
@@ -187,7 +187,7 @@ jobs:
         run: |
           python3 ci/screens.py emulator-5554 apks/before.apk /tmp/demo/collection.anki2 shots/before "${{ matrix.screens }}"
           python3 ci/screens.py emulator-5554 apks/after.apk /tmp/demo/collection.anki2 shots/after "${{ matrix.screens }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: shots-${{ matrix.group }}
           path: shots
@@ -198,8 +198,8 @@ jobs:
     if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: shots-*
           merge-multiple: true
@@ -210,7 +210,7 @@ jobs:
           /tmp/py/bin/python ci/collage.py shots/before shots/after collages
       - name: Bundle
         run: python3 ci/screens_bundle.py shots collages bundle
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: screenshots-pr-${{ needs.plan.outputs.number }}
           path: bundle
