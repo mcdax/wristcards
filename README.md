@@ -44,13 +44,17 @@ The debug build can contain a built-in test account from `local.properties` (`sy
 ## Tests
 
 - `./gradlew testDebugUnitTest` runs the JVM unit tests.
-- The **E2E tests (emulator)** workflow (manual, Actions tab) boots Wear OS 7 and Wear OS 5 emulators, installs
+- The **E2E tests (emulator)** workflow (comment `/e2e` on a pull request, or run it from the Actions tab) boots Wear OS 7 and Wear OS 5 emulators, installs
   the debug build with a demo collection ([ci/make_demo_collection.py](ci/make_demo_collection.py)) and drives the
   app from outside via adb ([ci/swipe_test.py](ci/swipe_test.py), 25 cases for what needs the real system; the full
   gesture grid is a unit test, `GesturesTest`) plus a flow test ([ci/flow_test.py](ci/flow_test.py)) against a real
   Anki sync server: download, cloze/list/image rendering, rating and undo in the collection and on the server, and
   the full-sync conflict prompt. It reports the commit status
   `e2e`, which must pass before a pull request can be merged: run it with the pull request's branch as `ref`.
+- **Screenshots before/after:** comment `/screens` on a pull request (write access needed). The
+  [screens workflow](.github/workflows/screens.yml) builds the base branch and the pull request, takes the screens listed in
+  [ci/screens.json](ci/screens.json) on several watch sizes and posts before/after collages as one PR comment (refreshed on
+  every run). Adding a screen is one entry in that file.
 
 Architecture notes: [architecture.md](architecture.md).
 

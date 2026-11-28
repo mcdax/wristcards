@@ -63,11 +63,18 @@ print("Android", sh("getprop ro.build.version.release").strip(), f"(SDK {SDK}) |
 
 
 def setup(revealed):
-    sh("logcat -c")
-    sh(f"am force-stop {PKG}; {RUN_AS} 'rm -f files/collection.anki2-wal files/collection.anki2-shm;"
-       f" cp /data/local/tmp/ci/collection.anki2 files/'; input keyevent WAKEUP;"
-       f" am start -W -n {PKG}/.MainActivity --es deck '{DECK}' >/dev/null")
-    if not wait_log(r"side ready .*revealed=false"):
+    # A few tries: on emulators the system sometimes pushes the freshly started app into the background
+    # (e.g. while it updates the Play Store on first boot); then the card never shows up.
+    for attempt in range(3):
+        sh("logcat -c")
+        sh(f"am force-stop {PKG}; {RUN_AS} 'rm -f files/collection.anki2-wal files/collection.anki2-shm;"
+           f" cp /data/local/tmp/ci/collection.anki2 files/'; input keyevent WAKEUP;"
+           f" am start -W -n {PKG}/.MainActivity --es deck '{DECK}' >/dev/null")
+        # Generous: the very first start after installing (dex optimization) can take a while on slow emulators.
+        if wait_log(r"side ready .*revealed=false", timeout=30 if attempt == 0 else 15):
+            break
+        print(f"  (question side did not appear, restarting the app, try {attempt + 2})", flush=True)
+    else:
         raise AdbError("question side did not appear")
     time.sleep(0.5)
     if revealed:

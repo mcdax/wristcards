@@ -26,6 +26,9 @@ class SyncController private constructor(private val repo: AnkiRepository) {
     companion object {
         @Volatile private var instance: SyncController? = null
 
+        /** Debug builds only (screenshots): the deck list starts with the conflict prompt. */
+        @Volatile var previewConflictOnStart = false
+
         fun get(context: Context): SyncController =
             instance ?: synchronized(this) {
                 instance ?: SyncController(AnkiRepository.get(context)).also { instance = it }
@@ -50,6 +53,14 @@ class SyncController private constructor(private val repo: AnkiRepository) {
             }
             // Numbers after the sync; an error while reloading must not overwrite the sync status.
             runCatching { repo.decks() }
+        }
+    }
+
+    /** Debug builds only (screenshots): show the conflict prompt as if a sync had asked for it. */
+    fun previewConflictIfRequested() {
+        if (BuildConfig.DEBUG && previewConflictOnStart) {
+            previewConflictOnStart = false
+            _state.value = SyncState.NeedsConfirmation
         }
     }
 

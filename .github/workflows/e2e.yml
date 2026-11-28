@@ -1,6 +1,7 @@
 name: E2E tests (emulator)
 
-# End-to-end test, manual only (Actions tab or `gh workflow run e2e.yml -f ref=<branch>`).
+# End-to-end test, on demand only: comment "/e2e" on a pull request (write access needed), or run it from
+# the Actions tab / `gh workflow run e2e.yml -f ref=<branch>`.
 # Boots a Wear OS emulator, installs the debug build with the demo collection and drives the app
 # from outside via adb: gesture test (25 cases; the full grid is the JVM GesturesTest) and flow test
 # (sync with a real Anki sync server, rendering, rating, undo, conflict).
@@ -8,6 +9,8 @@ name: E2E tests (emulator)
 # The combined result is posted as commit status "e2e" on the tested commit, which branch protection
 # requires before a pull request can be merged.
 on:
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       ref:
@@ -18,9 +21,11 @@ on:
 permissions:
   contents: read
   statuses: write
+  pull-requests: read
+  issues: write          # reaction on the /e2e comment
 
 concurrency:
-  group: e2e-${{ inputs.ref }}
+  group: e2e-${{ github.event.issue.number || inputs.ref }}
   cancel-in-progress: true
 
 env:
@@ -32,13 +37,29 @@ env:
 
 jobs:
   start:
+    # A "/e2e" comment on a pull request by someone with write access (the PR code is built and run).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/e2e') &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
     steps:
+      - name: Pull request head
+        id: pr
+        if: github.event_name == 'issue_comment'
+        run: |
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}" > pr.json
+          # Code from forks is never built here.
+          if [ "$(jq -r .head.repo.full_name pr.json)" != "${{ github.repository }}" ]; then
+            echo "Pull request from a fork; not building it." >&2; exit 1
+          fi
+          echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
+          gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ steps.pr.outputs.head || inputs.ref }}
       - name: Mark commit status pending
         id: sha
         run: |
