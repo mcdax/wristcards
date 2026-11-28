@@ -203,56 +203,6 @@
       ]
     },
     {
-      "name": "server and account",
-      "group": "sync",
-      "steps": [
-        [
-          "swipe",
-          0.5,
-          0.85,
-          0.5,
-          0.2,
-          150
-        ],
-        [
-          "swipe",
-          0.5,
-          0.85,
-          0.5,
-          0.2,
-          150
-        ],
-        [
-          "swipe",
-          0.5,
-          0.85,
-          0.5,
-          0.2,
-          150
-        ],
-        [
-          "swipe",
-          0.5,
-          0.85,
-          0.5,
-          0.2,
-          150
-        ],
-        [
-          "tap_text",
-          "Settings"
-        ],
-        [
-          "tap_text",
-          "^Sync"
-        ],
-        [
-          "tap_text",
-          "Server & account"
-        ]
-      ]
-    },
-    {
       "name": "question",
       "group": "study",
       "deck": "Spanish",
