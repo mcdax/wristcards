@@ -2,31 +2,19 @@
   "_comment": "Screens for the /screens PR collages. Each screen starts the app fresh (optionally in a deck) and runs its steps. Coordinates are fractions of the display; tap_text taps the first node whose text matches the regex (scrolling if needed). signed_out shows the app as after signing out; hints_seen hides the \"Tap to show answer\" hint of the first cards; extras are added to the am start command (debug-build hooks, e.g. --ez conflict true). Vertical swipes are slow (1.5 s) so lists stop exactly where the finger does, without fling; that keeps scrolled screens identical between runs. Groups run in parallel; '/screens study cards' or '/screens answer' takes only those groups or screens.",
   "displays": [
     {
-      "name": "454 px",
+      "name": "227 dp",
       "size": 454,
       "density": 320,
       "font": 1.0
     },
     {
-      "name": "396 px",
-      "size": 396,
-      "density": 320,
-      "font": 1.0
-    },
-    {
-      "name": "384 px",
+      "name": "192 dp",
       "size": 384,
       "density": 320,
       "font": 1.0
     },
     {
-      "name": "320 px",
-      "size": 320,
-      "density": 280,
-      "font": 1.0
-    },
-    {
-      "name": "384 px, 130 % font",
+      "name": "192 dp, 130 % font",
       "size": 384,
       "density": 320,
       "font": 1.3

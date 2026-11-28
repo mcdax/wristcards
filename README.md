@@ -54,7 +54,7 @@ The debug build can contain a built-in test account from `local.properties` (`sy
   `tests`, which must pass before a pull request can be merged: run it with the pull request's branch as `ref`.
 - **Screenshots before/after:** comment `/screens` on a pull request (write access needed). The
   [screens workflow](.github/workflows/screens.yml) builds the base branch and the pull request, takes the screens listed in
-  [ci/screens.json](ci/screens.json) on several watch sizes and posts before/after collages as one PR comment (refreshed on
+  [ci/screens.json](ci/screens.json) on three watch sizes (227 dp, 192 dp, 192 dp with 130 % font) and posts before/after collages as one PR comment (refreshed on
   every run; `/screens study cards` or `/screens answer` takes only those groups or screens, one runner per group in
   parallel). Adding a screen is one entry in that file.
 
