@@ -17,6 +17,12 @@ class MainActivity : ComponentActivity() {
             lastTouchDownY = ev.y
             lastTouchDownTime = ev.downTime
         }
+        // Very fast left swipes also arrive without intermediate points; the card would not see them as a swipe.
+        // The study view handles each touch only once, so passing the event on to the card does no harm.
+        val left = onLeftSwipe
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_UP && ev.downTime == lastTouchDownTime && left != null &&
+            Gestures.isLeftSwipe(ev.x - lastTouchDownX, ev.y - lastTouchDownY, 80 * resources.displayMetrics.density)
+        ) left(ev.x - lastTouchDownX)
         // Here instead of in the card: very fast swipes arrive without intermediate points and would look like a tap there.
         // If the system intercepts the gesture, no ACTION_UP arrives; then the PredictiveBackHandler reports it.
         val handler = onRightSwipe
@@ -87,6 +93,9 @@ internal var lastTouchDownTime = 0L
 
 /** Set by the study view: right swipe that the app itself gets to see. */
 internal var onRightSwipe: (() -> Unit)? = null
+
+/** Set by the study view: left swipe (distance in px) recognized from down and up point alone. */
+internal var onLeftSwipe: ((Float) -> Unit)? = null
 
 /** Fraction of the width from which a right swipe is no longer back but rates. */
 internal const val BACK_ZONE = 0.20f

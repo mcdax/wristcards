@@ -95,6 +95,14 @@ class GesturesTest {
         assertEquals(Axis.VERTICAL, decided)
     }
 
+    @Test fun `fast left swipe is recognized from down and up point alone`() {
+        assertTrue(Gestures.isLeftSwipe(-280f, 0f, leftMin))
+        assertTrue(Gestures.isLeftSwipe(-200f, 99f, leftMin))
+        assertFalse(Gestures.isLeftSwipe(-160f, 0f, leftMin))
+        assertFalse(Gestures.isLeftSwipe(-200f, 100f, leftMin))
+        assertFalse(Gestures.isLeftSwipe(280f, 0f, leftMin))
+    }
+
     @Test fun `left swipe rates a revealed answer and reveals a hidden one`() {
         assertEquals(Left.RATE, Gestures.leftSwipe(-280f, leftMin, revealed = true, sinceRatingMs = noRating))
         assertEquals(Left.REVEAL, Gestures.leftSwipe(-280f, leftMin, revealed = false, sinceRatingMs = noRating))
