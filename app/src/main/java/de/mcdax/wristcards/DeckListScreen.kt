@@ -125,6 +125,8 @@ internal fun DeckList(
                 color = color,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Normal,
+                // Wraps on small displays; centered lines stay inside the round top edge.
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     // Moves along visibly when pulling down.
                     .padding(top = with(density) { pull.coerceAtMost(threshold * 1.2f).toDp() } / 2)

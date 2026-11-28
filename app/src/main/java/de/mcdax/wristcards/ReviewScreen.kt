@@ -511,10 +511,8 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
     val buttons = if (twoButtons) listOf(0, 2) else listOf(0, 1, 2, 3)
     val screen = LocalConfiguration.current.screenWidthDp
     val gap = if (twoButtons) 12f else 2f
-    // Four buttons span the whole arc and must fit smaller watches; two wide ones sit in the middle.
-    val width = if (twoButtons) 70f else gradeButtonWidth(screen, buttons.size, gap, maxWidth = 44f, raisedBottom = 38f)
-    // Labels shrink with narrower buttons so they still fit on one line.
-    val textScale = (width / if (twoButtons) 70f else 44f).coerceIn(0.8f, 1f)
+    // Four buttons on a flat arc must fit the round display; two wide ones sit in the middle.
+    val width = if (twoButtons) 70f else gradeButtonWidth(screen, buttons.size, gap, maxWidth = 44f, raisedBottom = 24f)
     // Without words and without times a symbol remains, so the button isn't empty.
     val symbols = listOf("✕", "–", "✓", "★")
     val twoLines = showLabels && showIntervals
@@ -530,7 +528,7 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .padding(bottom = if (outer) 24.dp else 0.dp)
+                    .padding(bottom = if (outer) 10.dp else 0.dp)
                     .width(width.dp)
                     .height(if (twoLines) 40.dp else 34.dp)
                     .clip(RoundedCornerShape(14.dp))
@@ -540,26 +538,32 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
                     .clickable(enabled = enabled) { onRate(i) },
             ) {
                 if (showLabels || !showIntervals) {
-                    Text(
+                    // Shrinks long words (e.g. "Nochmal" on narrow buttons) instead of cutting them off.
+                    androidx.compose.foundation.text.BasicText(
                         if (showLabels) labels[i] else symbols[i],
-                        color = color,
-                        fontSize = (if (showLabels) 10f else 15f).times(textScale).sp,
-                        lineHeight = 11.sp,
-                        fontWeight = FontWeight.Medium,
+                        style = androidx.compose.ui.text.TextStyle(color = color, fontWeight = FontWeight.Medium, lineHeight = 11.sp),
                         maxLines = 1,
                         softWrap = false,
-                        overflow = TextOverflow.Clip,
+                        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
+                            minFontSize = 7.sp, maxFontSize = if (showLabels) 10.sp else 15.sp, stepSize = 0.5.sp,
+                        ),
+                        modifier = Modifier.padding(horizontal = 2.dp),
                     )
                 }
                 if (showIntervals) {
-                    Text(
+                    androidx.compose.foundation.text.BasicText(
                         intervals.getOrElse(i) { "" },
-                        color = if (twoLines) color.copy(alpha = 0.8f) else color,
-                        fontSize = (if (twoLines) 9f else 11f).times(textScale).sp,
-                        lineHeight = 10.sp,
-                        fontWeight = if (twoLines) FontWeight.Normal else FontWeight.Medium,
+                        style = androidx.compose.ui.text.TextStyle(
+                            color = if (twoLines) color.copy(alpha = 0.8f) else color,
+                            fontWeight = if (twoLines) FontWeight.Normal else FontWeight.Medium,
+                            lineHeight = 10.sp,
+                        ),
                         maxLines = 1,
                         softWrap = false,
+                        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
+                            minFontSize = 7.sp, maxFontSize = if (twoLines) 9.sp else 11.sp, stepSize = 0.5.sp,
+                        ),
+                        modifier = Modifier.padding(horizontal = 2.dp),
                     )
                 }
             }
@@ -568,12 +572,11 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
 }
 
 /** Space at the bottom kept free for the rating buttons (bottom padding plus button height plus a gap). */
-private val GRADE_BAR_CLEARANCE = 62.dp
+private val GRADE_BAR_CLEARANCE = 66.dp
 
 /**
  * Width of one rating button so that the row, with its outer buttons raised to [raisedBottom] dp above the
- * bottom edge, stays inside the round display of [screenDp] dp. The rounded corners may touch the edge,
- * as on the 227 dp reference watch where this gives (about) the full [maxWidth].
+ * bottom edge, stays inside the round display of [screenDp] dp. The rounded corners may touch the edge.
  */
 internal fun gradeButtonWidth(screenDp: Int, count: Int, gap: Float, maxWidth: Float, raisedBottom: Float): Float {
     val r = screenDp / 2f
