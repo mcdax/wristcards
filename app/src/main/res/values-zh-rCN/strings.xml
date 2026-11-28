@@ -121,7 +121,7 @@
     <string name="open_failed">无法打开收藏</string>
     <string name="load_failed">无法加载卡片</string>
     <string name="retry">重试</string>
-    <string name="full_download_question">服务器和手表都有无法合并的更改。保留哪个版本？</string>
+    <string name="full_download_question">服务器和手表都有更改。使用哪个版本？</string>
     <string name="full_download_confirm">使用服务器版本</string>
     <string name="full_download_cancel">暂不</string>
     <string name="sync_paused">⚠ 同步已暂停</string>

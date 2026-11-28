@@ -130,7 +130,7 @@
     <string name="open_failed">Не удалось открыть коллекцию</string>
     <string name="load_failed">Не удалось загрузить карточку</string>
     <string name="retry">Повторить</string>
-    <string name="full_download_question">На сервере и на часах есть изменения, которые нельзя объединить. Какую версию оставить?</string>
+    <string name="full_download_question">Изменены и сервер, и часы. Какую версию оставить?</string>
     <string name="full_download_confirm">Версия сервера</string>
     <string name="full_download_cancel">Не сейчас</string>
     <string name="sync_paused">⚠ Синхронизация приостановлена</string>

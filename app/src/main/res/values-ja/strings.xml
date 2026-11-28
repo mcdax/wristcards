@@ -121,7 +121,7 @@
     <string name="open_failed">コレクションを開けません</string>
     <string name="load_failed">カードを読み込めません</string>
     <string name="retry">再試行</string>
-    <string name="full_download_question">サーバーと時計の両方に統合できない変更があります。どちらを優先しますか？</string>
+    <string name="full_download_question">サーバーとウォッチの両方が変更されました。どちらを使いますか？</string>
     <string name="full_download_confirm">サーバー版を使う</string>
     <string name="full_download_cancel">今はしない</string>
     <string name="sync_paused">⚠ 同期を一時停止</string>

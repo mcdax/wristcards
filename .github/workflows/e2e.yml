@@ -155,10 +155,16 @@ jobs:
           emulator -avd wear $EMULATOR_OPTIONS -no-snapshot-save > emulator.log 2>&1 &
           adb wait-for-device
           until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 3; done
-          # The snapshot resumes with the clock of the day it was taken; the sync server rejects skewed clocks.
-          adb shell settings put global auto_time 1
-          adb shell cmd network_time_update_service force_refresh || true
-          sleep 3
+          # The snapshot resumes with the clock of the moment it was taken; Anki sync rejects skewed clocks.
+          # Set the guest clock from the runner (works without root, also on signed images).
+          adb shell settings put global auto_time 0
+          adb shell cmd alarm set-time "$(date +%s%3N)"
+          # Older images ignore that; they are not signed, so set the clock as root there.
+          skew=$(( $(date +%s) - $(adb shell date +%s | tr -d '\r') ))
+          if [ "${skew#-}" -gt 30 ]; then
+            adb root && sleep 3 && adb wait-for-device
+            adb shell date "@$(date +%s)"
+          fi
           echo "runner $(date -u +%FT%TZ) emulator $(adb shell date -u +%FT%TZ)"
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0

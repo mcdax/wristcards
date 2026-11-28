@@ -191,14 +191,15 @@ def rate_and_sync():
     time.sleep(1.5)
     sh("input keyevent BACK")  # back to the deck list syncs
     wait_for(r"Languages")
-    count, ease = device_revlog()
-    if (count, ease) != (1, 3):
-        raise Failure(f"device review log {count} entries, last ease {ease}; want 1 entry with ease 3 (Good)")
-    end = time.time() + 60
+    # Wait for the sync to reach the server before stopping the app (slow emulators take a while).
+    end = time.time() + 90
     while (server := server_revlog_count()) != 1:
         if time.time() > end:
             raise Failure(f"server review log has {server} entries, want 1")
         time.sleep(3)
+    count, ease = device_revlog()
+    if (count, ease) != (1, 3):
+        raise Failure(f"device review log {count} entries, last ease {ease}; want 1 entry with ease 3 (Good)")
 
 
 def undo():
@@ -230,7 +231,7 @@ def conflict():
     col.reopen(after_full_sync=True)
     col.close()
     start()
-    wait_for(r"can't be merged|can.t be merged", timeout=90)
+    wait_for(r"Which version wins", timeout=90)
     tap(wait_for(r"^Use server version$"))
     wait_for(r"Synced", timeout=90)
     count, _ = device_revlog()

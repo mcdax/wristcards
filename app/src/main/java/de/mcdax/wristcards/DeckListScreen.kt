@@ -125,6 +125,8 @@ internal fun DeckList(
                 color = color,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Normal,
+                // Wraps on small displays; centered lines stay inside the round top edge.
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     // Moves along visibly when pulling down.
                     .padding(top = with(density) { pull.coerceAtMost(threshold * 1.2f).toDp() } / 2)
@@ -139,23 +141,23 @@ internal fun DeckList(
             }
         }
         // Conflict: one side has to win, only on explicit request. Uploading needs a second confirmation.
+        // Text and each button are separate list items: the round list scales and scrolls them one by one,
+        // so on small displays every button can be scrolled fully into view.
         if (sync == SyncState.NeedsConfirmation) {
-            item {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (!confirmUpload) {
-                        Text(stringResource(R.string.full_download_question), color = c.text, fontSize = 12.sp, textAlign = TextAlign.Center)
-                        PillButton(stringResource(R.string.full_download_confirm), c.again, c.background) { onResolveConflict(ConflictChoice.USE_SERVER) }
-                        PillButton(stringResource(R.string.full_upload_offer), c.surface, c.text) { confirmUpload = true }
-                        PillButton(stringResource(R.string.full_download_cancel), c.surface, c.text, onDismissFullDownload)
-                    } else {
-                        Text(stringResource(R.string.full_upload_warning), color = c.again, fontSize = 12.sp, textAlign = TextAlign.Center)
-                        PillButton(stringResource(R.string.full_upload_confirm), c.again, c.background) {
-                            confirmUpload = false
-                            onResolveConflict(ConflictChoice.USE_WATCH)
-                        }
-                        PillButton(stringResource(R.string.full_download_cancel), c.surface, c.text) { confirmUpload = false }
+            if (!confirmUpload) {
+                item { Text(stringResource(R.string.full_download_question), color = c.text, fontSize = 12.sp, textAlign = TextAlign.Center) }
+                item { PillButton(stringResource(R.string.full_download_confirm), c.again, c.background) { onResolveConflict(ConflictChoice.USE_SERVER) } }
+                item { PillButton(stringResource(R.string.full_upload_offer), c.surface, c.text) { confirmUpload = true } }
+                item { PillButton(stringResource(R.string.full_download_cancel), c.surface, c.text, onDismissFullDownload) }
+            } else {
+                item { Text(stringResource(R.string.full_upload_warning), color = c.again, fontSize = 12.sp, textAlign = TextAlign.Center) }
+                item {
+                    PillButton(stringResource(R.string.full_upload_confirm), c.again, c.background) {
+                        confirmUpload = false
+                        onResolveConflict(ConflictChoice.USE_WATCH)
                     }
                 }
+                item { PillButton(stringResource(R.string.full_download_cancel), c.surface, c.text) { confirmUpload = false } }
             }
         }
         // Legend for the three numbers on the right of each deck.

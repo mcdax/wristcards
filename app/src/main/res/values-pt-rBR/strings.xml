@@ -126,7 +126,7 @@
     <string name="open_failed">Não foi possível abrir a coleção</string>
     <string name="load_failed">Não foi possível carregar o cartão</string>
     <string name="retry">Tentar novamente</string>
-    <string name="full_download_question">Servidor e relógio têm alterações que não podem ser mescladas. Qual versão deve valer?</string>
+    <string name="full_download_question">Servidor e relógio mudaram. Qual versão vale?</string>
     <string name="full_download_confirm">Usar a do servidor</string>
     <string name="full_download_cancel">Agora não</string>
     <string name="sync_paused">⚠ Sincronização pausada</string>

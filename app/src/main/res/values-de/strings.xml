@@ -124,7 +124,7 @@
     <string name="open_failed">Sammlung konnte nicht geöffnet werden</string>
     <string name="load_failed">Karte konnte nicht geladen werden</string>
     <string name="retry">Erneut versuchen</string>
-    <string name="full_download_question">Server und Uhr haben beide Änderungen, die sich nicht zusammenführen lassen. Welche Version soll gelten?</string>
+    <string name="full_download_question">Server und Uhr wurden beide geändert. Welche Version gilt?</string>
     <string name="full_download_confirm">Server-Version laden</string>
     <string name="full_download_cancel">Jetzt nicht</string>
     <string name="sync_paused">⚠ Abgleich angehalten</string>

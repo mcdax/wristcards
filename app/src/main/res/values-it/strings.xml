@@ -126,7 +126,7 @@
     <string name="open_failed">Impossibile aprire la raccolta</string>
     <string name="load_failed">Impossibile caricare la carta</string>
     <string name="retry">Riprova</string>
-    <string name="full_download_question">Server e orologio hanno modifiche non unibili. Quale versione deve valere?</string>
+    <string name="full_download_question">Server e orologio sono cambiati. Quale versione vale?</string>
     <string name="full_download_confirm">Usa quella del server</string>
     <string name="full_download_cancel">Non ora</string>
     <string name="sync_paused">⚠ Sincronizzazione in pausa</string>

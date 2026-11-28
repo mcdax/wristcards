@@ -316,8 +316,9 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                 )
                 // At least screen height so short questions can be centered; longer ones scroll from the top.
                 .heightIn(min = LocalConfiguration.current.screenHeightDp.dp)
-                // Leave room at the bottom for the fixed rating buttons.
-                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) 110.dp else 60.dp),
+                // With the answer shown, the text runs faded behind the rating buttons (so you see that it
+                // continues) and can be scrolled until its last line is fully above them.
+                .padding(start = 30.dp, end = 26.dp, top = 36.dp, bottom = if (revealed) gradeBarClearance() + 14.dp else 60.dp),
             // Question centered, answer at the top (explanation and rating buttons belong together).
             verticalArrangement = if (revealed) Arrangement.spacedBy(10.dp) else Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         ) {
@@ -381,10 +382,10 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
             androidx.wear.compose.material3.ScrollIndicator(scroll, modifier = Modifier.align(Alignment.CenterEnd))
         }
         if (revealed && current != null) {
-            // Text fades out behind the buttons but stays recognizable (so you know you can scroll).
+            // Text behind the buttons stays faintly visible.
             Box(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(96.dp)
-                    .background(Brush.verticalGradient(0f to Color.Transparent, 0.4f to c.background.copy(alpha = 0.9f), 0.6f to c.background)),
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(gradeBarClearance() + 20.dp)
+                    .background(Brush.verticalGradient(0f to Color.Transparent, 0.25f to c.background.copy(alpha = 0.75f), 1f to c.background.copy(alpha = 0.92f))),
             )
             GradeBar(
                 current.intervals, enabled = !session.busy, twoButtons = settings.twoButtons,
@@ -508,12 +509,17 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
         stringResource(R.string.opt_good), stringResource(R.string.opt_easy),
     )
     val buttons = if (twoButtons) listOf(0, 2) else listOf(0, 1, 2, 3)
+    val screen = LocalConfiguration.current.screenWidthDp
+    val gap = if (twoButtons) 12f else 2f
+    // Four buttons on a flat arc must fit the round display; two wide ones sit in the middle.
+    val raise = gradeBarRaise(screen)
+    val width = if (twoButtons) 70f else gradeButtonWidth(screen, buttons.size, gap, maxWidth = 44f, raisedBottom = 14f + raise)
     // Without words and without times a symbol remains, so the button isn't empty.
     val symbols = listOf("✕", "–", "✓", "★")
     val twoLines = showLabels && showIntervals
     Row(
         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(gap.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
         buttons.forEachIndexed { pos, i ->
@@ -523,8 +529,8 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
-                    .padding(bottom = if (outer) 24.dp else 0.dp, start = if (twoButtons && pos == 1) 10.dp else 0.dp)
-                    .width(if (twoButtons) 70.dp else 44.dp)
+                    .padding(bottom = if (outer) raise.dp else 0.dp)
+                    .width(width.dp)
                     .height(if (twoLines) 40.dp else 34.dp)
                     .clip(RoundedCornerShape(14.dp))
                     // Opaque, so card text behind it doesn't show through.
@@ -533,31 +539,58 @@ private fun androidx.compose.foundation.layout.BoxScope.GradeBar(
                     .clickable(enabled = enabled) { onRate(i) },
             ) {
                 if (showLabels || !showIntervals) {
-                    Text(
+                    // Shrinks long words (e.g. "Nochmal" on narrow buttons) instead of cutting them off.
+                    androidx.compose.foundation.text.BasicText(
                         if (showLabels) labels[i] else symbols[i],
-                        color = color,
-                        fontSize = if (showLabels) 10.sp else 15.sp,
-                        lineHeight = 11.sp,
-                        fontWeight = FontWeight.Medium,
+                        style = androidx.compose.ui.text.TextStyle(color = color, fontWeight = FontWeight.Medium, lineHeight = 11.sp),
                         maxLines = 1,
                         softWrap = false,
-                        overflow = TextOverflow.Clip,
+                        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
+                            minFontSize = 7.sp, maxFontSize = if (showLabels) 10.sp else 15.sp, stepSize = 0.5.sp,
+                        ),
+                        modifier = Modifier.padding(horizontal = 2.dp),
                     )
                 }
                 if (showIntervals) {
-                    Text(
+                    androidx.compose.foundation.text.BasicText(
                         intervals.getOrElse(i) { "" },
-                        color = if (twoLines) color.copy(alpha = 0.8f) else color,
-                        fontSize = if (twoLines) 9.sp else 11.sp,
-                        lineHeight = 10.sp,
-                        fontWeight = if (twoLines) FontWeight.Normal else FontWeight.Medium,
+                        style = androidx.compose.ui.text.TextStyle(
+                            color = if (twoLines) color.copy(alpha = 0.8f) else color,
+                            fontWeight = if (twoLines) FontWeight.Normal else FontWeight.Medium,
+                            lineHeight = 10.sp,
+                        ),
                         maxLines = 1,
                         softWrap = false,
+                        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
+                            minFontSize = 7.sp, maxFontSize = if (twoLines) 9.sp else 11.sp, stepSize = 0.5.sp,
+                        ),
+                        modifier = Modifier.padding(horizontal = 2.dp),
                     )
                 }
             }
         }
     }
+}
+
+/**
+ * How far the outer rating buttons are raised: a flat arc on small watches (10 dp at 192 dp and below),
+ * rising to 18 dp at 227 dp and above, where the extra room makes all four buttons wider.
+ */
+internal fun gradeBarRaise(screenDp: Int): Float = 10f + 8f * ((screenDp - 192) / 35f).coerceIn(0f, 1f)
+
+/** Height of the rating row from the bottom edge (padding, raised outer buttons, button height, gap). */
+@Composable
+private fun gradeBarClearance() = (14f + gradeBarRaise(LocalConfiguration.current.screenWidthDp) + 40f + 2f).dp
+
+/**
+ * Width of one rating button so that the row, with its outer buttons raised to [raisedBottom] dp above the
+ * bottom edge, stays inside the round display of [screenDp] dp. The rounded corners may touch the edge.
+ */
+internal fun gradeButtonWidth(screenDp: Int, count: Int, gap: Float, maxWidth: Float, raisedBottom: Float): Float {
+    val r = screenDp / 2f
+    val dy = r - raisedBottom
+    val reach = kotlin.math.sqrt((r * r - dy * dy).coerceAtLeast(0f)) + 6f
+    return ((2 * reach - gap * (count - 1)) / count).coerceIn(24f, maxWidth)
 }
 
 private fun vibrate(context: android.content.Context, effect: Int) {
