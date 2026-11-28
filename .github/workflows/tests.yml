@@ -1,12 +1,13 @@
-name: E2E tests (emulator)
+name: Tests
 
-# End-to-end test, on demand only: comment "/e2e" on a pull request (write access needed), or run it from
-# the Actions tab / `gh workflow run e2e.yml -f ref=<branch>`.
-# Boots a Wear OS emulator, installs the debug build with the demo collection and drives the app
+# All tests, on demand only: comment "/test" on a pull request (write access needed), or run it from
+# the Actions tab / `gh workflow run tests.yml -f ref=<branch>`.
+# Unit tests: the JVM tests (gradle testDebugUnitTest).
+# End-to-end tests: boots a Wear OS emulator, installs the debug build with the demo collection and drives the app
 # from outside via adb: gesture test (25 cases; the full grid is the JVM GesturesTest) and flow test
 # (sync with a real Anki sync server, rendering, rating, undo, conflict).
 # Runs on Wear OS 7 (like the target watch) and Wear OS 5 (older generation still in wide use).
-# The combined result is posted as commit status "e2e" on the tested commit, which branch protection
+# The combined result is posted as commit status "tests" on the tested commit, which branch protection
 # requires before a pull request can be merged.
 on:
   issue_comment:
@@ -21,13 +22,13 @@ on:
 permissions:
   contents: read
   statuses: write
-  pull-requests: write   # reaction on the /e2e comment (comments on PRs need this, not just issues)
-  issues: write          # reaction on the /e2e comment
+  pull-requests: write   # reaction on the /test comment (comments on PRs need this, not just issues)
+  issues: write          # reaction on the /test comment
 
 concurrency:
-  # Every PR comment starts this workflow; only real "/e2e" runs share a group, so other comments
+  # Every PR comment starts this workflow; only real "/test" runs share a group, so other comments
   # (e.g. "/screens") cannot cancel a running test.
-  group: e2e-${{ github.event.issue.number || inputs.ref }}-${{ github.event_name != 'issue_comment' || startsWith(github.event.comment.body, '/e2e') }}
+  group: tests-${{ github.event.issue.number || inputs.ref }}-${{ github.event_name != 'issue_comment' || startsWith(github.event.comment.body, '/test') }}
   cancel-in-progress: true
 
 env:
@@ -39,10 +40,10 @@ env:
 
 jobs:
   start:
-    # A "/e2e" comment on a pull request by someone with write access (the PR code is built and run).
+    # A "/test" comment on a pull request by someone with write access (the PR code is built and run).
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/e2e') &&
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/test') &&
        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
     runs-on: ubuntu-latest
     outputs:
@@ -67,8 +68,38 @@ jobs:
         run: |
           sha=$(git rev-parse HEAD)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          gh api "repos/${{ github.repository }}/statuses/$sha" -f state=pending -f context=e2e \
-            -f description="E2E tests running" -f target_url="$RUN_URL"
+          gh api "repos/${{ github.repository }}/statuses/$sha" -f state=pending -f context=tests \
+            -f description="Tests running" -f target_url="$RUN_URL"
+
+  unit:
+    needs: start
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.start.outputs.sha }}
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/cache@v6
+        with:
+          path: |
+            /usr/local/lib/android/sdk/platforms/android-37.1
+            /usr/local/lib/android/sdk/build-tools/37.0.0
+          key: android-sdk-37.1-bt37.0.0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platforms;android-37.1 build-tools;37.0.0"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Unit tests
+        run: ./gradlew --console=plain testDebugUnitTest
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest
+          retention-days: 7
 
   # The debug APK is built once per run, and not at all if this commit was built before (cache).
   build:
@@ -239,7 +270,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: e2e-logs-${{ matrix.name }}
+          name: emulator-logs-${{ matrix.name }}
           path: |
             swipe-test.log
             flow-test.log
@@ -251,16 +282,18 @@ jobs:
           if-no-files-found: ignore
 
   report:
-    needs: [start, build, emulator]
+    needs: [start, unit, build, emulator]
     if: always() && needs.start.outputs.sha != ''
     runs-on: ubuntu-latest
     steps:
       - name: Report commit status
         run: |
-          if [ "${{ needs.emulator.result }}" = success ]; then
-            state=success; text="Gesture and flow tests passed on Wear OS 7 and Wear OS 5"
+          if [ "${{ needs.unit.result }}" != success ]; then
+            state=failure; text="Unit tests failed, see run"
+          elif [ "${{ needs.emulator.result }}" != success ]; then
+            state=failure; text="Emulator tests failed, see run"
           else
-            state=failure; text="E2E tests failed, see run"
+            state=success; text="Unit, gesture and flow tests passed (Wear OS 7 and 5)"
           fi
-          gh api "repos/${{ github.repository }}/statuses/${{ needs.start.outputs.sha }}" -f state="$state" -f context=e2e \
+          gh api "repos/${{ github.repository }}/statuses/${{ needs.start.outputs.sha }}" -f state="$state" -f context=tests \
             -f description="$text" -f target_url="$RUN_URL"
