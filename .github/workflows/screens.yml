@@ -1,8 +1,10 @@
 name: Screenshots (before/after)
 
-# Comment "/screens" on a pull request (needs write access) or run it from the Actions tab with the PR number.
-# Builds the base branch and the pull request, takes the screens from ci/screens.json on several watch
-# sizes in the emulator and posts before/after collages as a single, updated PR comment. Not a merge gate.
+# Comment "/screens" on a pull request (needs write access), optionally followed by groups or screen names
+# ("/screens study image"), or run it from the Actions tab with the PR number. Builds the base branch and the
+# pull request, takes the screens from ci/screens.json on several watch sizes in the emulator (one runner
+# per group, in parallel) and posts before/after collages in one PR comment; screens not taken in a run keep
+# their previous collage. Not a merge gate. Scripts and tools always come from the default branch.
 on:
   issue_comment:
     types: [created]
@@ -11,6 +13,10 @@ on:
       pr:
         description: Pull request number
         required: true
+      only:
+        description: Groups or screen names, space-separated (empty = all)
+        required: false
+        default: ""
 
 permissions:
   contents: write        # collages are stored on the pr-screenshots branch
@@ -28,15 +34,20 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs:
-  screens:
+  plan:
     # Only for "/screens" comments on pull requests by people with write access (the PR code is built and run).
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.issue.pull_request && startsWith(github.event.comment.body, '/screens') &&
        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    outputs:
+      number: ${{ steps.pr.outputs.number }}
+      head: ${{ steps.pr.outputs.head }}
+      base: ${{ steps.pr.outputs.base }}
+      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
+      - uses: actions/checkout@v4
       - name: Pull request
         id: pr
         run: |
@@ -49,17 +60,29 @@ jobs:
           echo "number=$pr" >> "$GITHUB_OUTPUT"
           echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
           echo "base=$(jq -r .base.sha pr.json)" >> "$GITHUB_OUTPUT"
-      # Scripts and tools always come from the default branch, never from the pull request.
+          if [ "${{ github.event_name }}" = issue_comment ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null
+          fi
+      - name: Plan
+        id: plan
+        env:
+          SELECTION: ${{ github.event.comment.body || inputs.only }}
+        run: echo "matrix=$(python3 ci/screens_plan.py "$(echo "$SELECTION" | head -1)")" >> "$GITHUB_OUTPUT"
+
+  apks:
+    needs: plan
+    runs-on: ubuntu-latest
+    steps:
       - uses: actions/checkout@v4
         with:
           path: tools
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.pr.outputs.head }}
+          ref: ${{ needs.plan.outputs.head }}
           path: after
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.pr.outputs.base }}
+          ref: ${{ needs.plan.outputs.base }}
           path: before
       - uses: actions/setup-java@v4
         with:
@@ -75,12 +98,7 @@ jobs:
         with:
           packages: "platforms;android-37.1 build-tools;37.0.0"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-      # Built only if this commit has no cached APK yet; the base side is usually cached after the first run.
+      # Built only if no APK of the same sources is cached; the base side is usually cached after the first run.
       # Neutral built-in account: it prefills the sign-in form in the screenshots; nothing is contacted.
       - name: APK before
         id: before
@@ -98,10 +116,41 @@ jobs:
           sync-endpoint: https://sync.example.org/
           sync-user: demo
           sync-password: demo
-      - name: Demo collection and tools
+      - name: Collect
+        run: mkdir -p apks && cp "${{ steps.before.outputs.apk }}" apks/before.apk && cp "${{ steps.after.outputs.apk }}" apks/after.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screens-apks
+          path: apks
+          retention-days: 1
+
+  shots:
+    needs: [plan, apks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: shots (${{ matrix.group }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: actions/download-artifact@v4
+        with:
+          name: screens-apks
+          path: apks
+      - name: Enable KVM
         run: |
-          python3 -m venv /tmp/py && /tmp/py/bin/pip install --quiet anki pillow
-          mkdir -p /tmp/demo && /tmp/py/bin/python -I tools/ci/make_demo_collection.py /tmp/demo/collection.anki2
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Demo collection
+        run: |
+          python3 -m venv /tmp/py && /tmp/py/bin/pip install --quiet anki
+          mkdir -p /tmp/demo && /tmp/py/bin/python -I ci/make_demo_collection.py /tmp/demo/collection.anki2
       # Same emulator and snapshot cache as the e2e workflow (see there for why cmdline-tools 22.0).
       - name: Install emulator and system image
         run: |
@@ -135,19 +184,37 @@ jobs:
           adb shell settings put global animator_duration_scale 0
       - name: Screenshots
         run: |
-          python3 tools/ci/screens.py emulator-5554 ${{ steps.before.outputs.apk }} /tmp/demo/collection.anki2 shots/before
-          python3 tools/ci/screens.py emulator-5554 ${{ steps.after.outputs.apk }} /tmp/demo/collection.anki2 shots/after
-          /tmp/py/bin/python tools/ci/collage.py shots/before shots/after collages
+          python3 ci/screens.py emulator-5554 apks/before.apk /tmp/demo/collection.anki2 shots/before "${{ matrix.screens }}"
+          python3 ci/screens.py emulator-5554 apks/after.apk /tmp/demo/collection.anki2 shots/after "${{ matrix.screens }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: screens-pr-${{ steps.pr.outputs.number }}
-          path: |
-            collages
-            shots
+          name: shots-${{ matrix.group }}
+          path: shots
+          retention-days: 7
+
+  publish:
+    needs: [plan, shots]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shots-*
+          merge-multiple: true
+          path: shots
+      - name: Collages
+        run: |
+          python3 -m venv /tmp/py && /tmp/py/bin/pip install --quiet pillow
+          /tmp/py/bin/python ci/collage.py shots/before shots/after collages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screens-collages-pr-${{ needs.plan.outputs.number }}
+          path: collages
           retention-days: 14
       - name: Post collages
         run: |
-          pr=${{ steps.pr.outputs.number }}; head=${{ steps.pr.outputs.head }}; dir="pr-$pr/${head:0:7}"
+          pr=${{ needs.plan.outputs.number }}; head=${{ needs.plan.outputs.head }}; dir="pr-$pr/${head:0:7}"
           git clone --quiet --depth 1 --branch pr-screenshots "https://x-access-token:$GH_TOKEN@github.com/${{ github.repository }}" store \
             || { git init --quiet store && git -C store checkout --quiet --orphan pr-screenshots \
                  && git -C store remote add origin "https://x-access-token:$GH_TOKEN@github.com/${{ github.repository }}"; }
@@ -156,19 +223,11 @@ jobs:
           git -C store -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit --quiet -m "Screenshots for #$pr at ${head:0:7}"
           git -C store push --quiet origin HEAD:pr-screenshots
-          base="https://raw.githubusercontent.com/${{ github.repository }}/pr-screenshots/$dir"
-          {
-            echo "<!-- wristcards-screens -->"
-            echo "### Screenshots before / after (${head:0:7})"
-            echo "Watch sizes 454 / 396 / 384 / 320 px and 384 px with 130 % font. Comment \`/screens\` to refresh."
-            echo
-            for f in collages/*.jpg; do
-              name=$(basename "$f" .jpg)
-              echo "<details><summary>${name//-/ }</summary>"; echo; echo "![${name}]($base/$name.jpg)"; echo; echo "</details>"
-            done
-          } > comment.md
           existing=$(gh api "repos/${{ github.repository }}/issues/$pr/comments" --paginate \
             --jq '.[] | select(.body | startswith("<!-- wristcards-screens -->")) | .id' | tail -1)
+          if [ -n "$existing" ]; then gh api "repos/${{ github.repository }}/issues/comments/$existing" --jq .body > old.md; fi
+          python3 ci/screens_comment.py "${existing:+old.md}" collages \
+            "https://raw.githubusercontent.com/${{ github.repository }}/pr-screenshots/$dir" "${head:0:7}" > comment.md
           if [ -n "$existing" ]; then
             gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -F body=@comment.md > /dev/null
           else

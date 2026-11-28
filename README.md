@@ -54,7 +54,8 @@ The debug build can contain a built-in test account from `local.properties` (`sy
 - **Screenshots before/after:** comment `/screens` on a pull request (write access needed). The
   [screens workflow](.github/workflows/screens.yml) builds the base branch and the pull request, takes the screens listed in
   [ci/screens.json](ci/screens.json) on several watch sizes and posts before/after collages as one PR comment (refreshed on
-  every run). Adding a screen is one entry in that file.
+  every run; `/screens study cards` or `/screens answer` takes only those groups or screens, one runner per group in
+  parallel). Adding a screen is one entry in that file.
 
 Architecture notes: [architecture.md](architecture.md).
 

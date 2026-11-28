@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Screenshots of the screens in ci/screens.json on every display configuration, for the /screens PR collage.
 
-Usage: screens.py <adb serial> <apk> <demo collection.anki2> <output dir>
+Usage: screens.py <adb serial> <apk> <demo collection.anki2> <output dir> [screen names, comma-separated]
 Installs the APK fresh, loads the demo collection (sync off) and stores <output>/<display>/<screen>.png.
+Without names all screens are taken.
 """
 import json
 import os
@@ -13,6 +14,7 @@ import time
 import xml.etree.ElementTree as ET
 
 SERIAL, APK, DEMO, OUT = sys.argv[1:5]
+ONLY = set(filter(None, sys.argv[5].split(","))) if len(sys.argv) > 5 else set()
 PKG = "de.mcdax.wristcards"
 CONFIG = json.load(open(os.path.join(os.path.dirname(__file__), "screens.json")))
 PREFS = ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map>"
@@ -92,6 +94,8 @@ try:
         folder = os.path.join(OUT, slug(display["name"]))
         os.makedirs(folder, exist_ok=True)
         for screen in CONFIG["screens"]:
+            if ONLY and screen["name"] not in ONLY:
+                continue
             sh(f"am force-stop {PKG}; run-as {PKG} sh -c 'rm -f files/collection.anki2-wal files/collection.anki2-shm"
                f" shared_prefs/sync_auth.xml; cp /data/local/tmp/screens.anki2 files/collection.anki2'")
             if screen.get("signed_out"):
