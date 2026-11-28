@@ -217,26 +217,25 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
         if (handledGesture == lastTouchDownTime) return
         handledGesture = lastTouchDownTime
         val shown = session.card
-        // A quick second swipe still belongs to the last rating, even if it starts at the edge.
-        if (lastTouchDownTime - session.ratedAt < RATE_LOCK_MS) {
-            debugLog(TAG) { "right down=$lastTouchDownX ignored (lock)" }
-            return
-        }
-        // Hidden: edge = back to the deck list, further inside = reveal.
-        // Revealed: from the center the right-swipe rating applies (if set); otherwise the back swipe
-        // only covers the answer again and returns to the question.
-        val edge = lastTouchDownX < screenWidth * BACK_ZONE
-        val rateRight = shown != null && session.revealed && !edge && settings.swipeRight != SwipeAction.NONE
-        debugLog(TAG) { "right down=$lastTouchDownX revealed=${session.revealed} card=${shown != null} edge=$edge" }
-        when {
-            shown == null -> leave()
-            rateRight -> rateBySwipe(shown, settings.swipeRight)
-            session.revealed -> {
+        val decision = Gestures.rightSwipe(
+            downX = lastTouchDownX,
+            width = screenWidth,
+            hasCard = shown != null,
+            revealed = session.revealed,
+            rateRightEnabled = settings.swipeRight != SwipeAction.NONE,
+            sinceRatingMs = lastTouchDownTime - session.ratedAt,
+        )
+        debugLog(TAG) { "right down=$lastTouchDownX revealed=${session.revealed} card=${shown != null} -> $decision" }
+        when (decision) {
+            // A quick second swipe still belongs to the last rating, even if it starts at the edge.
+            Gestures.Right.LOCKED -> Unit
+            Gestures.Right.BACK -> leave()
+            Gestures.Right.RATE -> rateBySwipe(shown!!, settings.swipeRight)
+            Gestures.Right.HIDE -> {
                 debugLog(TAG) { "result hide" }
                 session.hide()
             }
-            edge -> leave()
-            else -> {
+            Gestures.Right.REVEAL -> {
                 debugLog(TAG) { "result reveal" }
                 session.reveal()
             }
@@ -264,7 +263,7 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             debugLog(TAG) { "cancelled down=$lastTouchDownX last=$lastX max=$maxX" }
             // The system sometimes cancels fast swipes. Fingers pulled back stay a cancel.
-            if (swiped && lastX - lastTouchDownX > swipeMin && maxX - lastX < swipeMin / 4) swipedRight()
+            if (swiped && Gestures.cancelledBackCounts(lastTouchDownX, lastX, maxX, swipeMin)) swipedRight()
             throw e
         }
     }
@@ -296,21 +295,21 @@ internal fun ReviewScreen(repo: AnkiRepository, deck: DeckTreeNode?, previewCard
                                 val delta = change.positionChange()
                                 dx += delta.x
                                 dy += delta.y
-                                if (!horizontal) {
-                                    if (kotlin.math.abs(dx) > slop && kotlin.math.abs(dy) < kotlin.math.abs(dx) / 2) horizontal = true
-                                    else if (kotlin.math.abs(dy) > slop) return@awaitEachGesture
+                                if (!horizontal) when (Gestures.axis(dx, dy, slop)) {
+                                    Gestures.Axis.HORIZONTAL -> horizontal = true
+                                    Gestures.Axis.VERTICAL -> return@awaitEachGesture
+                                    null -> Unit
                                 }
                                 if (horizontal) change.consume()
                             }
                             if (!horizontal) return@awaitEachGesture
-                            when {
-                                dx < -80.dp.toPx() && session.revealed -> rateBySwipe(current, settings.swipeLeft)
-                                // Hidden: left swipe reveals. Not directly after a rating,
-                                // otherwise a double swipe reveals the new card unread.
-                                dx < -80.dp.toPx() && lastTouchDownTime - session.ratedAt >= RATE_LOCK_MS -> {
+                            when (Gestures.leftSwipe(dx, 80.dp.toPx(), session.revealed, lastTouchDownTime - session.ratedAt)) {
+                                Gestures.Left.RATE -> rateBySwipe(current, settings.swipeLeft)
+                                Gestures.Left.REVEAL -> {
                                     debugLog(TAG) { "result reveal" }
                                     session.reveal()
                                 }
+                                Gestures.Left.NONE -> Unit
                             }
                         }
                     } else Modifier,

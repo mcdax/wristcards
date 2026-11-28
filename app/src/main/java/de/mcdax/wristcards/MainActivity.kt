@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         val handler = onRightSwipe
         val dx = ev.x - lastTouchDownX
         if (ev.actionMasked == android.view.MotionEvent.ACTION_UP && ev.downTime == lastTouchDownTime && handler != null &&
-            dx > 50 * resources.displayMetrics.density && kotlin.math.abs(ev.y - lastTouchDownY) < dx / 2
+            Gestures.isRightSwipe(dx, ev.y - lastTouchDownY, 50 * resources.displayMetrics.density)
         ) {
             val cancel = android.view.MotionEvent.obtain(ev).apply { action = android.view.MotionEvent.ACTION_CANCEL }
             super.dispatchTouchEvent(cancel)

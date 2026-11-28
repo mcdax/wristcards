@@ -2,8 +2,8 @@ name: E2E tests (emulator)
 
 # End-to-end test, manual only (Actions tab or `gh workflow run e2e.yml -f ref=<branch>`).
 # Boots a Wear OS emulator, installs the debug build with the demo collection and drives the app
-# from outside via adb (swipe/gesture regression test). Runs on Wear OS 7 (like the target watch, in the
-# chosen mode) and on Wear OS 5 (oldest supported generation still in wide use, quick mode only).
+# from outside via adb (gesture test, 25 cases; the full gesture grid is covered by the JVM GesturesTest).
+# Runs on Wear OS 7 (like the target watch) and Wear OS 5 (older generation still in wide use).
 # The combined result is posted as commit status "e2e" on the tested commit, which branch protection
 # requires before a pull request can be merged.
 on:
@@ -13,11 +13,6 @@ on:
         description: "Branch, tag or commit to test (for a pull request: its head branch)"
         required: true
         default: main
-      mode:
-        description: full (all gesture cases) or quick (core cases only)
-        type: choice
-        options: [full, quick]
-        default: full
 
 permissions:
   contents: read
@@ -49,7 +44,7 @@ jobs:
           sha=$(git rev-parse HEAD)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           gh api "repos/${{ github.repository }}/statuses/$sha" -f state=pending -f context=e2e \
-            -f description="E2E tests (${{ inputs.mode }}) running" -f target_url="$RUN_URL"
+            -f description="E2E tests running" -f target_url="$RUN_URL"
 
   emulator:
     needs: start
@@ -64,17 +59,13 @@ jobs:
           - name: wear-os-7
             api: "37.0"
             tag: android-wear-signed
-            quick_only: false
-          # Wear OS 5 still uses the old window swipe-to-dismiss; extremely fast (40 ms) edge swipes are
-          # taken by the system there, so only the quick core cases run.
+          # Wear OS 5 still uses the old window swipe-to-dismiss; the test skips the one case it swallows.
           - name: wear-os-5
             api: "34"
             tag: android-wear
-            quick_only: true
     name: ${{ matrix.name }}
     env:
       SYSTEM_IMAGE: system-images;android-${{ matrix.api }};${{ matrix.tag }};x86_64
-      MODE: ${{ (matrix.quick_only || inputs.mode == 'quick') && 'quick' || 'full' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -172,9 +163,9 @@ jobs:
           adb push /tmp/collection.anki2 /data/local/tmp/ci/collection.anki2
           adb shell chmod -R 755 /data/local/tmp/ci
           adb shell cmd locale set-app-locales de.mcdax.wristcards --locales en-US
-      - name: Swipe test (${{ env.MODE }})
+      - name: Gesture test
         shell: bash
-        run: python3 ci/swipe_test.py emulator-5554 Spanish ${{ env.MODE == 'quick' && 'quick' || '' }} | tee swipe-test.log
+        run: python3 ci/swipe_test.py emulator-5554 Spanish | tee swipe-test.log
       - name: Collect logs
         if: always()
         run: timeout 30 adb logcat -d > logcat.txt 2>/dev/null || true
@@ -197,7 +188,7 @@ jobs:
       - name: Report commit status
         run: |
           if [ "${{ needs.emulator.result }}" = success ]; then
-            state=success; text="Wear OS 7 ${{ inputs.mode }} + Wear OS 5 quick passed"
+            state=success; text="Gesture tests passed on Wear OS 7 and Wear OS 5"
           else
             state=failure; text="E2E tests failed, see run"
           fi
