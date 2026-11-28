@@ -30,6 +30,8 @@ concurrency:
 env:
   SYSTEM_IMAGE: "system-images;android-37.0;android-wear-signed;x86_64"
   EMULATOR_OPTIONS: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 2048 -camera-back none
+  # avdmanager 22.0 and the emulator default to different AVD directories; pin one for both and the cache.
+  ANDROID_AVD_HOME: /home/runner/.android/avd
 
 jobs:
   emulator:
@@ -76,8 +78,9 @@ jobs:
         run: |
           python3 -m venv /tmp/anki && /tmp/anki/bin/pip install --quiet anki
           /tmp/anki/bin/python -I ci/make_demo_collection.py /tmp/collection.anki2
-      # sdkmanager/avdmanager before cmdline-tools 22.0 install the image incompletely and write "target=android-0" for API 37.0, and the guest
-      # graphics driver then crashes in a loop, so the AVD is created with 22.0 and its target checked.
+      # sdkmanager/avdmanager before cmdline-tools 22.0 install the API 37.0 image incompletely and write
+      # "target=android-0"; the guest graphics driver then crashes in a loop. So both come from 22.0
+      # and the AVD target is checked.
       - name: Install emulator and system image
         run: |
           yes | sdkmanager --install "cmdline-tools;22.0" > /dev/null
@@ -96,9 +99,10 @@ jobs:
         timeout-minutes: 20
         run: |
           set -x
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$ANDROID_HOME/cmdline-tools/22.0/bin/avdmanager" create avd -n wear -k "$SYSTEM_IMAGE" -d wearos_large_round --force
-          cat ~/.android/avd/wear.ini
-          grep -q "^target=android-37.0" ~/.android/avd/wear.ini
+          cat "$ANDROID_AVD_HOME/wear.ini"
+          grep -q "^target=android-37.0" "$ANDROID_AVD_HOME/wear.ini"
           emulator -avd wear $EMULATOR_OPTIONS > emulator-cold.log 2>&1 &
           adb wait-for-device
           until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do
