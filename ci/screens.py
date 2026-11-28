@@ -53,7 +53,7 @@ def tap_text(pattern, size):
             if top < bottom:
                 sh(f"input tap {(x1 + x2) // 2} {(top + bottom) // 2}")
                 return
-        sh(f"input swipe {size // 2} {int(size * 0.7)} {size // 2} {int(size * 0.4)} 300")
+        sh(f"input swipe {size // 2} {int(size * 0.7)} {size // 2} {int(size * 0.4)} 1000")
         time.sleep(0.8)
     raise RuntimeError(f"no node with text {pattern!r}")
 

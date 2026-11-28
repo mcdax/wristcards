@@ -25,7 +25,9 @@ permissions:
   issues: write          # reaction on the /e2e comment
 
 concurrency:
-  group: e2e-${{ github.event.issue.number || inputs.ref }}
+  # Every PR comment starts this workflow; only real "/e2e" runs share a group, so other comments
+  # (e.g. "/screens") cannot cancel a running test.
+  group: e2e-${{ github.event.issue.number || inputs.ref }}-${{ github.event_name != 'issue_comment' || startsWith(github.event.comment.body, '/e2e') }}
   cancel-in-progress: true
 
 env:

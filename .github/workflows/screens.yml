@@ -25,7 +25,9 @@ permissions:
   actions: write         # removes the intermediate artifacts of the run
 
 concurrency:
-  group: screens-${{ github.event.issue.number || inputs.pr }}
+  # Every PR comment starts this workflow; only real "/screens" runs share a group, so other comments
+  # (e.g. "/e2e") cannot cancel a running screenshot run.
+  group: screens-${{ github.event.issue.number || inputs.pr }}-${{ github.event_name != 'issue_comment' || startsWith(github.event.comment.body, '/screens') }}
   cancel-in-progress: true
 
 env:
@@ -60,7 +62,10 @@ jobs:
           fi
           echo "number=$pr" >> "$GITHUB_OUTPUT"
           echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
-          echo "base=$(jq -r .base.sha pr.json)" >> "$GITHUB_OUTPUT"
+          # "Before" is where the pull request branched off, so only its own changes show up (the base
+          # branch may have moved on since).
+          base=$(gh api "repos/${{ github.repository }}/compare/$(jq -r .base.sha pr.json)...$(jq -r .head.sha pr.json)" --jq .merge_base_commit.sha)
+          echo "base=$base" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = issue_comment ]; then
             gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null || echo "Could not react to the comment" >&2
           fi
