@@ -76,11 +76,13 @@ jobs:
         run: |
           python3 -m venv /tmp/anki && /tmp/anki/bin/pip install --quiet anki
           /tmp/anki/bin/python -I ci/make_demo_collection.py /tmp/collection.anki2
-      # avdmanager before cmdline-tools 22.0 writes "target=android-0" for API 37.0, and the guest
+      # sdkmanager/avdmanager before cmdline-tools 22.0 install the image incompletely and write "target=android-0" for API 37.0, and the guest
       # graphics driver then crashes in a loop, so the AVD is created with 22.0 and its target checked.
       - name: Install emulator and system image
         run: |
-          yes | sdkmanager --install "cmdline-tools;22.0" emulator "$SYSTEM_IMAGE" > /dev/null
+          yes | sdkmanager --install "cmdline-tools;22.0" > /dev/null
+          yes | "$ANDROID_HOME/cmdline-tools/22.0/bin/sdkmanager" --install emulator "$SYSTEM_IMAGE" > /dev/null
+          ls "$ANDROID_HOME/system-images/android-37.0/android-wear-signed/x86_64"
           echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
       # Cold boot only once: later runs resume from the cached quick-boot snapshot.
       - name: AVD cache
