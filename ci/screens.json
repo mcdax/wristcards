@@ -1,5 +1,5 @@
 {
-  "_comment": "Screens for the /screens PR collage. Each screen starts the app fresh (optionally in a deck) and runs its steps. Coordinates are fractions of the display; tap_text taps the first node whose text matches the regex. signed_out shows the app as after signing out (welcome screen).",
+  "_comment": "Screens for the /screens PR collage. Each screen starts the app fresh (optionally in a deck) and runs its steps. Coordinates are fractions of the display; tap_text taps the first node whose text matches the regex. signed_out shows the app as after signing out (welcome screen). extras are added to the am start command (debug-build hooks, e.g. --ez conflict true).",
   "displays": [
     {
       "name": "454 px",
@@ -86,6 +86,25 @@
           0.5,
           0.2,
           150
+        ]
+      ]
+    },
+    {
+      "name": "sync conflict",
+      "extras": "--ez conflict true",
+      "steps": []
+    },
+    {
+      "name": "sync conflict scrolled",
+      "extras": "--ez conflict true",
+      "steps": [
+        [
+          "swipe",
+          0.5,
+          0.75,
+          0.5,
+          0.35,
+          300
         ]
       ]
     },

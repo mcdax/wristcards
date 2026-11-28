@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
         // For screenshots in the emulator: --es deck <name> opens the deck directly.
         val openDeck = debugIntent?.getStringExtra("deck")
         val previewCard = debugIntent?.getLongExtra("card", 0L)?.takeIf { it != 0L }
+        // For screenshots: --ez conflict true shows the full-sync conflict prompt without a server.
+        if (debugIntent?.getBooleanExtra("conflict", false) == true) SyncController.previewConflictOnStart = true
         setContent { AnkiTheme(themeVariants[variant]) { App(startup, openDeck, previewCard, restoring = savedInstanceState != null, onReady = { contentReady = true }) } }
     }
     override fun onResume() {

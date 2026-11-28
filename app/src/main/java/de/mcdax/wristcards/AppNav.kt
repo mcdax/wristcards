@@ -91,6 +91,7 @@ private fun LoadedApp(repo: AnkiRepository, openDeck: String?, previewCard: Long
 
     LaunchedEffect(Unit) {
         decksLoaded = true
+        syncer.previewConflictIfRequested()
         // NavController restores its study view itself. Neither navigate again
         // nor put the startup sync in the shared backend queue before it.
         if (restoring) return@LaunchedEffect

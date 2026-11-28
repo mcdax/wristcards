@@ -96,7 +96,8 @@ try:
                f" shared_prefs/sync_auth.xml; cp /data/local/tmp/screens.anki2 files/collection.anki2'")
             if screen.get("signed_out"):
                 sh(f"run-as {PKG} sh -c 'cp /data/local/tmp/screens-signed-out.xml shared_prefs/sync_auth.xml'")
-            sh(f"am start -W -n {PKG}/.MainActivity" + (f" --es deck '{screen['deck']}'" if "deck" in screen else "") + " >/dev/null")
+            extras = (f" --es deck '{screen['deck']}'" if "deck" in screen else "") + " " + screen.get("extras", "")
+            sh(f"am start -W -n {PKG}/.MainActivity{extras} >/dev/null")
             time.sleep(3.5)
             try:
                 for step in screen["steps"]:
