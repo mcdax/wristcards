@@ -124,7 +124,7 @@
     <string name="open_failed">Koleksiyon açılamadı</string>
     <string name="load_failed">Kart yüklenemedi</string>
     <string name="retry">Tekrar dene</string>
-    <string name="full_download_question">Sunucuda ve saatte birleştirilemeyen değişiklikler var. Hangi sürüm geçerli olsun?</string>
+    <string name="full_download_question">Sunucu ve saat değişti. Hangi sürüm geçerli olsun?</string>
     <string name="full_download_confirm">Sunucu sürümü</string>
     <string name="full_download_cancel">Şimdi değil</string>
     <string name="sync_paused">⚠ Eşitleme duraklatıldı</string>

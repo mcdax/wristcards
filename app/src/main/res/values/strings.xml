@@ -126,7 +126,7 @@
     <string name="open_failed">Could not open the collection</string>
     <string name="load_failed">Card could not be loaded</string>
     <string name="retry">Try again</string>
-    <string name="full_download_question">Server and watch both have changes that can\'t be merged. Which version should win?</string>
+    <string name="full_download_question">Server and watch both changed. Which version wins?</string>
     <string name="full_download_confirm">Use server version</string>
     <string name="full_download_cancel">Not now</string>
     <string name="sync_paused">⚠ Sync paused</string>

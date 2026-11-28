@@ -130,7 +130,7 @@
     <string name="open_failed">Не вдалося відкрити колекцію</string>
     <string name="load_failed">Не вдалося завантажити картку</string>
     <string name="retry">Повторити</string>
-    <string name="full_download_question">На сервері й на годиннику є зміни, які не можна об’єднати. Яку версію залишити?</string>
+    <string name="full_download_question">Змінено і сервер, і годинник. Яку версію залишити?</string>
     <string name="full_download_confirm">Версія сервера</string>
     <string name="full_download_cancel">Не зараз</string>
     <string name="sync_paused">⚠ Синхронізацію призупинено</string>

@@ -47,6 +47,8 @@ internal fun PillButton(label: String, background: Color, foreground: Color, onC
         color = foreground,
         fontSize = 14.sp,
         fontWeight = FontWeight.Medium,
+        // Long labels wrap centered inside the pill instead of running into the round edge.
+        textAlign = TextAlign.Center,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(background)

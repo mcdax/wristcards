@@ -130,7 +130,7 @@
     <string name="open_failed">Nie można otworzyć kolekcji</string>
     <string name="load_failed">Nie można wczytać karty</string>
     <string name="retry">Spróbuj ponownie</string>
-    <string name="full_download_question">Serwer i zegarek mają zmiany, których nie da się połączyć. Która wersja ma obowiązywać?</string>
+    <string name="full_download_question">Zmieniono serwer i zegarek. Która wersja ma obowiązywać?</string>
     <string name="full_download_confirm">Wersja z serwera</string>
     <string name="full_download_cancel">Nie teraz</string>
     <string name="sync_paused">⚠ Synchronizacja wstrzymana</string>

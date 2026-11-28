@@ -126,7 +126,7 @@
     <string name="open_failed">Impossible d\'ouvrir la collection</string>
     <string name="load_failed">Impossible de charger la carte</string>
     <string name="retry">Réessayer</string>
-    <string name="full_download_question">Le serveur et la montre ont des modifications impossibles à fusionner. Quelle version garder ?</string>
+    <string name="full_download_question">Le serveur et la montre ont changé. Quelle version garder ?</string>
     <string name="full_download_confirm">Version du serveur</string>
     <string name="full_download_cancel">Pas maintenant</string>
     <string name="sync_paused">⚠ Synchro en pause</string>

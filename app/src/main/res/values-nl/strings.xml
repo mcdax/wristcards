@@ -124,7 +124,7 @@
     <string name="open_failed">Collectie kon niet worden geopend</string>
     <string name="load_failed">Kaart kon niet worden geladen</string>
     <string name="retry">Opnieuw</string>
-    <string name="full_download_question">Server en horloge hebben wijzigingen die niet samengevoegd kunnen worden. Welke versie geldt?</string>
+    <string name="full_download_question">Server en horloge zijn allebei gewijzigd. Welke versie geldt?</string>
     <string name="full_download_confirm">Serverversie gebruiken</string>
     <string name="full_download_cancel">Nu niet</string>
     <string name="sync_paused">⚠ Synchronisatie gepauzeerd</string>

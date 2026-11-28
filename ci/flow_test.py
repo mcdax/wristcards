@@ -230,7 +230,7 @@ def conflict():
     col.reopen(after_full_sync=True)
     col.close()
     start()
-    wait_for(r"can't be merged|can.t be merged", timeout=90)
+    wait_for(r"Which version wins", timeout=90)
     tap(wait_for(r"^Use server version$"))
     wait_for(r"Synced", timeout=90)
     count, _ = device_revlog()

@@ -124,7 +124,7 @@
     <string name="open_failed">Samlingen kunde inte öppnas</string>
     <string name="load_failed">Kortet kunde inte laddas</string>
     <string name="retry">Försök igen</string>
-    <string name="full_download_question">Servern och klockan har ändringar som inte kan slås ihop. Vilken version ska gälla?</string>
+    <string name="full_download_question">Både servern och klockan har ändrats. Vilken version gäller?</string>
     <string name="full_download_confirm">Serverns version</string>
     <string name="full_download_cancel">Inte nu</string>
     <string name="sync_paused">⚠ Synk pausad</string>
