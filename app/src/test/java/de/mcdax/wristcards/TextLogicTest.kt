@@ -30,11 +30,21 @@ class TextLogicTest {
     }
 
     @Test fun `middle-dot list after colon`() {
-        assertEquals("Nenne:\n• A\n• B\n• C", bullets("Nenne: A · B · C"))
+        assertEquals("Nenne:\n• Rot\n• Grün\n• Blau", bullets("Nenne: Rot · Grün · Blau"))
     }
 
     @Test fun `middle-dot list without intro`() {
-        assertEquals("• A\n• B", bullets("A · B"))
+        assertEquals("• Rot\n• Blau", bullets("Rot · Blau"))
+    }
+
+    @Test fun `multiplication dot in a formula stays`() {
+        assertEquals("F = m · a", bullets("F = m · a"))
+        assertEquals("Fläche: a · b", bullets("Fläche: a · b"))
+    }
+
+    @Test fun `line that is already a list item is not split again`() {
+        assertEquals("• F = m · a", bullets("• F = m · a"))
+        assertEquals("• Rot · Blau", bullets("• Rot · Blau"))
     }
 
     @Test fun `text without middle dot stays`() {
