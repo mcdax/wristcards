@@ -49,6 +49,10 @@ jobs:
           echo "number=$pr" >> "$GITHUB_OUTPUT"
           echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
           echo "base=$(jq -r .base.sha pr.json)" >> "$GITHUB_OUTPUT"
+      # Scripts and tools always come from the default branch, never from the pull request.
+      - uses: actions/checkout@v4
+        with:
+          path: tools
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr.outputs.head }}
@@ -80,7 +84,7 @@ jobs:
       # Neutral built-in account: it prefills the sign-in form in the screenshots; nothing is contacted.
       - name: APK before
         id: before
-        uses: ./after/.github/actions/debug-apk
+        uses: ./tools/.github/actions/debug-apk
         with:
           dir: before
           sync-endpoint: https://sync.example.org/
@@ -88,7 +92,7 @@ jobs:
           sync-password: demo
       - name: APK after
         id: after
-        uses: ./after/.github/actions/debug-apk
+        uses: ./tools/.github/actions/debug-apk
         with:
           dir: after
           sync-endpoint: https://sync.example.org/
@@ -97,7 +101,7 @@ jobs:
       - name: Demo collection and tools
         run: |
           python3 -m venv /tmp/py && /tmp/py/bin/pip install --quiet anki pillow
-          mkdir -p /tmp/demo && /tmp/py/bin/python -I after/ci/make_demo_collection.py /tmp/demo/collection.anki2
+          mkdir -p /tmp/demo && /tmp/py/bin/python -I tools/ci/make_demo_collection.py /tmp/demo/collection.anki2
       # Same emulator and snapshot cache as the e2e workflow (see there for why cmdline-tools 22.0).
       - name: Install emulator and system image
         run: |
@@ -131,9 +135,9 @@ jobs:
           adb shell settings put global animator_duration_scale 0
       - name: Screenshots
         run: |
-          python3 after/ci/screens.py emulator-5554 ${{ steps.before.outputs.apk }} /tmp/demo/collection.anki2 shots/before
-          python3 after/ci/screens.py emulator-5554 ${{ steps.after.outputs.apk }} /tmp/demo/collection.anki2 shots/after
-          /tmp/py/bin/python after/ci/collage.py shots/before shots/after collages
+          python3 tools/ci/screens.py emulator-5554 ${{ steps.before.outputs.apk }} /tmp/demo/collection.anki2 shots/before
+          python3 tools/ci/screens.py emulator-5554 ${{ steps.after.outputs.apk }} /tmp/demo/collection.anki2 shots/after
+          /tmp/py/bin/python tools/ci/collage.py shots/before shots/after collages
       - uses: actions/upload-artifact@v4
         with:
           name: screens-pr-${{ steps.pr.outputs.number }}
