@@ -22,6 +22,7 @@ permissions:
   contents: write        # collages are stored on the pr-screenshots branch
   pull-requests: write
   issues: write
+  actions: write         # removes the intermediate artifacts of the run
 
 concurrency:
   group: screens-${{ github.event.issue.number || inputs.pr }}
@@ -207,11 +208,19 @@ jobs:
         run: |
           python3 -m venv /tmp/py && /tmp/py/bin/pip install --quiet pillow
           /tmp/py/bin/python ci/collage.py shots/before shots/after collages
+      - name: Bundle
+        run: python3 ci/screens_bundle.py shots collages bundle
       - uses: actions/upload-artifact@v4
         with:
-          name: screens-collages-pr-${{ needs.plan.outputs.number }}
-          path: collages
+          name: screenshots-pr-${{ needs.plan.outputs.number }}
+          path: bundle
           retention-days: 14
+      # Only the bundle above is meant for people; the per-group and APK artifacts were just for passing data on.
+      - name: Remove intermediate artifacts
+        run: |
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --jq '.artifacts[] | select(.name | test("^(shots-|screens-apks$)")) | .id' \
+            | xargs -r -I{} gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/{}"
       - name: Post collages
         run: |
           pr=${{ needs.plan.outputs.number }}; head=${{ needs.plan.outputs.head }}; dir="pr-$pr/${head:0:7}"
