@@ -62,7 +62,10 @@ jobs:
           fi
           echo "number=$pr" >> "$GITHUB_OUTPUT"
           echo "head=$(jq -r .head.sha pr.json)" >> "$GITHUB_OUTPUT"
-          echo "base=$(jq -r .base.sha pr.json)" >> "$GITHUB_OUTPUT"
+          # "Before" is where the pull request branched off, so only its own changes show up (the base
+          # branch may have moved on since).
+          base=$(gh api "repos/${{ github.repository }}/compare/$(jq -r .base.sha pr.json)...$(jq -r .head.sha pr.json)" --jq .merge_base_commit.sha)
+          echo "base=$base" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = issue_comment ]; then
             gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=rocket > /dev/null || echo "Could not react to the comment" >&2
           fi
