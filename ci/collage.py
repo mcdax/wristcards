@@ -18,8 +18,11 @@ SIZE, LABEL, PAD = 300, 190, 14
 # A pixel counts as changed if a colour channel differs by more than this; a size counts as changed if more
 # than this share of the round display changed. Both keep anti-aliasing noise out.
 PIXEL_THRESHOLD, AREA_THRESHOLD = 40, 0.0015
-# Largest vertical offset (px) between before and after that still counts as the same picture.
-MAX_SHIFT = 8
+# Largest offsets (px) between before and after that still count as the same picture, tried per band of
+# BAND rows: vertical for scroll positions, sideways for list items that Wear OS scales by position.
+MAX_SHIFT, MAX_SIDE_SHIFT, BAND = 8, 2, 24
+# Blur radius (px) applied to both screenshots before comparing; hides sub-pixel text rendering differences.
+BLUR = 1.5
 
 
 def slug(name):
@@ -52,31 +55,44 @@ def round_watch(image):
 def changes(before, after):
     """(changed?, mask of changed pixels) for two screenshots, only inside the round display.
 
-    Scrolled screens can end a few pixels apart from run to run; the comparison therefore tries small
-    vertical shifts and keeps the best match, so only content that really differs counts.
+    Scrolled screens can end a few pixels apart from run to run, and Wear OS lists scale their items by
+    position, so neighbouring rows of content can move by different amounts. After a light blur, the
+    comparison therefore tries small shifts for each horizontal band on its own and keeps the best match
+    per band, so only content that really differs counts.
     """
     if before is None or after is None:
         return before is not after, None
     if before.size != after.size:
         after = after.resize(before.size)
+    # A light blur first, so text that lands a fraction of a pixel elsewhere is not a change.
+    before, after = (image.filter(ImageFilter.GaussianBlur(BLUR)) for image in (before, after))
     w, h = before.size
     disc = disc_mask(w).point(lambda v: 255 if v > 128 else 0)
-    best = None
+    diffs = []
     for dy in range(-MAX_SHIFT, MAX_SHIFT + 1):
-        shifted = ImageChops.offset(after, 0, dy)
-        diff = ImageChops.difference(before, shifted).convert("L").point(lambda v: 255 if v > PIXEL_THRESHOLD else 0)
-        diff = ImageChops.multiply(diff, disc)
-        # Ignore the rows that the shift wrapped around.
-        if dy > 0:
-            diff.paste(0, (0, 0, w, dy))
-        elif dy < 0:
-            diff.paste(0, (0, h + dy, w, h))
-        count = diff.histogram()[255]
-        if best is None or count < best[0]:
-            best = (count, diff, dy)
-    count, diff, dy = best
+        for dx in range(-MAX_SIDE_SHIFT, MAX_SIDE_SHIFT + 1):
+            shifted = ImageChops.offset(after, dx, dy)
+            diff = ImageChops.difference(before, shifted).convert("L").point(lambda v: 255 if v > PIXEL_THRESHOLD else 0)
+            diff = ImageChops.multiply(diff, disc)
+            # Ignore the rows and columns that the shift wrapped around.
+            if dy > 0:
+                diff.paste(0, (0, 0, w, dy))
+            elif dy < 0:
+                diff.paste(0, (0, h + dy, w, h))
+            if dx > 0:
+                diff.paste(0, (0, 0, dx, h))
+            elif dx < 0:
+                diff.paste(0, (w + dx, 0, w, h))
+            diffs.append(diff)
+    mask = Image.new("L", (w, h), 0)
+    count = 0
+    for top in range(0, h, BAND):
+        box = (0, top, w, min(top + BAND, h))
+        band = min((d.crop(box) for d in diffs), key=lambda b: b.histogram()[255])
+        count += band.histogram()[255]
+        mask.paste(band, box[:2])
     share = count / (w * h * 0.785)
-    return share > AREA_THRESHOLD, ImageChops.offset(diff, 0, -dy)
+    return share > AREA_THRESHOLD, mask
 
 
 def highlight(after, mask):
